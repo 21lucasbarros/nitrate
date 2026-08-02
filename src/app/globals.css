@@ -1,22 +1,54 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* cores de fundo e texto */
+  --background: #F9F9F8;
+  --foreground: #0A0A0A;
+
+  /* paleta de identidade Nitrate */
+  --brand-slate: #303841;
+  --brand-orange: #FF6A1C;
+  --brand-blue: #0046FF;
+
+  /* cores de botoes primarios */
+  --brand-btn: #093FB4;
+  --brand-btn-text: #FAF7F3;
+
+  /* paleta extra */
+  --brand-violet: #7C3AED;
+  --brand-crimson: #8E1616;
+  --brand-emerald: #285A48;
+  --brand-charcoal: #1D2128;
+  --brand-teal: #006989;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+
+  --color-brand-slate: var(--brand-slate);
+  --color-brand-orange: var(--brand-orange);
+  --color-brand-blue: var(--brand-blue);
+
+  --color-brand-btn: var(--brand-btn);
+  --color-brand-btn-text: var(--brand-btn-text);
+
+  --color-brand-violet: var(--brand-violet);
+  --color-brand-crimson: var(--brand-crimson);
+  --color-brand-emerald: var(--brand-emerald);
+  --color-brand-charcoal: var(--brand-charcoal);
+  --color-brand-teal: var(--brand-teal);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* :root {
+       --background: #0a0a0a;
+       --foreground: #F9F9F8;
+     }
+  */
 }
 
 body {
