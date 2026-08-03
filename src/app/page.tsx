@@ -1,8 +1,9 @@
 "use client";
 
-import Features from './components/features';
 import Header from './components/header';
 import Hero from './components/hero';
+import Features from './components/features';
+import TrendingReviews from './components/trending-reviews';
 
 export default function HomePage() {
   return (
@@ -10,6 +11,7 @@ export default function HomePage() {
       <Header />
       <Hero />
       <Features />
+      <TrendingReviews />
     </div>
   );
 }
