@@ -5,6 +5,7 @@ import Hero from './components/hero';
 import Features from './components/features';
 import TrendingReviews from './components/trending-reviews';
 import CTA from './components/cta';
+import Footer from './components/footer';
 
 export default function HomePage() {
   return (
@@ -14,6 +15,7 @@ export default function HomePage() {
       <Features />
       <TrendingReviews />
       <CTA />
+      <Footer />
     </div>
   );
 }
