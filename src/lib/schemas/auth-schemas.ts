@@ -1,14 +1,21 @@
 import { z } from "zod";
 
+export const usernameSchema = z
+  .string()
+  .min(3, "Mínimo de 3 caracteres")
+  .max(20, "Máximo de 20 caracteres")
+  .regex(/^[a-z0-9_]+$/, "Apenas letras minúsculas, números e _");
+
 export const loginSchema = z.object({
-  email: z.string().min(1, "Informe seu e-mail").email("E-mail inválido"),
+  login: z.string().min(1, "Informe seu e-mail ou usuário"),
   password: z.string().min(1, "Informe sua senha"),
 });
 
 export const registerSchema = z
   .object({
     name: z.string().min(2, "Nome muito curto"),
-    email: z.email("E-mail inválido"),
+    username: usernameSchema,
+    email: z.string().min(1, "Informe seu e-mail").email("E-mail inválido"),
     password: z.string().min(6, "A senha precisa ter pelo menos 6 caracteres"),
     confirmPassword: z.string().min(1, "Confirme sua senha"),
   })
