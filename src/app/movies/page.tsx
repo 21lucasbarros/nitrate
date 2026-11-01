@@ -1,29 +1,33 @@
 "use client";
 
 import { useState } from "react";
-import { MagnifyingGlassIcon } from "@phosphor-icons/react";
+import { CircleNotchIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
 import Header from "@/app/components/header";
 import { MovieGrid } from "@/app/components/movie-grid";
 import { useFetch } from "@/lib/hooks/use-fetch";
-import { getMovies } from "@/lib/services/movie-service";
+import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
+import { getMovies, searchMovies } from "@/lib/services/movie-service";
+import type { MovieSearchResult } from "@/types/movie";
 
 const fetchMovies = () => getMovies();
 
-// compara sem acento e sem diferenciar maiúsculas
-const normalize = (value: string) =>
-  value.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+const MIN_QUERY = 2;
+const SEARCH_DEBOUNCE_MS = 400;
+
+// filmes já importados abrem direto; os outros passam pela rota que importa do TMDB
+function hrefFor(result: MovieSearchResult): string {
+  return result.id !== null ? `/movies/${result.id}` : `/movies/tmdb/${result.tmdbId}`;
+}
 
 export default function MoviesPage() {
-  const movies = useFetch("all", fetchMovies);
   const [query, setQuery] = useState("");
+  const debouncedQuery = useDebouncedValue(query.trim(), SEARCH_DEBOUNCE_MS);
+  const isSearching = query.trim().length >= MIN_QUERY;
 
-  const q = normalize(query.trim());
-  const filtered = (movies.data ?? []).filter(
-    (movie) =>
-      !q ||
-      normalize(movie.title).includes(q) ||
-      (movie.director && normalize(movie.director).includes(q)),
-  );
+  const catalog = useFetch(isSearching ? null : "all", fetchMovies);
+  const search = useFetch(debouncedQuery.length >= MIN_QUERY ? debouncedQuery : null, searchMovies);
+  // enquanto o debounce não "alcançou" o que foi digitado, também conta como carregando
+  const searchPending = isSearching && (search.loading || debouncedQuery !== query.trim());
 
   return (
     <div className="min-h-screen bg-background text-foreground font-sans">
@@ -43,23 +47,71 @@ export default function MoviesPage() {
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Buscar por título ou diretor"
+              placeholder="Buscar qualquer filme"
               aria-label="Buscar filmes"
               className="w-full pl-11 pr-4 py-3 bg-transparent border border-brand-slate/20 rounded-full text-sm placeholder:text-brand-slate/40 focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue"
             />
           </div>
         </div>
 
-        {movies.loading ? (
+        {isSearching ? (
+          <SearchResults
+            query={query.trim()}
+            results={search.data}
+            pending={searchPending}
+            failed={Boolean(search.error) && !searchPending}
+          />
+        ) : catalog.loading ? (
           <p className="text-brand-slate/50">Carregando filmes…</p>
-        ) : movies.error ? (
+        ) : catalog.error ? (
           <p className="text-red-500">Não foi possível carregar os filmes.</p>
-        ) : filtered.length === 0 ? (
-          <p className="text-brand-slate/60">Nenhum filme encontrado para “{query}”.</p>
         ) : (
-          <MovieGrid items={filtered.map((movie) => ({ movie }))} />
+          <MovieGrid items={(catalog.data ?? []).map((movie) => ({ movie }))} />
         )}
       </main>
+    </div>
+  );
+}
+
+function SearchResults({ query, results, pending, failed }: {
+  query: string;
+  results: MovieSearchResult[] | undefined;
+  pending: boolean;
+  failed: boolean;
+}) {
+  if (failed) {
+    return <p className="text-red-500">Não foi possível buscar agora. Tente novamente em instantes.</p>;
+  }
+
+  if (pending && !results) {
+    return (
+      <p className="flex items-center gap-2 text-brand-slate/50">
+        <CircleNotchIcon size={18} className="animate-spin" /> Buscando “{query}”…
+      </p>
+    );
+  }
+
+  if (!results || results.length === 0) {
+    return pending ? null : <p className="text-brand-slate/60">Nenhum filme encontrado para “{query}”.</p>;
+  }
+
+  return (
+    <div className={`transition-opacity ${pending ? "opacity-50" : "opacity-100"}`}>
+      <p className="mb-8 text-sm text-brand-slate/60">
+        {results.length} resultado{results.length > 1 ? "s" : ""} para “{query}”
+      </p>
+      <MovieGrid
+        showTitles
+        items={results.map((result) => ({
+          movie: {
+            id: result.id ?? `tmdb-${result.tmdbId}`,
+            title: result.title,
+            posterPath: result.posterPath,
+            releaseYear: result.releaseYear,
+          },
+          href: hrefFor(result),
+        }))}
+      />
     </div>
   );
 }
