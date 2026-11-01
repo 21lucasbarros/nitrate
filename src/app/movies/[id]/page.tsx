@@ -17,6 +17,7 @@ import { Poster } from "@/app/components/ui/poster";
 import { StarRating } from "@/app/components/ui/star-rating";
 import { ReviewCard } from "@/app/components/review-card";
 import { ReviewForm } from "@/app/components/review-form";
+import { Modal } from "@/app/components/ui/modal";
 import { ApiError } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
 import { useFetch } from "@/lib/hooks/use-fetch";
@@ -147,14 +148,46 @@ export default function MoviePage() {
         )}
 
         {status === "authenticated" && myState.data && (
-          editing ? (
-            <div className="max-w-2xl">
-              <h2 className="text-xl font-medium tracking-tight mb-6">
-                {myReview ? "Editar sua review" : "Registrar no diário"}
-              </h2>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+            {myReview && (
+              <div className="flex items-center gap-4 flex-wrap">
+                <span className="flex items-center gap-2 text-sm font-medium text-brand-emerald">
+                  <CheckCircleIcon size={20} weight="fill" />
+                  Assistido em {shortDate(myReview.watchedOn)}
+                </span>
+                {myReview.rating !== null && <StarRating rating={toRating(myReview.rating)} size={18} />}
+                {myReview.liked && <HeartIcon size={18} weight="fill" className="text-brand-orange" />}
+              </div>
+            )}
+
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={() => setEditing(true)}
+                className="flex items-center gap-2 bg-brand-btn text-brand-btn-text px-6 py-3 rounded-full font-semibold hover:bg-brand-btn/90 transition-colors"
+              >
+                {myReview ? <PencilSimpleIcon size={18} /> : <PlusIcon size={18} weight="bold" />}
+                {myReview ? "Editar review" : "Registrar / avaliar"}
+              </button>
+              {!myReview && (
+                <button
+                  onClick={toggleWatchlist}
+                  disabled={watchlistBusy}
+                  aria-pressed={inWatchlist}
+                  className={`flex items-center gap-2 px-6 py-3 rounded-full font-medium border transition-colors disabled:opacity-60 ${inWatchlist ? "border-brand-orange bg-brand-orange/10 text-brand-orange" : "border-brand-slate/20 text-brand-slate hover:border-brand-slate"}`}
+                >
+                  <BookmarkSimpleIcon size={18} weight={inWatchlist ? "fill" : "regular"} />
+                  {inWatchlist ? "Na watchlist" : "Watchlist"}
+                </button>
+              )}
+            </div>
+
+            <Modal
+              open={editing}
+              onClose={() => setEditing(false)}
+              label={myReview ? `Editar review de ${film.title}` : `Registrar ${film.title}`}
+            >
               <ReviewForm
-                movieId={film.id}
-                movieTitle={film.title}
+                movie={film}
                 existing={myReview}
                 onSaved={(saved) => {
                   // registrar tira o filme da watchlist (o backend faz o mesmo)
@@ -171,48 +204,14 @@ export default function MoviePage() {
                 }}
                 onCancel={() => setEditing(false)}
               />
-            </div>
-          ) : (
-            <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
-              {myReview ? (
-                <div className="flex items-center gap-4 flex-wrap">
-                  <span className="flex items-center gap-2 text-sm font-medium text-brand-emerald">
-                    <CheckCircleIcon size={20} weight="fill" />
-                    Assistido em {shortDate(myReview.watchedOn)}
-                  </span>
-                  {myReview.rating !== null && <StarRating rating={toRating(myReview.rating)} size={18} />}
-                  {myReview.liked && <HeartIcon size={18} weight="fill" className="text-brand-orange" />}
-                </div>
-              ) : null}
-
-              <div className="flex flex-wrap gap-3">
-                <button
-                  onClick={() => setEditing(true)}
-                  className="flex items-center gap-2 bg-brand-btn text-brand-btn-text px-6 py-3 rounded-full font-semibold hover:bg-brand-btn/90 transition-colors"
-                >
-                  {myReview ? <PencilSimpleIcon size={18} /> : <PlusIcon size={18} weight="bold" />}
-                  {myReview ? "Editar review" : "Registrar / avaliar"}
-                </button>
-                {!myReview && (
-                  <button
-                    onClick={toggleWatchlist}
-                    disabled={watchlistBusy}
-                    aria-pressed={inWatchlist}
-                    className={`flex items-center gap-2 px-6 py-3 rounded-full font-medium border transition-colors disabled:opacity-60 ${inWatchlist ? "border-brand-orange bg-brand-orange/10 text-brand-orange" : "border-brand-slate/20 text-brand-slate hover:border-brand-slate"}`}
-                  >
-                    <BookmarkSimpleIcon size={18} weight={inWatchlist ? "fill" : "regular"} />
-                    {inWatchlist ? "Na watchlist" : "Watchlist"}
-                  </button>
-                )}
-              </div>
-            </div>
-          )
+            </Modal>
+          </div>
         )}
       </section>
 
       <section className="pt-12">
         <h2 className="text-xs font-bold tracking-[0.2em] uppercase text-brand-orange mb-2">Reviews</h2>
-        {myReview && !editing && (
+        {myReview && (
           <div className="border-b border-foreground/10">
             <ReviewCard review={myReview} hideMovie />
           </div>

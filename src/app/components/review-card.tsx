@@ -1,5 +1,9 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
-import { HeartIcon } from "@phosphor-icons/react";
+import { EyeIcon, HeartIcon, WarningIcon } from "@phosphor-icons/react";
+import { useAuth } from "@/lib/auth-context";
 import type { MovieReview } from "@/lib/types/review";
 import { toRating } from "@/utils/rating";
 import { shortDate, timeAgo } from "@/utils/format";
@@ -17,6 +21,11 @@ interface ReviewCardProps {
 
 export function ReviewCard({ review, hideMovie = false, hideUser = false }: ReviewCardProps) {
   const { movie, user } = review;
+  const { user: me } = useAuth();
+  const [revealed, setRevealed] = useState(false);
+  // o autor sempre vê a própria review; os outros precisam pedir para ver
+  const isOwn = me?.username === user.username;
+  const hideText = review.spoiler && !isOwn && !revealed;
 
   return (
     <article className="group flex items-start gap-5 sm:gap-7 py-8">
@@ -60,10 +69,33 @@ export function ReviewCard({ review, hideMovie = false, hideUser = false }: Revi
           </span>
         </div>
 
-        {review.text && (
-          <p className="mt-3 text-[15px] leading-[1.75] text-foreground/80 max-w-2xl whitespace-pre-line">
-            {review.text}
-          </p>
+        {review.text && hideText && (
+          <button
+            type="button"
+            onClick={() => setRevealed(true)}
+            className="group/spoiler mt-3 flex items-center gap-3 w-full max-w-2xl px-4 py-3.5 rounded-xl border border-dashed border-brand-crimson/30 bg-brand-crimson/5 text-left text-sm text-brand-slate/80 hover:border-brand-crimson/60 transition-colors"
+          >
+            <WarningIcon size={20} className="shrink-0 text-brand-crimson" />
+            <span className="flex-1">Esta review contém spoilers.</span>
+            <span className="flex items-center gap-1.5 font-medium text-brand-crimson group-hover/spoiler:underline">
+              <EyeIcon size={16} />
+              Mostrar mesmo assim
+            </span>
+          </button>
+        )}
+
+        {review.text && !hideText && (
+          <>
+            {review.spoiler && (
+              <span className="mt-3 flex items-center gap-1.5 w-fit text-[11px] font-bold uppercase tracking-[0.15em] text-brand-crimson">
+                <WarningIcon size={13} weight="bold" />
+                Spoiler
+              </span>
+            )}
+            <p className={`${review.spoiler ? "mt-1.5" : "mt-3"} text-[15px] leading-[1.75] text-foreground/80 max-w-2xl whitespace-pre-line`}>
+              {review.text}
+            </p>
+          </>
         )}
       </div>
     </article>

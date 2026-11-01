@@ -1,9 +1,13 @@
 import { apiFetch } from "../api-client";
-import type { MovieReview, MovieUserState, WatchlistItem } from "../types/review";
+import type { MovieReview, MovieUserState, Recommendation, WatchlistItem } from "../types/review";
 import type { UserProfile } from "../types/user";
 
 export function getMe(): Promise<UserProfile> {
   return apiFetch<UserProfile>("/users/me");
+}
+
+export function getMyRecommendations(): Promise<Recommendation[]> {
+  return apiFetch<Recommendation[]>("/users/me/recommendations");
 }
 
 export function getMovieState(movieId: number): Promise<MovieUserState> {

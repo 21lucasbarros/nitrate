@@ -56,3 +56,24 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* modal: trava a rolagem da página por trás e anima a entrada */
+body:has(dialog[open]) {
+  overflow: hidden;
+}
+
+dialog.modal[open] {
+  animation: modal-in 180ms ease-out;
+}
+
+dialog.modal::backdrop {
+  background: rgb(29 33 40 / 0.55);
+  backdrop-filter: blur(4px);
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}

@@ -4,14 +4,16 @@ import Link from "next/link";
 import { ArrowRightIcon, BookmarkSimpleIcon } from "@phosphor-icons/react";
 import type { UserProfile } from "@/lib/types/user";
 import { useFetch } from "@/lib/hooks/use-fetch";
-import { getUserWatchlist } from "@/lib/services/user-service";
+import { getMyRecommendations, getUserWatchlist } from "@/lib/services/user-service";
 import { getRecentReviews } from "@/lib/services/review-service";
 import { getMovies } from "@/lib/services/movie-service";
 import { MovieGrid } from "./movie-grid";
 import { ReviewCard } from "./review-card";
+import { Recommendations } from "./recommendations";
 
 const fetchRecent = () => getRecentReviews();
 const fetchMovies = () => getMovies();
+const fetchRecommendations = () => getMyRecommendations();
 
 function greeting(): string {
   const hour = new Date().getHours();
@@ -60,6 +62,8 @@ export default function UserHome({ user }: { user: UserProfile }) {
   const watchlist = useFetch(user.username, getUserWatchlist);
   const recent = useFetch("recent", fetchRecent);
   const movies = useFetch("all", fetchMovies);
+  // a chave inclui a contagem de filmes: registrar um filme novo refaz as recomendações
+  const recommendations = useFetch(`${user.username}:${user.filmsCount}`, fetchRecommendations);
 
   const watchlistIds = new Set(watchlist.data?.map((item) => item.movie.id));
   const discover = (movies.data ?? []).filter((movie) => !watchlistIds.has(movie.id)).slice(0, 12);
@@ -84,6 +88,11 @@ export default function UserHome({ user }: { user: UserProfile }) {
       </section>
 
       <section className="pt-14">
+        <SectionHeader eyebrow="Feito para você" title="Recomendado para você" />
+        <Recommendations items={recommendations.data} loading={recommendations.loading} />
+      </section>
+
+      <section className="pt-16">
         <SectionHeader
           eyebrow="Para ver"
           title="Sua watchlist"
