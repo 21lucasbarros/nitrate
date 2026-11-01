@@ -26,6 +26,14 @@ import { saveToken } from "@/lib/auth-storage";
 import { ApiError } from "@/lib/api-client";
 import { useUsernameAvailability } from "@/lib/hooks/use-username-availability";
 
+// destino após o login, vindo do guard das rotas privadas (?redirect=/algum/caminho).
+// só aceita caminhos internos para não virar um open redirect.
+function getRedirectPath(): string {
+  const redirect = new URLSearchParams(window.location.search).get("redirect");
+  if (redirect?.startsWith("/") && !redirect.startsWith("//")) return redirect;
+  return "/";
+}
+
 export default function SignInPage() {
   const router = useRouter();
   const [isLogin, setIsLogin] = useState(true);
@@ -65,10 +73,14 @@ export default function SignInPage() {
     try {
       const response = await login(data);
       saveToken(response.token);
-      router.push("/");
+      router.push(getRedirectPath());
     } catch (error) {
-      if (error instanceof ApiError && error.status === 401) {
-        setServerError("E-mail ou senha inválidos.");
+      // o backend responde 403 (e não 401) para credenciais inválidas
+      if (
+        error instanceof ApiError &&
+        (error.status === 401 || error.status === 403)
+      ) {
+        setServerError("Usuário, e-mail ou senha inválidos.");
       } else {
         setServerError("Não foi possível entrar. Tente novamente.");
       }
@@ -91,7 +103,7 @@ export default function SignInPage() {
         password: data.password,
       });
       saveToken(response.token);
-      router.push("/");
+      router.push(getRedirectPath());
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) {
         setServerError("Já existe uma conta com esse e-mail ou nome de usuário.");

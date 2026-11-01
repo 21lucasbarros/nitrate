@@ -1,4 +1,5 @@
 import { API_BASE_URL } from "./config";
+import { clearToken, getToken } from "./auth-storage";
 
 export class ApiError extends Error {
   status: number;
@@ -13,13 +14,20 @@ export async function apiFetch<T>(
   path: string,
   options?: RequestInit
 ): Promise<T> {
+  const token = getToken();
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
+      ...(token && { Authorization: `Bearer ${token}` }),
       ...options?.headers,
     },
   });
+
+  // token recusado pelo backend: a sessão não vale mais
+  if (response.status === 401 && token) {
+    clearToken();
+  }
 
   if (!response.ok) {
     let message = `Erro ${response.status}`;
