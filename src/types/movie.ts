@@ -6,4 +6,6 @@ export interface Movie {
   director: string | null;
   franchise: string | null;
   genres: string[];
+  posterPath: string | null;
+  overview: string | null;
 }

@@ -40,5 +40,10 @@ export async function apiFetch<T>(
     throw new ApiError(message, response.status);
   }
 
+  // DELETE e afins respondem 204, sem corpo
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
   return response.json() as Promise<T>;
 }

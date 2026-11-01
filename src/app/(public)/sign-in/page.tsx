@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -25,6 +25,7 @@ import { login, register as registerUser } from "@/lib/services/auth-service";
 import { saveToken } from "@/lib/auth-storage";
 import { ApiError } from "@/lib/api-client";
 import { useUsernameAvailability } from "@/lib/hooks/use-username-availability";
+import { useAuthToken } from "@/lib/hooks/use-auth-token";
 
 // destino após o login, vindo do guard das rotas privadas (?redirect=/algum/caminho).
 // só aceita caminhos internos para não virar um open redirect.
@@ -39,6 +40,12 @@ export default function SignInPage() {
   const [isLogin, setIsLogin] = useState(true);
   const [isAnimating, setIsAnimating] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+
+  // quem já está logado não precisa ver o formulário (também cobre o redirect após o login)
+  const token = useAuthToken();
+  useEffect(() => {
+    if (token) router.replace(getRedirectPath());
+  }, [token, router]);
 
   const loginForm = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -73,7 +80,6 @@ export default function SignInPage() {
     try {
       const response = await login(data);
       saveToken(response.token);
-      router.push(getRedirectPath());
     } catch (error) {
       // o backend responde 403 (e não 401) para credenciais inválidas
       if (
@@ -103,7 +109,6 @@ export default function SignInPage() {
         password: data.password,
       });
       saveToken(response.token);
-      router.push(getRedirectPath());
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) {
         setServerError("Já existe uma conta com esse e-mail ou nome de usuário.");
