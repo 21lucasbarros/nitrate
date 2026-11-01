@@ -1,29 +1,48 @@
-import { apiFetch } from "../api-client";
-import type {
-  AuthResponse,
-  LoginRequest,
-  RegisterRequest,
-  UsernameAvailability,
-} from "../types/auth";
+import { useEffect, useState } from "react";
+import { usernameSchema } from "../schemas/auth-schemas";
+import { checkUsernameAvailability } from "../services/auth-service";
 
-export function login(data: LoginRequest): Promise<AuthResponse> {
-  return apiFetch<AuthResponse>("/auth/login", {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
-}
+export type UsernameStatus =
+  | "idle" // vazio ou formato inválido (o zod já mostra o erro)
+  | "checking"
+  | "available"
+  | "taken"
+  | "error";
 
-export function register(data: RegisterRequest): Promise<AuthResponse> {
-  return apiFetch<AuthResponse>("/auth/register", {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
-}
+const DEBOUNCE_MS = 500;
 
-export function checkUsernameAvailability(
-  username: string
-): Promise<UsernameAvailability> {
-  return apiFetch<UsernameAvailability>(
-    `/auth/check-username?username=${encodeURIComponent(username)}`
-  );
+export function useUsernameAvailability(username: string): UsernameStatus {
+  // guarda o resultado junto com o username consultado, assim um resultado
+  // antigo nunca é exibido para um valor que já mudou
+  const [result, setResult] = useState<{
+    username: string;
+    status: UsernameStatus;
+  } | null>(null);
+
+  const isValid = usernameSchema.safeParse(username).success;
+
+  useEffect(() => {
+    if (!isValid) return;
+
+    let cancelled = false;
+    const timeout = setTimeout(async () => {
+      try {
+        const { available } = await checkUsernameAvailability(username);
+        if (!cancelled) {
+          setResult({ username, status: available ? "available" : "taken" });
+        }
+      } catch {
+        if (!cancelled) setResult({ username, status: "error" });
+      }
+    }, DEBOUNCE_MS);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
+  }, [username, isValid]);
+
+  if (!isValid) return "idle";
+  if (result?.username === username) return result.status;
+  return "checking";
 }

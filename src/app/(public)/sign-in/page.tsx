@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   EnvelopeSimpleIcon,
@@ -10,6 +10,9 @@ import {
   CircleNotchIcon,
   ArrowURightDownIcon,
   UserIcon,
+  AtIcon,
+  CheckCircleIcon,
+  XCircleIcon,
 } from "@phosphor-icons/react";
 
 import {
@@ -21,6 +24,7 @@ import {
 import { login, register as registerUser } from "@/lib/services/auth-service";
 import { saveToken } from "@/lib/auth-storage";
 import { ApiError } from "@/lib/api-client";
+import { useUsernameAvailability } from "@/lib/hooks/use-username-availability";
 
 export default function SignInPage() {
   const router = useRouter();
@@ -36,7 +40,10 @@ export default function SignInPage() {
     resolver: zodResolver(registerSchema),
   });
 
-  const activeForm = isLogin ? loginForm : registerForm;
+  const usernameValue =
+    useWatch({ control: registerForm.control, name: "username" }) ?? "";
+  const usernameStatus = useUsernameAvailability(usernameValue);
+
   const isLoading = isLogin
     ? loginForm.formState.isSubmitting
     : registerForm.formState.isSubmitting;
@@ -70,9 +77,16 @@ export default function SignInPage() {
 
   const onRegisterSubmit = async (data: RegisterFormData) => {
     setServerError(null);
+    if (usernameStatus === "taken") {
+      registerForm.setError("username", {
+        message: "Esse nome de usuário já está em uso",
+      });
+      return;
+    }
     try {
       const response = await registerUser({
         name: data.name,
+        username: data.username,
         email: data.email,
         password: data.password,
       });
@@ -80,7 +94,7 @@ export default function SignInPage() {
       router.push("/");
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) {
-        setServerError("Já existe uma conta com esse e-mail.");
+        setServerError("Já existe uma conta com esse e-mail ou nome de usuário.");
       } else {
         setServerError("Não foi possível criar sua conta. Tente novamente.");
       }
@@ -147,15 +161,16 @@ export default function SignInPage() {
                       <EnvelopeSimpleIcon size={20} />
                     </div>
                     <input
-                      type="email"
-                      placeholder="Seu melhor e-mail"
+                      type="text"
+                      autoComplete="username"
+                      placeholder="E-mail ou nome de usuário"
                       className="w-full pl-12 pr-4 py-3.5 bg-transparent border border-brand-slate/20 rounded-xl text-foreground placeholder:text-brand-slate/40 focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue transition-all"
-                      {...loginForm.register("email")}
+                      {...loginForm.register("login")}
                     />
                   </div>
-                  {loginForm.formState.errors.email && (
+                  {loginForm.formState.errors.login && (
                     <p className="mt-1.5 text-xs text-red-500">
-                      {loginForm.formState.errors.email.message}
+                      {loginForm.formState.errors.login.message}
                     </p>
                   )}
                 </div>
@@ -233,6 +248,47 @@ export default function SignInPage() {
                       {registerForm.formState.errors.name.message}
                     </p>
                   )}
+                </div>
+
+                <div>
+                  <div className="group relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-brand-slate/40 group-focus-within:text-brand-blue transition-colors">
+                      <AtIcon size={20} />
+                    </div>
+                    <input
+                      type="text"
+                      autoComplete="username"
+                      autoCapitalize="none"
+                      spellCheck={false}
+                      placeholder="Seu nome de usuário"
+                      className="w-full pl-12 pr-12 py-3.5 bg-transparent border border-brand-slate/20 rounded-xl text-foreground placeholder:text-brand-slate/40 focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue transition-all"
+                      {...registerForm.register("username")}
+                    />
+                    <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                      {usernameStatus === "checking" && (
+                        <CircleNotchIcon size={18} className="animate-spin text-brand-slate/40" />
+                      )}
+                      {usernameStatus === "available" && (
+                        <CheckCircleIcon size={18} weight="fill" className="text-green-500" />
+                      )}
+                      {usernameStatus === "taken" && (
+                        <XCircleIcon size={18} weight="fill" className="text-red-500" />
+                      )}
+                    </div>
+                  </div>
+                  {registerForm.formState.errors.username ? (
+                    <p className="mt-1.5 text-xs text-red-500">
+                      {registerForm.formState.errors.username.message}
+                    </p>
+                  ) : usernameStatus === "taken" ? (
+                    <p className="mt-1.5 text-xs text-red-500">
+                      Esse nome de usuário já está em uso
+                    </p>
+                  ) : usernameStatus === "available" ? (
+                    <p className="mt-1.5 text-xs text-green-500">
+                      Nome de usuário disponível
+                    </p>
+                  ) : null}
                 </div>
 
                 <div>
