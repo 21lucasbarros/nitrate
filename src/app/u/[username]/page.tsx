@@ -3,7 +3,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
-import { CircleNotchIcon, SparkleIcon } from "@phosphor-icons/react";
+import { CircleNotchIcon, DownloadSimpleIcon, SparkleIcon } from "@phosphor-icons/react";
 
 import Header from "@/app/components/header";
 import { Avatar } from "@/app/components/ui/avatar";
@@ -98,15 +98,26 @@ function Profile() {
               <span aria-hidden="true"> · </span>
               membro desde {monthYear(user.createdAt)}
             </p>
+            <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2">
             {user.filmsCount > 0 && (
               <Link
                 href={`/u/${user.username}/retrospectiva`}
-                className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-brand-orange hover:underline underline-offset-4"
+                className="inline-flex items-center gap-2 text-sm font-medium text-brand-orange hover:underline underline-offset-4"
               >
                 <SparkleIcon size={16} weight="fill" />
                 Retrospectiva mensal
               </Link>
             )}
+            {isMe && (
+              <Link
+                href="/importar"
+                className="inline-flex items-center gap-2 text-sm font-medium text-brand-slate/70 hover:text-brand-blue hover:underline underline-offset-4"
+              >
+                <DownloadSimpleIcon size={16} />
+                Importar do Letterboxd
+              </Link>
+            )}
+            </div>
           </div>
         </div>
         <dl className="lg:ml-auto flex gap-8 sm:gap-10">

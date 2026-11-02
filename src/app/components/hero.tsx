@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ArrowRightIcon } from "@phosphor-icons/react";
 
 export default function Hero() {
@@ -26,9 +27,12 @@ export default function Hero() {
               className="group-hover:translate-x-1 transition-transform"
             />
           </button>
-          <button className="flex items-center justify-center gap-3 bg-transparent border border-brand-slate/20 text-brand-slate px-8 py-4 rounded-full text-base sm:text-lg font-medium hover:border-brand-slate hover:text-foreground transition-all w-full sm:w-auto">
+          <Link
+            href="/importar"
+            className="flex items-center justify-center gap-3 bg-transparent border border-brand-slate/20 text-brand-slate px-8 py-4 rounded-full text-base sm:text-lg font-medium hover:border-brand-slate hover:text-foreground transition-all w-full sm:w-auto"
+          >
             Migrar seu histórico
-          </button>
+          </Link>
         </div>
       </div>
     </section>

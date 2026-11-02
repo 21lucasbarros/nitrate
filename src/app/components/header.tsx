@@ -31,7 +31,7 @@ export default function Header() {
         <nav aria-label="Navegação Principal" className="hidden lg:flex gap-8 text-sm font-medium tracking-wide">
           <a href="#" className="hover:text-brand-blue transition-colors">Recursos</a>
           <Link href="/movies" className="hover:text-brand-blue transition-colors">Filmes</Link>
-          <a href="#" className="hover:text-brand-blue transition-colors">Importar Dados</a>
+          <Link href="/importar" className="hover:text-brand-blue transition-colors">Importar Dados</Link>
         </nav>
       )}
 
