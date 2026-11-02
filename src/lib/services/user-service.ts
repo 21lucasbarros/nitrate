@@ -1,5 +1,6 @@
 import { apiFetch } from "../api-client";
 import type { MovieReview, MovieUserState, Recommendation, WatchlistItem } from "../types/review";
+import type { Page } from "../types/page";
 import type { UserProfile } from "../types/user";
 
 export function getMe(): Promise<UserProfile> {
@@ -18,8 +19,14 @@ export function getProfile(username: string): Promise<UserProfile> {
   return apiFetch<UserProfile>(`/users/${encodeURIComponent(username)}`);
 }
 
-export function getUserReviews(username: string): Promise<MovieReview[]> {
-  return apiFetch<MovieReview[]>(`/users/${encodeURIComponent(username)}/reviews`);
+/** diário paginado (page começa em 0); withText = só reviews escritas */
+export function getUserReviews(
+  username: string,
+  { page, size, withText = false }: { page: number; size: number; withText?: boolean },
+): Promise<Page<MovieReview>> {
+  return apiFetch<Page<MovieReview>>(
+    `/users/${encodeURIComponent(username)}/reviews?page=${page}&size=${size}&withText=${withText}`,
+  );
 }
 
 export function getUserWatchlist(username: string): Promise<WatchlistItem[]> {

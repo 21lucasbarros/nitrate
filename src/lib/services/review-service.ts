@@ -1,8 +1,12 @@
 import { apiFetch } from "../api-client";
 import type { MovieReview, ReviewRequest } from "../types/review";
 
-export function getRecentReviews(): Promise<MovieReview[]> {
-  return apiFetch<MovieReview[]>("/reviews/recent");
+export function getRecentReviews(limit = 20): Promise<MovieReview[]> {
+  return apiFetch<MovieReview[]>(`/reviews/recent?limit=${limit}`);
+}
+
+export function getReview(id: number): Promise<MovieReview> {
+  return apiFetch<MovieReview>(`/reviews/${id}`);
 }
 
 /** reviews com texto e sem spoiler, para a landing */

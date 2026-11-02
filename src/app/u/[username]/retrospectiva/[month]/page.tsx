@@ -7,45 +7,49 @@ import { useParams } from "next/navigation";
 import {
   CaretLeftIcon,
   CaretRightIcon,
-  CheckIcon,
   CircleNotchIcon,
   HeartIcon,
   InstagramLogoIcon,
-  LinkIcon,
 } from "@phosphor-icons/react";
 
 import Header from "@/app/components/header";
 import { Poster } from "@/app/components/ui/poster";
 import { StarRating } from "@/app/components/ui/star-rating";
 import { ApiError } from "@/lib/api-client";
+import { getToken } from "@/lib/auth-storage";
 import { useFetch } from "@/lib/hooks/use-fetch";
-import { getRetrospective, getRetrospectiveMonths } from "@/lib/services/retrospective-service";
+import { getMyRetrospective, getMyRetrospectiveMonths } from "@/lib/services/retrospective-service";
+import { PrivateNotice, useOwnerAccess } from "../retrospective-access";
 import type { RankedItem, Retrospective, RetrospectiveFilm } from "@/lib/types/retrospective";
 import { monthLabel } from "@/utils/format";
 import { posterUrl } from "@/utils/poster";
 import { toRating } from "@/utils/rating";
 
-// o useFetch compara o argumento por igualdade, então a chave precisa ser texto
-const fetchRetrospective = (key: string) => {
-  const [username, month] = key.split("/");
-  return getRetrospective(username, month);
-};
+const fetchMonths = () => getMyRetrospectiveMonths();
 
 const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 export default function RetrospectivePage() {
   const { username, month } = useParams<{ username: string; month: string }>();
   const validMonth = MONTH_PATTERN.test(month);
+  const access = useOwnerAccess(username);
 
-  const retro = useFetch(validMonth ? `${username}/${month}` : null, fetchRetrospective);
-  const months = useFetch(username, getRetrospectiveMonths);
+  // a retrospectiva é exclusiva do dono: só busca quando é a própria pessoa
+  const retro = useFetch(access === "owner" && validMonth ? month : null, getMyRetrospective);
+  const months = useFetch(access === "owner" ? "months" : null, fetchMonths);
 
   const notFound = !validMonth || (retro.error instanceof ApiError && retro.error.status === 404);
 
   return (
     <div className="min-h-screen bg-background text-foreground font-sans">
       <Header />
-      {notFound ? (
+      {access === "other" ? (
+        <PrivateNotice username={username} />
+      ) : access !== "owner" ? (
+        <Centered>
+          <CircleNotchIcon size={32} className="animate-spin text-brand-slate/40" />
+        </Centered>
+      ) : notFound ? (
         <Centered>
           <h1 className="text-3xl font-medium tracking-tight">Retrospectiva não encontrada.</h1>
           <Link href={`/u/${username}`} className="mt-6 text-brand-blue hover:underline">Voltar ao perfil</Link>
@@ -396,7 +400,7 @@ function MonthWall({ films }: { films: RetrospectiveFilm[] }) {
 
 function ShareFooter({ retro }: { retro: Retrospective }) {
   const story = useStoryImage(retro);
-  const [status, setStatus] = useState<"idle" | "saved" | "copied">("idle");
+  const [saved, setSaved] = useState(false);
   const fileName = `nitrate-retrospectiva-${retro.month}.png`;
 
   const shareStory = async () => {
@@ -417,13 +421,7 @@ function ShareFooter({ retro }: { retro: Retrospective }) {
     link.download = fileName;
     link.click();
     URL.revokeObjectURL(link.href);
-    setStatus("saved");
-  };
-
-  const copyLink = async () => {
-    await navigator.clipboard.writeText(window.location.href);
-    setStatus("copied");
-    setTimeout(() => setStatus("idle"), 2500);
+    setSaved(true);
   };
 
   return (
@@ -443,7 +441,7 @@ function ShareFooter({ retro }: { retro: Retrospective }) {
         <span className="text-xs font-bold tracking-[0.2em] uppercase text-brand-orange">Compartilhe</span>
         <h2 className="mt-2 text-2xl sm:text-3xl font-medium tracking-tight">Celebre a sua jornada.</h2>
         <p className="mt-2 text-background/60 font-light max-w-md">
-          Leve a sua retrospectiva de {monthLabel(retro.month)} para os Stories. No celular, escolha{" "}
+          A retrospectiva é só sua; o que você compartilha é a imagem. No celular, escolha{" "}
           <strong className="font-medium text-background/80">Instagram → Stories</strong> na hora de compartilhar.
         </p>
 
@@ -456,16 +454,9 @@ function ShareFooter({ retro }: { retro: Retrospective }) {
             <InstagramLogoIcon size={20} weight="bold" />
             Compartilhar nos Stories
           </button>
-          <button
-            onClick={copyLink}
-            className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-full font-medium border border-background/20 hover:border-background/50 transition-colors"
-          >
-            {status === "copied" ? <CheckIcon size={18} weight="bold" /> : <LinkIcon size={18} />}
-            {status === "copied" ? "Link copiado!" : "Copiar link"}
-          </button>
         </div>
 
-        {status === "saved" && (
+        {saved && (
           <p className="mt-4 text-sm text-background/70">
             Imagem salva. Envie para o celular e poste nos seus Stories.
           </p>
@@ -487,7 +478,8 @@ interface StoryImage {
 
 async function fetchStoryImage(url: string, month: string): Promise<StoryImage> {
   try {
-    const response = await fetch(url);
+    const token = getToken();
+    const response = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
     if (!response.ok) throw new Error(String(response.status));
     const blob = await response.blob();
     const file = new File([blob], `nitrate-retrospectiva-${month}.png`, { type: "image/png" });

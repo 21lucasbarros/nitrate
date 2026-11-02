@@ -7,13 +7,17 @@ import { useFetch } from "@/lib/hooks/use-fetch";
 import { getMyRecommendations, getUserWatchlist } from "@/lib/services/user-service";
 import { getRecentReviews } from "@/lib/services/review-service";
 import { getMovies } from "@/lib/services/movie-service";
-import { getRetrospectiveMonths } from "@/lib/services/retrospective-service";
+import { getMyRetrospectiveMonths } from "@/lib/services/retrospective-service";
+import { cachedFetcher } from "@/lib/cache";
 import { currentMonth, monthLabel, shiftMonth } from "@/utils/format";
 import { MovieGrid } from "./movie-grid";
 import { ReviewCard } from "./review-card";
 import { Recommendations } from "./recommendations";
 
-const fetchRecent = () => getRecentReviews();
+const RECENT_LIMIT = 5;
+// a atividade recente não precisa ser buscada de novo a cada visita à home
+const fetchRecent = cachedFetcher(() => getRecentReviews(RECENT_LIMIT), 5 * 60 * 1000);
+const fetchRetroMonths = () => getMyRetrospectiveMonths();
 const fetchMovies = () => getMovies();
 const fetchRecommendations = () => getMyRecommendations();
 
@@ -66,7 +70,7 @@ export default function UserHome({ user }: { user: UserProfile }) {
   const movies = useFetch("all", fetchMovies);
   // a chave inclui a contagem de filmes: registrar um filme novo refaz as recomendações
   const recommendations = useFetch(`${user.username}:${user.filmsCount}`, fetchRecommendations);
-  const retroMonths = useFetch(user.username, getRetrospectiveMonths);
+  const retroMonths = useFetch(user.username, fetchRetroMonths);
   // o mês que acabou ganha destaque; se ele estiver vazio, mostramos o mês em andamento
   const lastMonth = shiftMonth(currentMonth(), -1);
   const retroMonth = retroMonths.data?.includes(lastMonth)
@@ -153,7 +157,7 @@ export default function UserHome({ user }: { user: UserProfile }) {
         {recent.data && recent.data.length > 0 ? (
           <div className="divide-y divide-foreground/10 border-t border-foreground/10">
             {recent.data.map((review) => (
-              <ReviewCard key={review.id} review={review} />
+              <ReviewCard key={review.id} review={review} excerpt />
             ))}
           </div>
         ) : recent.loading ? null : (

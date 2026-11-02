@@ -1,12 +1,13 @@
 import { ImageResponse } from "next/og";
-import { getRetrospective } from "@/lib/services/retrospective-service";
+import { apiFetch } from "@/lib/api-client";
 import type { Retrospective } from "@/lib/types/retrospective";
 import { monthLabel } from "@/utils/format";
 import { posterUrl } from "@/utils/poster";
 
 /**
  * Imagem da retrospectiva no formato dos Stories (1080x1920), para compartilhar no Instagram.
- * GET /u/{username}/retrospectiva/{mes}/story
+ * GET /u/{username}/retrospectiva/{mes}/story — exige o token do dono (header Authorization),
+ * que repassamos ao backend: a retrospectiva é privada.
  */
 
 const WIDTH = 1080;
@@ -33,15 +34,25 @@ function loadSemiBold(): Promise<ArrayBuffer | null> {
 }
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ username: string; month: string }> },
 ) {
   const { username, month } = await params;
+  const authorization = request.headers.get("authorization");
+  if (!authorization) {
+    return new Response("Faça login para gerar a imagem", { status: 401 });
+  }
 
   let retro: Retrospective;
   try {
-    retro = await getRetrospective(username, month);
+    retro = await apiFetch<Retrospective>(`/users/me/retrospective?month=${encodeURIComponent(month)}`, {
+      headers: { Authorization: authorization },
+    });
   } catch {
+    return new Response("Retrospectiva não encontrada", { status: 404 });
+  }
+  // o token é de outra pessoa: não gera a imagem da retrospectiva de ninguém além do dono
+  if (retro.username !== username) {
     return new Response("Retrospectiva não encontrada", { status: 404 });
   }
 
@@ -52,8 +63,8 @@ export async function GET(
     height: HEIGHT,
     fonts: font ? [{ name: "Geist", data: font, weight: 600, style: "normal" }] : undefined,
     headers: {
-      // a retrospectiva de um mês que já acabou não muda mais
-      "Cache-Control": "public, max-age=300, s-maxage=3600",
+      // privada: nada de cache compartilhado (CDN); só o navegador de quem pediu
+      "Cache-Control": "private, max-age=300",
     },
   });
 }

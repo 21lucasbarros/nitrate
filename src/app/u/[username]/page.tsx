@@ -8,7 +8,8 @@ import { CircleNotchIcon, DownloadSimpleIcon, SparkleIcon } from "@phosphor-icon
 import Header from "@/app/components/header";
 import { Avatar } from "@/app/components/ui/avatar";
 import { MovieGrid } from "@/app/components/movie-grid";
-import { ReviewCard } from "@/app/components/review-card";
+import { ReviewCard, reviewHref } from "@/app/components/review-card";
+import { Pagination } from "@/app/components/ui/pagination";
 import { ApiError } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
 import { useFetch } from "@/lib/hooks/use-fetch";
@@ -22,6 +23,20 @@ const TABS = [
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
+
+const FILMS_PER_PAGE = 30;
+const REVIEWS_PER_PAGE = 10;
+
+// o useFetch compara o argumento por igualdade, então a chave é texto: "usuario|aba|pagina"
+const fetchDiaryPage = (key: string) => {
+  const [username, tab, page] = key.split("|");
+  return getUserReviews(
+    username,
+    tab === "reviews"
+      ? { page: Number(page) - 1, size: REVIEWS_PER_PAGE, withText: true }
+      : { page: Number(page) - 1, size: FILMS_PER_PAGE },
+  );
+};
 
 export default function ProfilePage() {
   // useSearchParams precisa de Suspense para o build estático do Next
@@ -46,9 +61,10 @@ function Profile() {
 
   const tabParam = searchParams.get("tab");
   const tab: TabId = TABS.some((t) => t.id === tabParam) ? (tabParam as TabId) : "filmes";
+  const page = Math.max(1, Number(searchParams.get("page")) || 1);
 
   const profile = useFetch(username, getProfile);
-  const reviews = useFetch(username, getUserReviews);
+  const diary = useFetch(tab === "watchlist" ? null : `${username}|${tab}|${page}`, fetchDiaryPage);
   const watchlist = useFetch(tab === "watchlist" ? username : null, getUserWatchlist);
 
   if (profile.error instanceof ApiError && profile.error.status === 404) {
@@ -70,14 +86,22 @@ function Profile() {
 
   const user = profile.data;
   const isMe = me?.username === user.username;
-  const writtenReviews = (reviews.data ?? []).filter((review) => review.text);
 
-  const selectTab = (id: TabId) => {
-    const params = new URLSearchParams(searchParams);
-    if (id === "filmes") params.delete("tab");
-    else params.set("tab", id);
+  const navigate = (id: TabId, newPage: number, mode: "push" | "replace") => {
+    const params = new URLSearchParams();
+    if (id !== "filmes") params.set("tab", id);
+    if (newPage > 1) params.set("page", String(newPage));
     const qs = params.toString();
-    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    router[mode](qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
+
+  // trocar de aba volta para a página 1
+  const selectTab = (id: TabId) => navigate(id, 1, "replace");
+
+  // push: o "voltar" do navegador volta para a página anterior
+  const selectPage = (newPage: number) => {
+    navigate(tab, newPage, "push");
+    document.getElementById("profile-tabs")?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   const counts: Record<TabId, number> = {
@@ -99,7 +123,8 @@ function Profile() {
               membro desde {monthYear(user.createdAt)}
             </p>
             <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2">
-            {user.filmsCount > 0 && (
+            {/* a retrospectiva é só do dono do diário */}
+            {isMe && user.filmsCount > 0 && (
               <Link
                 href={`/u/${user.username}/retrospectiva`}
                 className="inline-flex items-center gap-2 text-sm font-medium text-brand-orange hover:underline underline-offset-4"
@@ -134,7 +159,7 @@ function Profile() {
         </dl>
       </section>
 
-      <div role="tablist" aria-label="Seções do perfil" className="flex gap-8 border-b border-foreground/10">
+      <div id="profile-tabs" role="tablist" aria-label="Seções do perfil" className="flex gap-8 border-b border-foreground/10 scroll-mt-28">
         {TABS.map((t) => (
           <button
             key={t.id}
@@ -150,28 +175,35 @@ function Profile() {
 
       <section role="tabpanel" className="pt-10">
         {tab === "filmes" &&
-          (reviews.loading ? (
+          (!diary.data ? (
             <Loading />
-          ) : reviews.data && reviews.data.length > 0 ? (
-            <MovieGrid
-              items={reviews.data.map((review) => ({
-                movie: review.movie,
-                rating: review.rating,
-                liked: review.liked,
-              }))}
-            />
+          ) : diary.data.items.length > 0 ? (
+            <div className={diary.loading ? "opacity-50 transition-opacity" : ""}>
+              <MovieGrid
+                items={diary.data.items.map((review) => ({
+                  movie: review.movie,
+                  rating: review.rating,
+                  liked: review.liked,
+                  reviewHref: review.text ? reviewHref(review) : undefined,
+                }))}
+              />
+              <Pagination page={page} totalPages={diary.data.totalPages} onChange={selectPage} />
+            </div>
           ) : (
             <Empty isMe={isMe} me="Você ainda não registrou nenhum filme." other={`${user.name} ainda não registrou nenhum filme.`} />
           ))}
 
         {tab === "reviews" &&
-          (reviews.loading ? (
+          (!diary.data ? (
             <Loading />
-          ) : writtenReviews.length > 0 ? (
-            <div className="divide-y divide-foreground/10 -mt-8">
-              {writtenReviews.map((review) => (
-                <ReviewCard key={review.id} review={review} hideUser />
-              ))}
+          ) : diary.data.items.length > 0 ? (
+            <div className={diary.loading ? "opacity-50 transition-opacity" : ""}>
+              <div className="divide-y divide-foreground/10 -mt-8">
+                {diary.data.items.map((review) => (
+                  <ReviewCard key={review.id} review={review} hideUser excerpt />
+                ))}
+              </div>
+              <Pagination page={page} totalPages={diary.data.totalPages} onChange={selectPage} />
             </div>
           ) : (
             <Empty isMe={isMe} me="Você ainda não escreveu nenhuma review." other={`${user.name} ainda não escreveu nenhuma review.`} />

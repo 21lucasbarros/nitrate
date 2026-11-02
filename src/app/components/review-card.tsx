@@ -17,9 +17,18 @@ interface ReviewCardProps {
   hideMovie?: boolean;
   /** esconde o autor (ex.: no perfil, onde o autor é óbvio) */
   hideUser?: boolean;
+  /** mostra só o começo do texto, com um link para a review completa */
+  excerpt?: boolean;
 }
 
-export function ReviewCard({ review, hideMovie = false, hideUser = false }: ReviewCardProps) {
+// a partir deste tamanho o texto é cortado no modo resumo
+const EXCERPT_LENGTH = 280;
+
+export function reviewHref(review: MovieReview): string {
+  return `/u/${review.user.username}/reviews/${review.id}`;
+}
+
+export function ReviewCard({ review, hideMovie = false, hideUser = false, excerpt = false }: ReviewCardProps) {
   const { movie, user } = review;
   const { user: me } = useAuth();
   const [revealed, setRevealed] = useState(false);
@@ -92,10 +101,21 @@ export function ReviewCard({ review, hideMovie = false, hideUser = false }: Revi
                 Spoiler
               </span>
             )}
-            <p className={`${review.spoiler ? "mt-1.5" : "mt-3"} text-[15px] leading-[1.75] text-foreground/80 max-w-2xl whitespace-pre-line`}>
+            <p
+              className={`${review.spoiler ? "mt-1.5" : "mt-3"} text-[15px] leading-[1.75] text-foreground/80 max-w-2xl whitespace-pre-line ${excerpt ? "line-clamp-4" : ""}`}
+            >
               {review.text}
             </p>
           </>
+        )}
+
+        {excerpt && review.text && (hideText || review.text.length > EXCERPT_LENGTH) && (
+          <Link
+            href={reviewHref(review)}
+            className="mt-2 w-fit text-sm font-medium text-brand-blue hover:underline underline-offset-4"
+          >
+            Ver review completa
+          </Link>
         )}
       </div>
     </article>
