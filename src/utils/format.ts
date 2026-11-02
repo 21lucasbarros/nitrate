@@ -41,3 +41,21 @@ export function todayIso(): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
+
+/** "2026-10" -> "outubro de 2026" */
+export function monthLabel(yearMonth: string): string {
+  const [year, month] = yearMonth.split("-").map(Number);
+  return new Date(year, month - 1, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+}
+
+/** "2026-10" -> "2026-09" (delta -1) ou "2026-11" (delta +1) */
+export function shiftMonth(yearMonth: string, delta: number): string {
+  const [year, month] = yearMonth.split("-").map(Number);
+  const date = new Date(year, month - 1 + delta, 1);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+/** mês atual no formato "2026-11" */
+export function currentMonth(): string {
+  return todayIso().slice(0, 7);
+}

@@ -5,6 +5,11 @@ export function getRecentReviews(): Promise<MovieReview[]> {
   return apiFetch<MovieReview[]>("/reviews/recent");
 }
 
+/** reviews com texto e sem spoiler, para a landing */
+export function getFeaturedReviews(): Promise<MovieReview[]> {
+  return apiFetch<MovieReview[]>("/reviews/featured");
+}
+
 export function getMovieReviews(movieId: number): Promise<MovieReview[]> {
   return apiFetch<MovieReview[]>(`/movies/${movieId}/reviews`);
 }

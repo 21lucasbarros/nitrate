@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRightIcon, BookmarkSimpleIcon } from "@phosphor-icons/react";
+import { ArrowRightIcon, BookmarkSimpleIcon, SparkleIcon } from "@phosphor-icons/react";
 import type { UserProfile } from "@/lib/types/user";
 import { useFetch } from "@/lib/hooks/use-fetch";
 import { getMyRecommendations, getUserWatchlist } from "@/lib/services/user-service";
 import { getRecentReviews } from "@/lib/services/review-service";
 import { getMovies } from "@/lib/services/movie-service";
+import { getRetrospectiveMonths } from "@/lib/services/retrospective-service";
+import { currentMonth, monthLabel, shiftMonth } from "@/utils/format";
 import { MovieGrid } from "./movie-grid";
 import { ReviewCard } from "./review-card";
 import { Recommendations } from "./recommendations";
@@ -64,6 +66,14 @@ export default function UserHome({ user }: { user: UserProfile }) {
   const movies = useFetch("all", fetchMovies);
   // a chave inclui a contagem de filmes: registrar um filme novo refaz as recomendações
   const recommendations = useFetch(`${user.username}:${user.filmsCount}`, fetchRecommendations);
+  const retroMonths = useFetch(user.username, getRetrospectiveMonths);
+  // o mês que acabou ganha destaque; se ele estiver vazio, mostramos o mês em andamento
+  const lastMonth = shiftMonth(currentMonth(), -1);
+  const retroMonth = retroMonths.data?.includes(lastMonth)
+    ? lastMonth
+    : retroMonths.data?.includes(currentMonth())
+      ? currentMonth()
+      : null;
 
   const watchlistIds = new Set(watchlist.data?.map((item) => item.movie.id));
   const discover = (movies.data ?? []).filter((movie) => !watchlistIds.has(movie.id)).slice(0, 12);
@@ -86,6 +96,26 @@ export default function UserHome({ user }: { user: UserProfile }) {
           <Stat value={user.watchlistCount} label="Watchlist" />
         </div>
       </section>
+
+      {retroMonth && (
+        <Link
+          href={`/u/${user.username}/retrospectiva/${retroMonth}`}
+          className="group mt-10 flex items-center justify-between gap-6 rounded-2xl bg-brand-charcoal text-background px-6 py-6 sm:px-8 hover:bg-brand-charcoal/95 transition-colors"
+        >
+          <span className="flex items-center gap-4">
+            <SparkleIcon size={28} weight="fill" className="shrink-0 text-brand-orange" />
+            <span>
+              <span className="block text-xs font-bold tracking-[0.2em] uppercase text-brand-orange">
+                {retroMonth === lastMonth ? "Retrospectiva pronta" : "Retrospectiva em andamento"}
+              </span>
+              <span className="block mt-1 text-lg sm:text-xl font-medium">
+                Seu mês no cinema: {monthLabel(retroMonth)}
+              </span>
+            </span>
+          </span>
+          <ArrowRightIcon size={20} weight="bold" className="shrink-0 group-hover:translate-x-1 transition-transform" />
+        </Link>
+      )}
 
       <section className="pt-14">
         <SectionHeader eyebrow="Feito para você" title="Recomendado para você" />

@@ -3,7 +3,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
-import { CircleNotchIcon } from "@phosphor-icons/react";
+import { CircleNotchIcon, SparkleIcon } from "@phosphor-icons/react";
 
 import Header from "@/app/components/header";
 import { Avatar } from "@/app/components/ui/avatar";
@@ -98,6 +98,15 @@ function Profile() {
               <span aria-hidden="true"> · </span>
               membro desde {monthYear(user.createdAt)}
             </p>
+            {user.filmsCount > 0 && (
+              <Link
+                href={`/u/${user.username}/retrospectiva`}
+                className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-brand-orange hover:underline underline-offset-4"
+              >
+                <SparkleIcon size={16} weight="fill" />
+                Retrospectiva mensal
+              </Link>
+            )}
           </div>
         </div>
         <dl className="lg:ml-auto flex gap-8 sm:gap-10">
