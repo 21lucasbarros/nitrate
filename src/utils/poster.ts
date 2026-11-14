@@ -22,3 +22,8 @@ export function profileUrl(path: string | null | undefined, size: ProfileSize = 
 export function logoUrl(path: string | null | undefined): string | null {
   return tmdbImage(path, "w92");
 }
+
+/** imagem de fundo (cena do filme) no TMDB */
+export function backdropUrl(path: string | null | undefined): string | null {
+  return tmdbImage(path, "w1280");
+}

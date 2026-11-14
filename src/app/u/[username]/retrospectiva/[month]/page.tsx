@@ -86,7 +86,7 @@ function Dossier({ retro, months }: { retro: Retrospective; months: string[] }) 
   return (
     <main>
       {/* capa */}
-      <section className="relative overflow-hidden bg-brand-charcoal text-background pt-36 sm:pt-40 pb-16 sm:pb-20 px-6 md:px-12 xl:px-24">
+      <section className="relative overflow-hidden bg-brand-charcoal text-foreground pt-36 sm:pt-40 pb-16 sm:pb-20 px-6 md:px-12 xl:px-24">
         <PosterMosaic films={retro.films} />
         <div className="relative max-w-[1400px] mx-auto">
           <div className="flex items-center justify-between gap-4">
@@ -98,15 +98,15 @@ function Dossier({ retro, months }: { retro: Retrospective; months: string[] }) 
 
           <h1 className="mt-6 text-6xl sm:text-8xl md:text-9xl font-semibold tracking-tighter leading-[0.85] capitalize">
             {monthName}
-            <span className="block italic font-light text-background/50 text-4xl sm:text-6xl md:text-7xl mt-2 normal-case">
+            <span className="block italic font-light text-foreground/50 text-4xl sm:text-6xl md:text-7xl mt-2 normal-case">
               de {year}
             </span>
           </h1>
 
           <div className="mt-12 flex flex-col sm:flex-row sm:items-end justify-between gap-8">
-            <p className="text-lg sm:text-xl text-background/70 font-light max-w-md">
+            <p className="text-lg sm:text-xl text-foreground/70 font-light max-w-md">
               O mês de{" "}
-              <Link href={`/u/${retro.username}`} className="font-medium text-background hover:text-brand-orange transition-colors">
+              <Link href={`/u/${retro.username}`} className="font-medium text-foreground hover:text-brand-orange transition-colors">
                 {firstName}
               </Link>{" "}
               no cinema.
@@ -115,7 +115,7 @@ function Dossier({ retro, months }: { retro: Retrospective; months: string[] }) 
               <span className="text-8xl sm:text-9xl font-semibold tracking-tighter leading-none text-brand-orange">
                 {retro.filmsCount}
               </span>
-              <span className="pb-3 text-sm uppercase tracking-[0.2em] text-background/60 leading-tight">
+              <span className="pb-3 text-sm uppercase tracking-[0.2em] text-foreground/60 leading-tight">
                 {retro.filmsCount === 1 ? "filme" : "filmes"}
                 <br />
                 assistidos
@@ -330,7 +330,7 @@ function Actors({ items }: { items: RankedItem[] }) {
         {items.map((actor) => (
           <li
             key={actor.name}
-            className="flex items-center gap-3 pl-5 pr-2 py-2 rounded-full border border-foreground/10 bg-white"
+            className="flex items-center gap-3 pl-5 pr-2 py-2 rounded-full bg-surface"
           >
             <span className="font-medium">{actor.name}</span>
             <span className="px-2.5 py-1 rounded-full bg-brand-orange/10 text-brand-orange text-xs font-semibold">
@@ -387,7 +387,7 @@ function MonthWall({ films }: { films: RetrospectiveFilm[] }) {
                   sizes="150px"
                   className="group-hover:ring-brand-orange/50 transition-all"
                 />
-                <span className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-brand-charcoal/80 text-background text-[11px] font-mono">
+                <span className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-brand-charcoal/80 text-foreground text-[11px] font-mono">
                   {film.watchedOn.slice(8, 10)}
                 </span>
               </div>
@@ -426,13 +426,13 @@ function ShareFooter({ retro }: { retro: Retrospective }) {
   };
 
   return (
-    <section className="mt-24 rounded-2xl bg-brand-charcoal text-background p-8 sm:p-12 flex flex-col md:flex-row md:items-center gap-10">
+    <section className="mt-24 rounded-md bg-surface text-foreground p-8 sm:p-12 flex flex-col md:flex-row md:items-center gap-10">
       {/* prévia do story */}
       <div className="w-40 sm:w-48 shrink-0 aspect-9/16 rounded-xl overflow-hidden ring-1 ring-background/10 bg-background/5 relative self-center">
         {story.previewUrl ? (
           <Image src={story.previewUrl} alt="Prévia da imagem para os Stories" fill unoptimized className="object-cover" />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center text-background/30">
+          <div className="absolute inset-0 flex items-center justify-center text-foreground/30">
             <CircleNotchIcon size={24} className="animate-spin" />
           </div>
         )}
@@ -441,9 +441,9 @@ function ShareFooter({ retro }: { retro: Retrospective }) {
       <div className="flex-1">
         <span className="text-xs font-bold tracking-[0.2em] uppercase text-brand-orange">Compartilhe</span>
         <h2 className="mt-2 text-2xl sm:text-3xl font-medium tracking-tight">Celebre a sua jornada.</h2>
-        <p className="mt-2 text-background/60 font-light max-w-md">
+        <p className="mt-2 text-foreground/60 font-light max-w-md">
           A retrospectiva é só sua; o que você compartilha é a imagem. No celular, escolha{" "}
-          <strong className="font-medium text-background/80">Instagram → Stories</strong> na hora de compartilhar.
+          <strong className="font-medium text-foreground/80">Instagram → Stories</strong> na hora de compartilhar.
         </p>
 
         <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -458,7 +458,7 @@ function ShareFooter({ retro }: { retro: Retrospective }) {
         </div>
 
         {saved && (
-          <p className="mt-4 text-sm text-background/70">
+          <p className="mt-4 text-sm text-foreground/70">
             Imagem salva. Envie para o celular e poste nos seus Stories.
           </p>
         )}

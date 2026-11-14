@@ -29,10 +29,10 @@ export function MovieGrid({ items, variant = "default", showTitles = false }: Mo
   const cols =
     variant === "compact"
       ? "grid-cols-3 sm:grid-cols-4 md:grid-cols-6"
-      : "grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6";
+      : "grid-cols-3 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8";
 
   return (
-    <ul className={`grid ${cols} gap-x-4 gap-y-6 sm:gap-x-5`}>
+    <ul className={`grid ${cols} gap-x-3 gap-y-5 sm:gap-x-4`}>
       {items.map(({ movie, href, rating, liked, rewatch, reviewHref }, index) => (
         // o mesmo filme pode aparecer mais de uma vez no diário (reassistido)
         <li key={`${movie.id}-${index}`}>

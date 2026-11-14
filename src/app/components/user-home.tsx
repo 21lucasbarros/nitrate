@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRightIcon, BookmarkSimpleIcon, SparkleIcon } from "@phosphor-icons/react";
+import { ArrowRightIcon, ArrowsClockwiseIcon, ChatTextIcon, HeartIcon, SparkleIcon } from "@phosphor-icons/react";
 import type { UserProfile } from "@/lib/types/user";
+import type { MovieReview } from "@/lib/types/review";
 import { useFetch } from "@/lib/hooks/use-fetch";
 import { getMyRecommendations, getUserWatchlist } from "@/lib/services/user-service";
 import { getRecentReviews } from "@/lib/services/review-service";
@@ -10,58 +11,25 @@ import { getMovies } from "@/lib/services/movie-service";
 import { getMyRetrospectiveMonths } from "@/lib/services/retrospective-service";
 import { cachedFetcher } from "@/lib/cache";
 import { currentMonth, monthLabel, shiftMonth } from "@/utils/format";
+import { filmHref } from "@/utils/movie-link";
+import { toRating } from "@/utils/rating";
 import { MovieGrid } from "./movie-grid";
-import { ReviewCard } from "./review-card";
 import { Recommendations } from "./recommendations";
+import { reviewHref, ReviewCard } from "./review-card";
+import { Avatar } from "./ui/avatar";
+import { Poster } from "./ui/poster";
+import { SectionHeading } from "./ui/section-heading";
+import { StarRating } from "./ui/star-rating";
 
-const RECENT_LIMIT = 5;
+// uma fileira de pôsteres (6) e, abaixo, as reviews escritas mais recentes
+const RECENT_LIMIT = 12;
+const RECENT_POSTERS = 6;
+const RECENT_TEXTS = 3;
 // a atividade recente não precisa ser buscada de novo a cada visita à home
 const fetchRecent = cachedFetcher(() => getRecentReviews(RECENT_LIMIT), 5 * 60 * 1000);
 const fetchRetroMonths = () => getMyRetrospectiveMonths();
 const fetchMovies = () => getMovies();
 const fetchRecommendations = () => getMyRecommendations();
-
-function greeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 5) return "Boa madrugada";
-  if (hour < 12) return "Bom dia";
-  if (hour < 18) return "Boa tarde";
-  return "Boa noite";
-}
-
-function SectionHeader({ eyebrow, title, href, linkLabel }: {
-  eyebrow: string;
-  title: string;
-  href?: string;
-  linkLabel?: string;
-}) {
-  return (
-    <div className="flex justify-between items-end mb-8 gap-4">
-      <div>
-        <span className="text-xs font-bold tracking-[0.2em] uppercase text-brand-orange">{eyebrow}</span>
-        <h2 className="text-2xl sm:text-3xl font-medium tracking-tight mt-2">{title}</h2>
-      </div>
-      {href && (
-        <Link
-          href={href}
-          className="flex items-center gap-2 text-sm font-medium text-foreground/60 hover:text-brand-orange transition-colors group shrink-0"
-        >
-          {linkLabel}
-          <ArrowRightIcon size={16} weight="bold" className="group-hover:translate-x-1 transition-transform" />
-        </Link>
-      )}
-    </div>
-  );
-}
-
-function Stat({ value, label }: { value: number; label: string }) {
-  return (
-    <div>
-      <div className="text-3xl sm:text-4xl font-semibold tracking-tight">{value}</div>
-      <div className="text-xs uppercase tracking-[0.15em] text-brand-slate/60 mt-1">{label}</div>
-    </div>
-  );
-}
 
 export default function UserHome({ user }: { user: UserProfile }) {
   const firstName = user.name.split(" ")[0];
@@ -81,100 +49,127 @@ export default function UserHome({ user }: { user: UserProfile }) {
 
   const watchlistIds = new Set(watchlist.data?.map((item) => item.movie.id));
   const discover = (movies.data ?? []).filter((movie) => !watchlistIds.has(movie.id)).slice(0, 12);
+  const recentWritten = (recent.data ?? []).filter((r) => r.text && !r.spoiler).slice(0, RECENT_TEXTS);
 
   return (
-    <main className="pt-28 sm:pt-32 pb-24 px-6 md:px-12 xl:px-24 max-w-[1400px] mx-auto w-full">
-      <section className="flex flex-col md:flex-row md:items-end justify-between gap-10 pb-14 border-b border-foreground/10">
-        <div>
-          <h1 className="text-5xl sm:text-6xl md:text-7xl font-semibold tracking-tighter leading-none">
-            {greeting()},{" "}
-            <span className="italic font-light text-brand-slate/60">{firstName}.</span>
-          </h1>
-          <p className="mt-5 text-lg text-brand-slate/70 font-light">
-            O que você assistiu hoje?
-          </p>
-        </div>
-        <div className="flex gap-10 sm:gap-14">
-          <Stat value={user.filmsCount} label="Filmes" />
-          <Stat value={user.reviewsCount} label="Reviews" />
-          <Stat value={user.watchlistCount} label="Watchlist" />
-        </div>
+    <main className="pt-28 sm:pt-32 pb-24 px-6 max-w-[1180px] mx-auto w-full">
+      <p className="text-center text-2xl sm:text-3xl font-light text-brand-slate leading-snug">
+        Bem-vindo de volta,{" "}
+        <Link href={`/u/${user.username}`} className="text-foreground underline underline-offset-8 decoration-foreground/30 hover:decoration-brand-orange">
+          {firstName}
+        </Link>
+        . Veja o que a comunidade anda assistindo…
+      </p>
+
+      <section className="mt-12">
+        <SectionHeading title="Novidades da comunidade" />
+        {recent.data ? (
+          <ul className="grid grid-cols-3 sm:grid-cols-6 gap-3 sm:gap-4">
+            {recent.data.slice(0, RECENT_POSTERS).map((review) => (
+              <ActivityPoster key={review.id} review={review} />
+            ))}
+          </ul>
+        ) : (
+          <GridSkeleton />
+        )}
       </section>
 
       {retroMonth && (
         <Link
           href={`/u/${user.username}/retrospectiva/${retroMonth}`}
-          className="group mt-10 flex items-center justify-between gap-6 rounded-2xl bg-brand-charcoal text-background px-6 py-6 sm:px-8 hover:bg-brand-charcoal/95 transition-colors"
+          className="group mt-12 flex items-center justify-between gap-6 rounded-md bg-surface px-6 py-5 hover:bg-surface-strong transition-colors"
         >
           <span className="flex items-center gap-4">
-            <SparkleIcon size={28} weight="fill" className="shrink-0 text-brand-orange" />
+            <SparkleIcon size={26} weight="fill" className="shrink-0 text-brand-orange" />
             <span>
-              <span className="block text-xs font-bold tracking-[0.2em] uppercase text-brand-orange">
+              <span className="block text-[11px] font-semibold tracking-[0.15em] uppercase text-brand-orange">
                 {retroMonth === lastMonth ? "Retrospectiva pronta" : "Retrospectiva em andamento"}
               </span>
-              <span className="block mt-1 text-lg sm:text-xl font-medium">
+              <span className="block mt-1 font-serif text-xl font-semibold">
                 Seu mês no cinema: {monthLabel(retroMonth)}
               </span>
             </span>
           </span>
-          <ArrowRightIcon size={20} weight="bold" className="shrink-0 group-hover:translate-x-1 transition-transform" />
+          <ArrowRightIcon size={20} weight="bold" className="shrink-0 text-brand-slate group-hover:translate-x-1 group-hover:text-foreground transition-all" />
         </Link>
       )}
 
-      <section className="pt-14">
-        <SectionHeader eyebrow="Feito para você" title="Recomendado para você" />
+      <section className="mt-14">
+        <SectionHeading title="Recomendado para você" />
         <Recommendations items={recommendations.data} loading={recommendations.loading} />
       </section>
 
-      <section className="pt-16">
-        <SectionHeader
-          eyebrow="Para ver"
-          title="Sua watchlist"
-          href={`/u/${user.username}?tab=watchlist`}
-          linkLabel="Ver tudo"
-        />
+      <section className="mt-14">
+        <SectionHeading title="Sua watchlist" href={`/u/${user.username}?tab=watchlist`} count={user.watchlistCount} />
         {watchlist.data && watchlist.data.length > 0 ? (
           <MovieGrid variant="compact" items={watchlist.data.slice(0, 6)} />
         ) : watchlist.loading ? (
           <GridSkeleton />
         ) : (
-          <div className="flex items-center gap-4 rounded-xl border border-dashed border-foreground/15 px-6 py-8 text-brand-slate/70">
-            <BookmarkSimpleIcon size={28} weight="light" className="shrink-0 text-brand-orange" />
-            <p className="text-sm sm:text-base">
-              Sua watchlist está vazia. Abra um filme e toque em <strong className="font-medium">Watchlist</strong> para guardar para depois.
-            </p>
-          </div>
+          <p className="text-sm text-brand-slate">
+            Sua watchlist está vazia. Abra um filme e toque em <strong className="font-medium text-foreground">Watchlist</strong> para guardar para depois.
+          </p>
         )}
       </section>
 
-      <section className="pt-16">
-        <SectionHeader eyebrow="Catálogo" title="Descubra algo novo" href="/movies" linkLabel="Todos os filmes" />
-        {movies.loading ? <GridSkeleton /> : <MovieGrid variant="compact" items={discover.map((movie) => ({ movie }))} />}
-      </section>
-
-      <section className="pt-16">
-        <SectionHeader eyebrow="Comunidade" title="Atividade recente" />
-        {recent.data && recent.data.length > 0 ? (
-          <div className="divide-y divide-foreground/10 border-t border-foreground/10">
-            {recent.data.map((review) => (
+      {recentWritten.length > 0 && (
+        <section className="mt-14">
+          <SectionHeading title="Reviews recentes" />
+          <div className="divide-y divide-foreground/10 -mt-5">
+            {recentWritten.map((review) => (
               <ReviewCard key={review.id} review={review} excerpt />
             ))}
           </div>
-        ) : recent.loading ? null : (
-          <p className="text-brand-slate/60">
-            Ninguém registrou nada ainda. Que tal ser a primeira review do Nitrate?
-          </p>
-        )}
+        </section>
+      )}
+
+      <section className="mt-14">
+        <SectionHeading title="Descubra algo novo" href="/movies" linkLabel="Mais" />
+        {movies.loading ? <GridSkeleton /> : <MovieGrid variant="compact" items={discover.map((movie) => ({ movie }))} />}
       </section>
     </main>
   );
 }
 
+/** pôster da atividade: avatar de quem registrou por cima, nome e nota embaixo */
+function ActivityPoster({ review }: { review: MovieReview }) {
+  return (
+    <li>
+      <div className="relative">
+        <Link href={filmHref(review.movie)} title={review.movie.title} className="group block">
+          <Poster
+            title={review.movie.title}
+            posterPath={review.movie.posterPath}
+            sizes="(min-width: 640px) 180px, 30vw"
+            className="group-hover:ring-2 group-hover:ring-brand-orange transition-all"
+          />
+        </Link>
+        <Link href={`/u/${review.user.username}`} className="absolute -bottom-3 left-1.5 rounded-full ring-2 ring-background" title={review.user.name}>
+          <Avatar name={review.user.name} username={review.user.username} size="sm" />
+        </Link>
+      </div>
+      <Link href={`/u/${review.user.username}`} className="mt-4 block text-sm font-semibold truncate hover:text-brand-orange">
+        {review.user.name}
+      </Link>
+      <div className="mt-1 flex items-center gap-1.5 text-brand-slate">
+        {review.rating !== null && <StarRating rating={toRating(review.rating)} size={11} />}
+        {review.liked && <HeartIcon size={11} weight="fill" className="text-brand-orange" />}
+        {review.rewatch && <ArrowsClockwiseIcon size={11} weight="bold" />}
+        {review.text && (
+          <Link href={reviewHref(review)} aria-label="Ler a review" className="hover:text-foreground">
+            <ChatTextIcon size={12} weight="fill" />
+          </Link>
+        )}
+      </div>
+    </li>
+  );
+}
+
 function GridSkeleton() {
   return (
-    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-x-4 gap-y-6 sm:gap-x-5">
+    <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 sm:gap-4">
       {Array.from({ length: 6 }, (_, i) => (
-        <div key={i} className="aspect-2/3 rounded-sm bg-foreground/5 animate-pulse" />
+        <div key={i} className="aspect-2/3 rounded-[4px] bg-surface animate-pulse" />
       ))}
     </div>
   );

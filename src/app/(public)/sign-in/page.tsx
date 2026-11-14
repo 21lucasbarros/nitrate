@@ -125,16 +125,16 @@ export default function SignInPage() {
         <div className="absolute inset-0 bg-linear-to-t from-brand-charcoal via-brand-charcoal/40 to-transparent"></div>
 
         <div className="absolute inset-0 p-12 xl:p-24 flex flex-col justify-between z-10">
-          <div className="text-2xl font-bold tracking-tighter text-background uppercase flex items-center gap-1">
+          <div className="text-2xl font-bold tracking-tighter text-foreground uppercase flex items-center gap-1">
             Nitrate<div className="w-1.5 h-1.5 rounded-full bg-brand-orange mt-1"></div>
           </div>
 
           <div className="max-w-lg">
-            <h2 className="text-4xl xl:text-5xl font-medium tracking-tight text-background leading-tight mb-6">
+            <h2 className="text-4xl xl:text-5xl font-medium tracking-tight text-foreground leading-tight mb-6">
               O seu arquivo <br />
-              <span className="italic font-light text-background/70">definitivo</span> do cinema.
+              <span className="italic font-light text-foreground/70">definitivo</span> do cinema.
             </h2>
-            <p className="text-lg text-background/80 font-light leading-relaxed">
+            <p className="text-lg text-foreground/80 font-light leading-relaxed">
               Junte-se a uma comunidade focada em análises profundas, organização impecável e uma paixão inabalável pela sétima arte.
             </p>
           </div>

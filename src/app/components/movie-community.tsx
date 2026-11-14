@@ -12,9 +12,9 @@ export function NitrateRating({ stats }: { stats: MovieStats }) {
   const max = Math.max(1, ...RATING_STEPS.map((k) => stats.ratingDistribution[k] ?? 0));
 
   return (
-    <div className="rounded-2xl border border-foreground/10 bg-white p-5">
-      <div className="flex items-center justify-between gap-4">
-        <span className="text-xs font-bold tracking-[0.2em] uppercase text-brand-orange">Nota no Nitrate</span>
+    <div>
+      <div className="flex items-end justify-between gap-4 pb-2 border-b border-foreground/10">
+        <span className="text-[13px] font-medium tracking-[0.12em] uppercase text-brand-slate">Nota no Nitrate</span>
         {stats.likesCount > 0 && (
           <span className="flex items-center gap-1 text-xs text-brand-slate/60" title="Pessoas que curtiram">
             <HeartIcon size={13} weight="fill" className="text-brand-orange" />
@@ -32,7 +32,7 @@ export function NitrateRating({ stats }: { stats: MovieStats }) {
       ) : (
         <div className="mt-3 flex items-end gap-5">
           <div className="shrink-0">
-            <div className="text-5xl font-semibold tracking-tight leading-none">
+            <div className="font-serif text-5xl font-semibold leading-none">
               {stats.averageRating.toLocaleString("pt-BR", { minimumFractionDigits: 1 })}
             </div>
             <div className="mt-2">
@@ -44,14 +44,14 @@ export function NitrateRating({ stats }: { stats: MovieStats }) {
           </div>
 
           {/* histograma: uma barra por meia estrela */}
-          <div className="flex-1 flex items-end gap-1 h-16" aria-label="Distribuição das notas">
+          <div className="flex-1 flex items-end gap-[3px] h-14" aria-label="Distribuição das notas">
             {RATING_STEPS.map((step) => {
               const count = stats.ratingDistribution[step] ?? 0;
               return (
                 <div
                   key={step}
                   title={`${Number(step).toLocaleString("pt-BR")}★: ${count} ${count === 1 ? "pessoa" : "pessoas"}`}
-                  className={`flex-1 rounded-t-sm ${count > 0 ? "bg-brand-orange/80" : "bg-foreground/5"}`}
+                  className={`flex-1 rounded-t-[2px] ${count > 0 ? "bg-brand-slate/50 hover:bg-brand-orange" : "bg-foreground/5"}`}
                   style={{ height: count > 0 ? `${Math.max(8, (count / max) * 100)}%` : "3px" }}
                 />
               );
@@ -75,9 +75,9 @@ export function WhereToWatch({ providers }: { providers: WatchProviders }) {
   const groups = GROUPS.filter((g) => providers[g.key].length > 0);
 
   return (
-    <section className="py-10 border-b border-foreground/10">
-      <div className="flex flex-wrap items-baseline justify-between gap-3 mb-6">
-        <h2 className="text-xs font-bold tracking-[0.2em] uppercase text-brand-orange">Onde assistir no Brasil</h2>
+    <div>
+      <div className="flex flex-wrap items-baseline justify-between gap-3 mb-5">
+        <span className="text-sm text-brand-slate">No Brasil</span>
         {providers.link && (
           <a
             href={providers.link}
@@ -95,10 +95,10 @@ export function WhereToWatch({ providers }: { providers: WatchProviders }) {
           Não encontramos este filme em nenhum serviço no Brasil no momento.
         </p>
       ) : (
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-4">
           {groups.map((group) => (
-            <div key={group.key} className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
-              <span className="w-24 shrink-0 text-xs uppercase tracking-[0.15em] text-brand-slate/60">{group.label}</span>
+            <div key={group.key} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-5">
+              <span className="w-20 shrink-0 text-xs uppercase tracking-[0.12em] text-brand-slate">{group.label}</span>
               <ul className="flex flex-wrap gap-3">
                 {providers[group.key].map((p) => (
                   <ProviderLogo key={p.id} provider={p} />
@@ -109,21 +109,21 @@ export function WhereToWatch({ providers }: { providers: WatchProviders }) {
         </div>
       )}
 
-      <p className="mt-6 text-xs text-brand-slate/40">Disponibilidade fornecida pela JustWatch.</p>
-    </section>
+      <p className="mt-6 text-xs text-brand-slate/50">Disponibilidade fornecida pela JustWatch.</p>
+    </div>
   );
 }
 
 function ProviderLogo({ provider }: { provider: WatchProvider }) {
   const src = logoUrl(provider.logoPath);
   return (
-    <li title={provider.name} className="flex items-center gap-2.5 pl-1 pr-3.5 py-1 rounded-full border border-foreground/10 bg-white">
+    <li title={provider.name} className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-sm bg-surface">
       {src ? (
-        <Image src={src} alt="" width={32} height={32} className="w-8 h-8 rounded-full object-cover" />
+        <Image src={src} alt="" width={28} height={28} className="w-7 h-7 rounded-[3px] object-cover" />
       ) : (
-        <span className="w-8 h-8 rounded-full bg-foreground/10" />
+        <span className="w-7 h-7 rounded-[3px] bg-foreground/10" />
       )}
-      <span className="text-sm font-medium">{provider.name}</span>
+      <span className="text-sm text-foreground/85">{provider.name}</span>
     </li>
   );
 }

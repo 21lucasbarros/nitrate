@@ -1,30 +1,36 @@
 @import "tailwindcss";
 
 :root {
-  /* cores de fundo e texto */
-  --background: #F9F9F8;
-  --foreground: #0A0A0A;
+  /* tema escuro, como uma sala de cinema */
+  --background: #14171B;
+  --foreground: #E9ECEF;
+
+  /* cartões, painéis e barras sobre o fundo */
+  --surface: #1D2228;
+  --surface-strong: #283039;
 
   /* paleta de identidade Nitrate */
-  --brand-slate: #303841;
-  --brand-orange: #FF6A1C;
-  --brand-blue: #0046FF;
+  --brand-slate: #9BA6B2; /* texto secundário */
+  --brand-orange: #FF7A33;
+  --brand-blue: #6E9BFF;
 
   /* cores de botoes primarios */
-  --brand-btn: #093FB4;
-  --brand-btn-text: #FAF7F3;
+  --brand-btn: #FF6A1C;
+  --brand-btn-text: #14171B;
 
   /* paleta extra */
-  --brand-violet: #7C3AED;
-  --brand-crimson: #8E1616;
-  --brand-emerald: #285A48;
-  --brand-charcoal: #1D2128;
-  --brand-teal: #006989;
+  --brand-violet: #A78BFA;
+  --brand-crimson: #F06A6A;
+  --brand-emerald: #4ADE80;
+  --brand-charcoal: #0C0E11; /* blocos mais escuros que o fundo (capas, rodapé) */
+  --brand-teal: #38BDF8;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-strong: var(--surface-strong);
 
   --color-brand-slate: var(--brand-slate);
   --color-brand-orange: var(--brand-orange);
@@ -41,20 +47,17 @@
 
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-source-serif);
 }
 
-@media (prefers-color-scheme: dark) {
-  /* :root {
-       --background: #0a0a0a;
-       --foreground: #F9F9F8;
-     }
-  */
+html {
+  color-scheme: dark; /* barras de rolagem, inputs de data etc. no tema escuro */
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 
 /* modal: trava a rolagem da página por trás e anima a entrada */
@@ -67,7 +70,7 @@ dialog.modal[open] {
 }
 
 dialog.modal::backdrop {
-  background: rgb(29 33 40 / 0.55);
+  background: rgb(0 0 0 / 0.7);
   backdrop-filter: blur(4px);
 }
 

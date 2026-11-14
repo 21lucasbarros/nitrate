@@ -75,7 +75,7 @@ export default function TrendingReviews() {
 
                 <div className="flex flex-col justify-center min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-4 mb-1">
-                    <h3 className="text-xl sm:text-2xl md:text-[28px] font-medium tracking-tight leading-tight text-foreground">
+                    <h3 className="font-serif text-xl sm:text-2xl md:text-[28px] font-semibold leading-tight text-foreground">
                       <Link href={filmHref(review.movie)} className="hover:text-brand-blue transition-colors">
                         {review.movie.title}
                       </Link>{" "}
@@ -112,7 +112,7 @@ export default function TrendingReviews() {
                     </span>
                   </div>
 
-                  <p className="text-[15px] sm:text-base leading-[1.75] text-foreground/80 font-normal max-w-2xl line-clamp-5">
+                  <p className="font-serif text-base sm:text-[17px] leading-[1.7] text-foreground/85 font-normal max-w-2xl line-clamp-5">
                     {review.text}
                   </p>
                 </div>

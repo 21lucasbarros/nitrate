@@ -24,7 +24,7 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]["id"];
 
-const FILMS_PER_PAGE = 30;
+const FILMS_PER_PAGE = 48; // 6 linhas de 8
 const REVIEWS_PER_PAGE = 10;
 
 // o useFetch compara o argumento por igualdade, então a chave é texto: "usuario|aba|pagina"
@@ -43,7 +43,7 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-background text-foreground font-sans">
       <Header />
-      <main className="pt-28 sm:pt-32 pb-24 px-6 md:px-12 xl:px-24 max-w-[1400px] mx-auto">
+      <main className="pt-28 sm:pt-32 pb-24 px-6 max-w-[1180px] mx-auto">
         <Suspense fallback={<Loading />}>
           <Profile />
         </Suspense>
@@ -112,12 +112,12 @@ function Profile() {
 
   return (
     <>
-      <section className="flex flex-col lg:flex-row lg:items-center gap-8 pb-12">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-6 sm:gap-8 min-w-0">
+      <section className="flex flex-col lg:flex-row lg:items-start gap-8 pb-10">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-5 sm:gap-6 min-w-0">
           <Avatar name={user.name} username={user.username} size="xl" />
           <div className="min-w-0">
-            <h1 className="text-4xl sm:text-5xl font-semibold tracking-tighter leading-none">{user.name}</h1>
-            <p className="mt-3 text-brand-slate/60">
+            <h1 className="font-serif text-3xl sm:text-4xl font-semibold leading-none">{user.name}</h1>
+            <p className="mt-2.5 text-sm text-brand-slate">
               <span className="font-mono">@{user.username}</span>
               <span aria-hidden="true"> · </span>
               membro desde {monthYear(user.createdAt)}
@@ -145,35 +145,41 @@ function Profile() {
             </div>
           </div>
         </div>
-        <dl className="lg:ml-auto flex gap-8 sm:gap-10">
+        <dl className="lg:ml-auto flex divide-x divide-foreground/10">
           {[
             ["Filmes", user.filmsCount],
+            ["Reviews", user.reviewsCount],
             ["Curtidos", user.likesCount],
             ["Watchlist", user.watchlistCount],
           ].map(([label, value]) => (
-            <div key={label} className="flex flex-col-reverse">
-              <dt className="text-xs uppercase tracking-[0.15em] text-brand-slate/60 mt-1">{label}</dt>
-              <dd className="text-3xl font-semibold tracking-tight">{value}</dd>
+            <div key={label} className="flex flex-col-reverse items-center px-4 sm:px-5 first:pl-0 lg:first:pl-5 last:pr-0">
+              <dt className="text-[11px] uppercase tracking-[0.12em] text-brand-slate mt-1">{label}</dt>
+              <dd className="font-serif text-2xl sm:text-3xl font-semibold">{value}</dd>
             </div>
           ))}
         </dl>
       </section>
 
-      <div id="profile-tabs" role="tablist" aria-label="Seções do perfil" className="flex gap-8 border-b border-foreground/10 scroll-mt-28">
+      <div
+        id="profile-tabs"
+        role="tablist"
+        aria-label="Seções do perfil"
+        className="flex justify-center gap-7 px-4 rounded-md border border-foreground/10 bg-surface/50 scroll-mt-28"
+      >
         {TABS.map((t) => (
           <button
             key={t.id}
             role="tab"
             aria-selected={tab === t.id}
             onClick={() => selectTab(t.id)}
-            className={`-mb-px pb-4 text-sm font-medium tracking-wide border-b-2 transition-colors ${tab === t.id ? "border-brand-orange text-foreground" : "border-transparent text-brand-slate/50 hover:text-foreground"}`}
+            className={`py-3.5 text-[15px] border-b-2 transition-colors ${tab === t.id ? "border-brand-orange text-foreground" : "border-transparent text-brand-slate hover:text-foreground"}`}
           >
-            {t.label} <span className="font-mono text-xs text-brand-slate/40 ml-1">{counts[t.id]}</span>
+            {t.label} <span className="font-mono text-xs text-brand-slate/50 ml-0.5">{counts[t.id]}</span>
           </button>
         ))}
       </div>
 
-      <section role="tabpanel" className="pt-10">
+      <section role="tabpanel" className="pt-8">
         {tab === "filmes" &&
           (!diary.data ? (
             <Loading />

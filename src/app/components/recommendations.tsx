@@ -22,7 +22,7 @@ export function Recommendations({ items, loading }: RecommendationsProps) {
     return (
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
         {Array.from({ length: 3 }, (_, i) => (
-          <div key={i} className="h-36 rounded-xl bg-foreground/5 animate-pulse" />
+          <div key={i} className="h-36 rounded-md bg-surface animate-pulse" />
         ))}
       </div>
     );
@@ -30,7 +30,7 @@ export function Recommendations({ items, loading }: RecommendationsProps) {
 
   if (!items || items.length === 0) {
     return (
-      <div className="flex items-center gap-4 rounded-xl border border-dashed border-foreground/15 px-6 py-8 text-brand-slate/70">
+      <div className="flex items-center gap-4 rounded-md bg-surface px-6 py-6 text-brand-slate">
         <SparkleIcon size={28} weight="light" className="shrink-0 text-brand-orange" />
         <p className="text-sm sm:text-base">
           Registre e curta alguns filmes. O Nitrate liga diretores, elenco, franquias e gêneros
@@ -46,13 +46,13 @@ export function Recommendations({ items, loading }: RecommendationsProps) {
         <li key={rec.movieId}>
           <Link
             href={filmHref({ id: rec.movieId, slug: rec.slug })}
-            className="group flex gap-4 h-full p-3 rounded-xl border border-foreground/10 hover:border-brand-orange/40 hover:bg-white transition-colors"
+            className="group flex gap-4 h-full p-3 rounded-md bg-surface hover:bg-surface-strong transition-colors"
           >
             <div className="w-20 shrink-0">
               <Poster title={rec.title} posterPath={rec.posterPath} size="w185" sizes="80px" />
             </div>
             <div className="flex flex-col min-w-0 py-1">
-              <h3 className="font-medium leading-tight group-hover:text-brand-blue transition-colors">
+              <h3 className="font-serif text-lg font-semibold leading-tight group-hover:text-brand-orange transition-colors">
                 {rec.title}{" "}
                 {rec.releaseYear && <span className="text-foreground/40 font-normal text-sm">{rec.releaseYear}</span>}
               </h3>

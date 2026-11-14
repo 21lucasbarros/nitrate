@@ -39,7 +39,7 @@ export function Modal({ open, onClose, label, children }: ModalProps) {
         // o clique no ::backdrop chega com target = o próprio <dialog>
         if (e.target === e.currentTarget) onClose();
       }}
-      className="modal m-auto w-[min(640px,calc(100%-2rem))] max-h-[calc(100dvh-2rem)] rounded-2xl bg-background text-foreground p-0 shadow-2xl shadow-brand-charcoal/30"
+      className="modal m-auto w-[min(640px,calc(100%-2rem))] max-h-[calc(100dvh-2rem)] rounded-lg bg-surface text-foreground p-0 ring-1 ring-white/10 shadow-2xl shadow-black/60"
     >
       {open && (
         <div className="relative p-6 sm:p-8">

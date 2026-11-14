@@ -16,7 +16,7 @@ export function Poster({ title, posterPath, size = "w342", sizes = "160px", clas
 
   return (
     <div
-      className={`relative aspect-2/3 overflow-hidden rounded-sm ring-1 ring-foreground/10 bg-foreground/5 ${className}`}
+      className={`relative aspect-2/3 overflow-hidden rounded-[4px] ring-1 ring-inset ring-white/10 bg-surface ${className}`}
     >
       {src ? (
         <Image

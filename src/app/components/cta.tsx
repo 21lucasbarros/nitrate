@@ -19,7 +19,7 @@ const POSTER_STRIP = [
 
 export default function CTA() {
   return (
-    <section className="relative overflow-hidden bg-brand-slate text-background py-28 sm:py-36 px-6">
+    <section className="relative overflow-hidden bg-brand-charcoal text-foreground py-28 sm:py-36 px-6">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_50%_0%,rgba(201,106,58,0.16),transparent_70%)]" />
 
       <div className="hidden lg:flex absolute left-8 top-16 bottom-16 flex-col justify-between items-center">
@@ -44,7 +44,7 @@ export default function CTA() {
           Sua crítica, não.
         </h2>
 
-        <p className="text-lg sm:text-xl text-background/65 font-light max-w-xl mx-auto mb-10 sm:mb-12 leading-relaxed">
+        <p className="text-lg sm:text-xl text-foreground/65 font-light max-w-xl mx-auto mb-10 sm:mb-12 leading-relaxed">
           Catalogue cada sessão com precisão — meias estrelas incluídas —,
           monte seu diário e discuta direção, roteiro e fotografia com gente
           que também assistiu até os créditos finais. Sem curtidas, sem
@@ -56,7 +56,7 @@ export default function CTA() {
             Criar minha conta gratuitamente
             <ArrowRightIcon size={20} weight="bold" className="group-hover:translate-x-1 transition-transform" />
           </button>
-          <span className="text-xs text-background/40 font-mono uppercase tracking-wider">
+          <span className="text-xs text-foreground/40 font-mono uppercase tracking-wider">
             Grátis · sem cartão · migração em 3 minutos
           </span>
         </div>
@@ -68,10 +68,10 @@ export default function CTA() {
                 <span className="hidden sm:block w-px h-8 bg-background/10" aria-hidden="true" />
               )}
               <div className="text-center">
-                <div className="text-xl sm:text-2xl font-mono font-medium text-background/90">
+                <div className="text-xl sm:text-2xl font-mono font-medium text-foreground/90">
                   {stat.value.toLocaleString("pt-BR")}
                 </div>
-                <div className="text-[11px] uppercase tracking-wider text-background/40 mt-1">
+                <div className="text-[11px] uppercase tracking-wider text-foreground/40 mt-1">
                   {stat.label}
                 </div>
               </div>
