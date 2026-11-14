@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { CircleNotchIcon, DownloadSimpleIcon, SparkleIcon } from "@phosphor-icons/react";
@@ -8,24 +8,41 @@ import { CircleNotchIcon, DownloadSimpleIcon, SparkleIcon } from "@phosphor-icon
 import Header from "@/app/components/header";
 import { Avatar } from "@/app/components/ui/avatar";
 import { MovieGrid } from "@/app/components/movie-grid";
+import { EditFavoritesButton, FavoriteFilms, FavoritesEditor } from "@/app/components/favorite-films";
+import { FollowButton } from "@/app/components/follow-button";
+import { UserList } from "@/app/components/user-list";
+import { SectionHeading } from "@/app/components/ui/section-heading";
 import { ReviewCard, reviewHref } from "@/app/components/review-card";
 import { Pagination } from "@/app/components/ui/pagination";
 import { ApiError } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
 import { useFetch } from "@/lib/hooks/use-fetch";
-import { getProfile, getUserReviews, getUserWatchlist } from "@/lib/services/user-service";
+import {
+  getFollowers,
+  getFollowing,
+  getProfile,
+  getUserReviews,
+  getUserWatchlist,
+} from "@/lib/services/user-service";
 import { monthYear } from "@/utils/format";
 
 const TABS = [
-  { id: "filmes", label: "Filmes" },
+  { id: "perfil", label: "Perfil" },
+  { id: "diario", label: "Diário" },
   { id: "reviews", label: "Reviews" },
   { id: "watchlist", label: "Watchlist" },
+  { id: "rede", label: "Amigos" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
 
+// links antigos usavam ?tab=filmes para o diário
+const TAB_ALIASES: Record<string, TabId> = { filmes: "diario" };
+
 const FILMS_PER_PAGE = 48; // 6 linhas de 8
 const REVIEWS_PER_PAGE = 10;
+const RECENT_FILMS = 6; // uma linha da grade
+const RECENT_REVIEWS = 2;
 
 // o useFetch compara o argumento por igualdade, então a chave é texto: "usuario|aba|pagina"
 const fetchDiaryPage = (key: string) => {
@@ -37,13 +54,16 @@ const fetchDiaryPage = (key: string) => {
       : { page: Number(page) - 1, size: FILMS_PER_PAGE },
   );
 };
+const fetchRecentFilms = (username: string) => getUserReviews(username, { page: 0, size: RECENT_FILMS });
+const fetchRecentReviews = (username: string) =>
+  getUserReviews(username, { page: 0, size: RECENT_REVIEWS, withText: true });
 
 export default function ProfilePage() {
   // useSearchParams precisa de Suspense para o build estático do Next
   return (
     <div className="min-h-screen bg-background text-foreground font-sans">
       <Header />
-      <main className="pt-28 sm:pt-32 pb-24 px-6 max-w-[1180px] mx-auto">
+      <main className="pt-28 sm:pt-32 pb-24 px-6 max-w-[1100px] mx-auto">
         <Suspense fallback={<Loading />}>
           <Profile />
         </Suspense>
@@ -57,28 +77,35 @@ function Profile() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  const { user: me } = useAuth();
+  const { status, user: me, refreshUser } = useAuth();
+  const [editingFavorites, setEditingFavorites] = useState(false);
 
-  const tabParam = searchParams.get("tab");
-  const tab: TabId = TABS.some((t) => t.id === tabParam) ? (tabParam as TabId) : "filmes";
+  const rawTab = searchParams.get("tab") ?? "";
+  const tabParam = TAB_ALIASES[rawTab] ?? rawTab;
+  const tab: TabId = TABS.some((t) => t.id === tabParam) ? (tabParam as TabId) : "perfil";
   const page = Math.max(1, Number(searchParams.get("page")) || 1);
 
-  const profile = useFetch(username, getProfile);
-  const diary = useFetch(tab === "watchlist" ? null : `${username}|${tab}|${page}`, fetchDiaryPage);
+  // espera a sessão carregar: com token, o perfil diz se você segue a pessoa
+  const profile = useFetch(status === "loading" ? null : username, getProfile);
+  const diary = useFetch(tab === "diario" || tab === "reviews" ? `${username}|${tab}|${page}` : null, fetchDiaryPage);
   const watchlist = useFetch(tab === "watchlist" ? username : null, getUserWatchlist);
+  const recentFilms = useFetch(tab === "perfil" ? username : null, fetchRecentFilms);
+  const recentReviews = useFetch(tab === "perfil" ? username : null, fetchRecentReviews);
+  const following = useFetch(tab === "rede" ? username : null, getFollowing);
+  const followers = useFetch(tab === "rede" ? username : null, getFollowers);
 
   if (profile.error instanceof ApiError && profile.error.status === 404) {
     return (
       <div className="py-32 text-center">
-        <h1 className="text-3xl font-medium tracking-tight">Usuário não encontrado.</h1>
-        <p className="mt-3 text-brand-slate/60">Ninguém usa o nome @{username} no Nitrate.</p>
+        <h1 className="text-2xl font-semibold">Usuário não encontrado.</h1>
+        <p className="mt-3 text-brand-slate">Ninguém usa o nome @{username} no Nitrate.</p>
       </div>
     );
   }
 
   if (!profile.data) {
     return profile.error ? (
-      <p className="py-32 text-center text-brand-slate/60">Não foi possível carregar o perfil.</p>
+      <p className="py-32 text-center text-brand-slate">Não foi possível carregar o perfil.</p>
     ) : (
       <Loading />
     );
@@ -89,7 +116,7 @@ function Profile() {
 
   const navigate = (id: TabId, newPage: number, mode: "push" | "replace") => {
     const params = new URLSearchParams();
-    if (id !== "filmes") params.set("tab", id);
+    if (id !== "perfil") params.set("tab", id);
     if (newPage > 1) params.set("page", String(newPage));
     const qs = params.toString();
     router[mode](qs ? `${pathname}?${qs}` : pathname, { scroll: false });
@@ -104,57 +131,83 @@ function Profile() {
     document.getElementById("profile-tabs")?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  const counts: Record<TabId, number> = {
-    filmes: user.filmsCount,
+  const setFollowing = (value: boolean) => {
+    profile.setData({
+      ...user,
+      followedByMe: value,
+      followersCount: user.followersCount + (value ? 1 : -1),
+    });
+  };
+
+  // depois de confirmado: a lista de seguidores e o total de quem você segue (usado na home)
+  const afterFollowSaved = () => {
+    if (tab === "rede") followers.reload();
+    refreshUser();
+  };
+
+  const counts: Partial<Record<TabId, number>> = {
+    diario: user.filmsCount,
     reviews: user.reviewsCount,
     watchlist: user.watchlistCount,
   };
 
+  const stats: { label: string; value: number; tab: TabId }[] = [
+    { label: user.filmsCount === 1 ? "filme" : "filmes", value: user.filmsCount, tab: "diario" },
+    { label: user.reviewsCount === 1 ? "review" : "reviews", value: user.reviewsCount, tab: "reviews" },
+    { label: "seguindo", value: user.followingCount, tab: "rede" },
+    { label: user.followersCount === 1 ? "seguidor" : "seguidores", value: user.followersCount, tab: "rede" },
+  ];
+
   return (
     <>
-      <section className="flex flex-col lg:flex-row lg:items-start gap-8 pb-10">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-5 sm:gap-6 min-w-0">
-          <Avatar name={user.name} username={user.username} size="xl" />
+      <section className="flex flex-col md:flex-row md:items-center gap-6 pb-8">
+        <div className="flex items-center gap-5 min-w-0">
+          <Avatar name={user.name} username={user.username} size="lg" />
           <div className="min-w-0">
-            <h1 className="font-serif text-3xl sm:text-4xl font-semibold leading-none">{user.name}</h1>
-            <p className="mt-2.5 text-sm text-brand-slate">
-              <span className="font-mono">@{user.username}</span>
-              <span aria-hidden="true"> · </span>
-              membro desde {monthYear(user.createdAt)}
-            </p>
-            <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2">
-            {/* a retrospectiva é só do dono do diário */}
-            {isMe && user.filmsCount > 0 && (
-              <Link
-                href={`/u/${user.username}/retrospectiva`}
-                className="inline-flex items-center gap-2 text-sm font-medium text-brand-orange hover:underline underline-offset-4"
-              >
-                <SparkleIcon size={16} weight="fill" />
-                Retrospectiva mensal
-              </Link>
-            )}
-            {isMe && (
-              <Link
-                href="/importar"
-                className="inline-flex items-center gap-2 text-sm font-medium text-brand-slate/70 hover:text-brand-blue hover:underline underline-offset-4"
-              >
-                <DownloadSimpleIcon size={16} />
-                Importar do Letterboxd
-              </Link>
-            )}
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">{user.name}</h1>
+              {!isMe && status === "authenticated" && user.followedByMe !== null && (
+                <FollowButton username={user.username} following={user.followedByMe} onChange={setFollowing} onSaved={afterFollowSaved} />
+              )}
+              {!isMe && status === "anonymous" && (
+                <Link
+                  href={`/sign-in?redirect=${encodeURIComponent(`/u/${user.username}`)}`}
+                  className="px-3 py-1 rounded-md bg-surface-strong text-xs font-semibold text-foreground hover:bg-brand-orange hover:text-background transition-colors"
+                >
+                  Entre para seguir
+                </Link>
+              )}
             </div>
+            <p className="mt-1 text-sm text-brand-slate">
+              @{user.username}
+              <span aria-hidden="true"> · </span>
+              desde {monthYear(user.createdAt)}
+            </p>
+            {isMe && (
+              <div className="mt-2.5 flex flex-wrap gap-x-5 gap-y-1 text-sm">
+                {/* a retrospectiva é só do dono do diário */}
+                {user.filmsCount > 0 && (
+                  <Link href={`/u/${user.username}/retrospectiva`} className="inline-flex items-center gap-1.5 text-brand-orange hover:underline underline-offset-4">
+                    <SparkleIcon size={14} weight="fill" />
+                    Retrospectiva
+                  </Link>
+                )}
+                <Link href="/importar" className="inline-flex items-center gap-1.5 text-brand-slate hover:text-foreground">
+                  <DownloadSimpleIcon size={14} />
+                  Importar do Letterboxd
+                </Link>
+              </div>
+            )}
           </div>
         </div>
-        <dl className="lg:ml-auto flex divide-x divide-foreground/10">
-          {[
-            ["Filmes", user.filmsCount],
-            ["Reviews", user.reviewsCount],
-            ["Curtidos", user.likesCount],
-            ["Watchlist", user.watchlistCount],
-          ].map(([label, value]) => (
-            <div key={label} className="flex flex-col-reverse items-center px-4 sm:px-5 first:pl-0 lg:first:pl-5 last:pr-0">
-              <dt className="text-[11px] uppercase tracking-[0.12em] text-brand-slate mt-1">{label}</dt>
-              <dd className="font-serif text-2xl sm:text-3xl font-semibold">{value}</dd>
+
+        <dl className="md:ml-auto flex gap-6 sm:gap-8">
+          {stats.map((stat) => (
+            <div key={stat.label}>
+              <button onClick={() => selectTab(stat.tab)} className="group flex flex-col-reverse items-center">
+                <dt className="text-xs text-brand-slate group-hover:text-foreground transition-colors">{stat.label}</dt>
+                <dd className="text-xl font-semibold tabular-nums">{stat.value}</dd>
+              </button>
             </div>
           ))}
         </dl>
@@ -164,7 +217,7 @@ function Profile() {
         id="profile-tabs"
         role="tablist"
         aria-label="Seções do perfil"
-        className="flex justify-center gap-7 px-4 rounded-md border border-foreground/10 bg-surface/50 scroll-mt-28"
+        className="flex gap-6 overflow-x-auto border-b border-foreground/10 scroll-mt-24"
       >
         {TABS.map((t) => (
           <button
@@ -172,15 +225,68 @@ function Profile() {
             role="tab"
             aria-selected={tab === t.id}
             onClick={() => selectTab(t.id)}
-            className={`py-3.5 text-[15px] border-b-2 transition-colors ${tab === t.id ? "border-brand-orange text-foreground" : "border-transparent text-brand-slate hover:text-foreground"}`}
+            className={`shrink-0 -mb-px pb-3 text-sm border-b-2 transition-colors ${tab === t.id ? "border-brand-orange text-foreground" : "border-transparent text-brand-slate hover:text-foreground"}`}
           >
-            {t.label} <span className="font-mono text-xs text-brand-slate/50 ml-0.5">{counts[t.id]}</span>
+            {t.label}
+            {counts[t.id] !== undefined && <span className="ml-1.5 text-xs text-brand-slate/60">{counts[t.id]}</span>}
           </button>
         ))}
       </div>
 
       <section role="tabpanel" className="pt-8">
-        {tab === "filmes" &&
+        {tab === "perfil" && (
+          <div className="flex flex-col gap-12">
+            {(user.favorites.length > 0 || isMe) && (
+              <div>
+                <SectionHeading
+                  title="Filmes favoritos"
+                  action={isMe && user.favorites.length > 0 ? <EditFavoritesButton onClick={() => setEditingFavorites(true)} /> : undefined}
+                />
+                <FavoriteFilms films={user.favorites} isMe={isMe} onEdit={() => setEditingFavorites(true)} />
+              </div>
+            )}
+
+            <div>
+              <SectionHeading
+                title="Assistidos recentemente"
+                href={user.filmsCount > RECENT_FILMS ? `${pathname}?tab=diario` : undefined}
+                linkLabel="Diário completo"
+              />
+              {!recentFilms.data ? (
+                <Loading />
+              ) : recentFilms.data.items.length > 0 ? (
+                <MovieGrid
+                  variant="compact"
+                  items={recentFilms.data.items.map((review) => ({
+                    movie: review.movie,
+                    rating: review.rating,
+                    liked: review.liked,
+                    rewatch: review.rewatch,
+                    reviewHref: review.text ? reviewHref(review) : undefined,
+                  }))}
+                />
+              ) : (
+                <Empty isMe={isMe} me="Você ainda não registrou nenhum filme." other={`${user.name} ainda não registrou nenhum filme.`} />
+              )}
+            </div>
+
+            {recentReviews.data && recentReviews.data.items.length > 0 && (
+              <div>
+                <SectionHeading
+                  title="Últimas reviews"
+                  href={user.reviewsCount > RECENT_REVIEWS ? `${pathname}?tab=reviews` : undefined}
+                />
+                <div className="divide-y divide-foreground/10 -mt-5">
+                  {recentReviews.data.items.map((review) => (
+                    <ReviewCard key={review.id} review={review} hideUser excerpt />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {tab === "diario" &&
           (!diary.data ? (
             <Loading />
           ) : diary.data.items.length > 0 ? (
@@ -224,17 +330,53 @@ function Profile() {
           ) : (
             <Empty isMe={isMe} me="Sua watchlist está vazia." other={`A watchlist de ${user.name} está vazia.`} />
           ))}
+
+        {tab === "rede" && (
+          <div className="flex flex-col gap-12">
+            <div>
+              <SectionHeading title="Seguindo" count={user.followingCount} />
+              {following.data ? (
+                <UserList
+                  users={following.data}
+                  empty={isMe ? "Você ainda não segue ninguém. Busque perfis pelo nome na busca do topo." : `${user.name} ainda não segue ninguém.`}
+                />
+              ) : (
+                <Loading />
+              )}
+            </div>
+            <div>
+              <SectionHeading title="Seguidores" count={user.followersCount} />
+              {followers.data ? (
+                <UserList users={followers.data} empty={isMe ? "Ninguém segue você ainda." : `Ninguém segue ${user.name} ainda.`} />
+              ) : (
+                <Loading />
+              )}
+            </div>
+          </div>
+        )}
       </section>
+
+      {isMe && (
+        <FavoritesEditor
+          open={editingFavorites}
+          initial={user.favorites}
+          onClose={() => setEditingFavorites(false)}
+          onSaved={(favorites) => {
+            profile.setData({ ...user, favorites });
+            setEditingFavorites(false);
+          }}
+        />
+      )}
     </>
   );
 }
 
 function Empty({ isMe, me, other }: { isMe: boolean; me: string; other: string }) {
   return (
-    <div className="py-16 text-center text-brand-slate/60">
+    <div className="py-12 text-center text-brand-slate">
       <p>{isMe ? me : other}</p>
       {isMe && (
-        <Link href="/movies" className="inline-block mt-4 font-medium text-brand-blue hover:underline">
+        <Link href="/movies" className="inline-block mt-4 font-medium text-brand-orange hover:underline underline-offset-4">
           Explorar filmes
         </Link>
       )}

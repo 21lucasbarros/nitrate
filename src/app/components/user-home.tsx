@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRightIcon, ArrowsClockwiseIcon, ChatTextIcon, HeartIcon, SparkleIcon } from "@phosphor-icons/react";
+import { ArrowRightIcon, ArrowsClockwiseIcon, ChatTextIcon, HeartIcon, SparkleIcon, UsersThreeIcon } from "@phosphor-icons/react";
 import type { UserProfile } from "@/lib/types/user";
 import type { MovieReview } from "@/lib/types/review";
 import { useFetch } from "@/lib/hooks/use-fetch";
-import { getMyRecommendations, getUserWatchlist } from "@/lib/services/user-service";
+import { getMyFeed, getMyRecommendations, getUserWatchlist } from "@/lib/services/user-service";
 import { getRecentReviews } from "@/lib/services/review-service";
 import { getMovies } from "@/lib/services/movie-service";
 import { getMyRetrospectiveMonths } from "@/lib/services/retrospective-service";
@@ -25,8 +25,9 @@ import { StarRating } from "./ui/star-rating";
 const RECENT_LIMIT = 12;
 const RECENT_POSTERS = 6;
 const RECENT_TEXTS = 3;
-// a atividade recente não precisa ser buscada de novo a cada visita à home
+// a atividade da comunidade (para quem ainda não segue ninguém) não precisa ser buscada a cada visita
 const fetchRecent = cachedFetcher(() => getRecentReviews(RECENT_LIMIT), 5 * 60 * 1000);
+const fetchFeed = () => getMyFeed(RECENT_LIMIT);
 const fetchRetroMonths = () => getMyRetrospectiveMonths();
 const fetchMovies = () => getMovies();
 const fetchRecommendations = () => getMyRecommendations();
@@ -34,7 +35,11 @@ const fetchRecommendations = () => getMyRecommendations();
 export default function UserHome({ user }: { user: UserProfile }) {
   const firstName = user.name.split(" ")[0];
   const watchlist = useFetch(user.username, getUserWatchlist);
-  const recent = useFetch("recent", fetchRecent);
+  const followsSomeone = user.followingCount > 0;
+  // a chave inclui quantas pessoas você segue: seguir alguém novo refaz o feed
+  const feed = useFetch(followsSomeone ? `${user.username}:${user.followingCount}` : null, fetchFeed);
+  const community = useFetch(followsSomeone ? null : "recent", fetchRecent);
+  const activity = followsSomeone ? feed : community;
   const movies = useFetch("all", fetchMovies);
   // a chave inclui a contagem de filmes: registrar um filme novo refaz as recomendações
   const recommendations = useFetch(`${user.username}:${user.filmsCount}`, fetchRecommendations);
@@ -49,26 +54,42 @@ export default function UserHome({ user }: { user: UserProfile }) {
 
   const watchlistIds = new Set(watchlist.data?.map((item) => item.movie.id));
   const discover = (movies.data ?? []).filter((movie) => !watchlistIds.has(movie.id)).slice(0, 12);
-  const recentWritten = (recent.data ?? []).filter((r) => r.text && !r.spoiler).slice(0, RECENT_TEXTS);
+  const recentWritten = (activity.data ?? []).filter((r) => r.text && !r.spoiler).slice(0, RECENT_TEXTS);
 
   return (
-    <main className="pt-28 sm:pt-32 pb-24 px-6 max-w-[1180px] mx-auto w-full">
-      <p className="text-center text-2xl sm:text-3xl font-light text-brand-slate leading-snug">
-        Bem-vindo de volta,{" "}
-        <Link href={`/u/${user.username}`} className="text-foreground underline underline-offset-8 decoration-foreground/30 hover:decoration-brand-orange">
-          {firstName}
-        </Link>
-        . Veja o que a comunidade anda assistindo…
+    <main className="pt-28 sm:pt-32 pb-24 px-6 max-w-[1100px] mx-auto w-full">
+      <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">
+        {greeting()}, {firstName}.
+      </h1>
+      <p className="mt-1.5 text-brand-slate">
+        {followsSomeone ? "Veja o que seus amigos andam assistindo." : "Veja o que a comunidade anda assistindo."}
       </p>
 
-      <section className="mt-12">
-        <SectionHeading title="Novidades da comunidade" />
-        {recent.data ? (
-          <ul className="grid grid-cols-3 sm:grid-cols-6 gap-3 sm:gap-4">
-            {recent.data.slice(0, RECENT_POSTERS).map((review) => (
-              <ActivityPoster key={review.id} review={review} />
-            ))}
-          </ul>
+      <section className="mt-10">
+        <SectionHeading
+          title={followsSomeone ? "Seus amigos assistiram" : "Na comunidade"}
+          href={followsSomeone ? `/u/${user.username}?tab=rede` : undefined}
+          linkLabel="Amigos"
+        />
+        {!followsSomeone && (
+          <p className="-mt-1 mb-5 flex items-center gap-2 text-sm text-brand-slate">
+            <UsersThreeIcon size={16} />
+            Siga pessoas para ver aqui o que elas assistem. Busque perfis pelo nome na{" "}
+            <Link href="/movies" className="text-foreground underline underline-offset-4 decoration-foreground/30 hover:decoration-brand-orange">
+              busca
+            </Link>.
+          </p>
+        )}
+        {activity.data ? (
+          activity.data.length > 0 ? (
+            <ul className="grid grid-cols-3 sm:grid-cols-6 gap-x-3 gap-y-6 sm:gap-x-4">
+              {activity.data.slice(0, RECENT_POSTERS).map((review) => (
+                <ActivityPoster key={review.id} review={review} />
+              ))}
+            </ul>
+          ) : (
+            <p className="text-brand-slate">Quem você segue ainda não registrou nenhum filme.</p>
+          )
         ) : (
           <GridSkeleton />
         )}
@@ -77,15 +98,15 @@ export default function UserHome({ user }: { user: UserProfile }) {
       {retroMonth && (
         <Link
           href={`/u/${user.username}/retrospectiva/${retroMonth}`}
-          className="group mt-12 flex items-center justify-between gap-6 rounded-md bg-surface px-6 py-5 hover:bg-surface-strong transition-colors"
+          className="group mt-10 flex items-center justify-between gap-6 rounded-md bg-surface px-5 py-4 hover:bg-surface-strong transition-colors"
         >
           <span className="flex items-center gap-4">
-            <SparkleIcon size={26} weight="fill" className="shrink-0 text-brand-orange" />
+            <SparkleIcon size={22} weight="fill" className="shrink-0 text-brand-orange" />
             <span>
               <span className="block text-[11px] font-semibold tracking-[0.15em] uppercase text-brand-orange">
                 {retroMonth === lastMonth ? "Retrospectiva pronta" : "Retrospectiva em andamento"}
               </span>
-              <span className="block mt-1 font-serif text-xl font-semibold">
+              <span className="block mt-0.5 font-medium">
                 Seu mês no cinema: {monthLabel(retroMonth)}
               </span>
             </span>
@@ -94,12 +115,12 @@ export default function UserHome({ user }: { user: UserProfile }) {
         </Link>
       )}
 
-      <section className="mt-14">
+      <section className="mt-12">
         <SectionHeading title="Recomendado para você" />
         <Recommendations items={recommendations.data} loading={recommendations.loading} />
       </section>
 
-      <section className="mt-14">
+      <section className="mt-12">
         <SectionHeading title="Sua watchlist" href={`/u/${user.username}?tab=watchlist`} count={user.watchlistCount} />
         {watchlist.data && watchlist.data.length > 0 ? (
           <MovieGrid variant="compact" items={watchlist.data.slice(0, 6)} />
@@ -113,8 +134,8 @@ export default function UserHome({ user }: { user: UserProfile }) {
       </section>
 
       {recentWritten.length > 0 && (
-        <section className="mt-14">
-          <SectionHeading title="Reviews recentes" />
+        <section className="mt-12">
+          <SectionHeading title={followsSomeone ? "Reviews dos amigos" : "Reviews recentes"} />
           <div className="divide-y divide-foreground/10 -mt-5">
             {recentWritten.map((review) => (
               <ReviewCard key={review.id} review={review} excerpt />
@@ -123,7 +144,7 @@ export default function UserHome({ user }: { user: UserProfile }) {
         </section>
       )}
 
-      <section className="mt-14">
+      <section className="mt-12">
         <SectionHeading title="Descubra algo novo" href="/movies" linkLabel="Mais" />
         {movies.loading ? <GridSkeleton /> : <MovieGrid variant="compact" items={discover.map((movie) => ({ movie }))} />}
       </section>
@@ -131,25 +152,21 @@ export default function UserHome({ user }: { user: UserProfile }) {
   );
 }
 
-/** pôster da atividade: avatar de quem registrou por cima, nome e nota embaixo */
+/** pôster da atividade, com quem registrou e a nota numa legenda embaixo */
 function ActivityPoster({ review }: { review: MovieReview }) {
   return (
-    <li>
-      <div className="relative">
-        <Link href={filmHref(review.movie)} title={review.movie.title} className="group block">
-          <Poster
-            title={review.movie.title}
-            posterPath={review.movie.posterPath}
-            sizes="(min-width: 640px) 180px, 30vw"
-            className="group-hover:ring-2 group-hover:ring-brand-orange transition-all"
-          />
-        </Link>
-        <Link href={`/u/${review.user.username}`} className="absolute -bottom-3 left-1.5 rounded-full ring-2 ring-background" title={review.user.name}>
-          <Avatar name={review.user.name} username={review.user.username} size="sm" />
-        </Link>
-      </div>
-      <Link href={`/u/${review.user.username}`} className="mt-4 block text-sm font-semibold truncate hover:text-brand-orange">
-        {review.user.name}
+    <li className="min-w-0">
+      <Link href={filmHref(review.movie)} title={review.movie.title} className="group block">
+        <Poster
+          title={review.movie.title}
+          posterPath={review.movie.posterPath}
+          sizes="(min-width: 640px) 180px, 30vw"
+          className="group-hover:ring-2 group-hover:ring-brand-orange transition-shadow"
+        />
+      </Link>
+      <Link href={`/u/${review.user.username}`} className="mt-2.5 flex items-center gap-2 min-w-0 group">
+        <Avatar name={review.user.name} username={review.user.username} size="xs" />
+        <span className="text-sm truncate text-foreground/85 group-hover:text-brand-orange">{review.user.name}</span>
       </Link>
       <div className="mt-1 flex items-center gap-1.5 text-brand-slate">
         {review.rating !== null && <StarRating rating={toRating(review.rating)} size={11} />}
@@ -165,11 +182,20 @@ function ActivityPoster({ review }: { review: MovieReview }) {
   );
 }
 
+/** saudação pela hora do dia */
+function greeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 5) return "Boa madrugada";
+  if (hour < 12) return "Bom dia";
+  if (hour < 18) return "Boa tarde";
+  return "Boa noite";
+}
+
 function GridSkeleton() {
   return (
     <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 sm:gap-4">
       {Array.from({ length: 6 }, (_, i) => (
-        <div key={i} className="aspect-2/3 rounded-[4px] bg-surface animate-pulse" />
+        <div key={i} className="aspect-2/3 rounded-md bg-surface animate-pulse" />
       ))}
     </div>
   );

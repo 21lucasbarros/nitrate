@@ -10,6 +10,9 @@ import { useFetch } from "@/lib/hooks/use-fetch";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { getMovies, searchMovies } from "@/lib/services/movie-service";
 import { searchPeople } from "@/lib/services/person-service";
+import { searchUsers } from "@/lib/services/user-service";
+import { UserList } from "@/app/components/user-list";
+import { SectionHeading } from "@/app/components/ui/section-heading";
 import type { MovieSearchResult } from "@/types/movie";
 import { departmentLabel, type PersonSummary } from "@/types/person";
 import { movieHref } from "@/utils/movie-link";
@@ -29,6 +32,7 @@ export default function MoviesPage() {
   const searchKey = debouncedQuery.length >= MIN_QUERY ? debouncedQuery : null;
   const search = useFetch(searchKey, searchMovies);
   const people = useFetch(searchKey, searchPeople);
+  const users = useFetch(searchKey, searchUsers);
   // enquanto o debounce não "alcançou" o que foi digitado, também conta como carregando
   const searchPending = isSearching && (search.loading || debouncedQuery !== query.trim());
 
@@ -44,18 +48,25 @@ export default function MoviesPage() {
           <div className="group relative w-full md:w-80">
             <MagnifyingGlassIcon
               size={18}
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-slate/40 group-focus-within:text-brand-blue pointer-events-none"
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-slate/60 group-focus-within:text-brand-orange pointer-events-none"
             />
             <input
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Buscar filmes, atores e diretores"
-              aria-label="Buscar filmes"
-              className="w-full pl-11 pr-4 py-3 bg-transparent border border-brand-slate/20 rounded-full text-sm placeholder:text-brand-slate/40 focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue"
+              placeholder="Buscar filmes, pessoas e perfis"
+              aria-label="Buscar filmes, pessoas e perfis"
+              className="w-full pl-11 pr-4 py-3 bg-surface border border-transparent rounded-md text-sm placeholder:text-brand-slate/60 focus:outline-none focus:border-foreground/20"
             />
           </div>
         </div>
+
+        {isSearching && users.data && users.data.length > 0 && (
+          <section className="mb-14">
+            <SectionHeading title="Perfis no Nitrate" />
+            <UserList users={users.data} />
+          </section>
+        )}
 
         {isSearching && people.data && people.data.length > 0 && (
           <PeopleResults people={people.data.slice(0, MAX_PEOPLE)} />
@@ -126,7 +137,7 @@ function SearchResults({ query, results, pending, failed }: {
 function PeopleResults({ people }: { people: PersonSummary[] }) {
   return (
     <section className="mb-14">
-      <h2 className="text-xs font-bold tracking-[0.2em] uppercase text-brand-orange mb-6">Pessoas</h2>
+      <SectionHeading title="Elenco e direção" />
       <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-x-5 gap-y-8">
         {people.map((person) => (
           <li key={person.tmdbId}>
@@ -137,7 +148,7 @@ function PeopleResults({ people }: { people: PersonSummary[] }) {
                 sizes="120px"
                 className="w-24 sm:w-28 group-hover:ring-brand-orange/50 transition-all"
               />
-              <span className="mt-3 font-medium leading-tight group-hover:text-brand-blue transition-colors">
+              <span className="mt-3 font-medium leading-tight group-hover:text-brand-orange transition-colors">
                 {person.name}
               </span>
               <span className="mt-1 text-xs uppercase tracking-[0.12em] text-brand-slate/50">

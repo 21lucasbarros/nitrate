@@ -17,12 +17,14 @@ function colorFor(username: string): string {
 interface AvatarProps {
   name: string;
   username: string;
-  size?: "sm" | "md" | "xl";
+  size?: "xs" | "sm" | "md" | "lg" | "xl";
 }
 
 const SIZES = {
+  xs: "w-5 h-5 text-[10px]",
   sm: "w-8 h-8 text-sm",
   md: "w-10 h-10 text-base",
+  lg: "w-16 h-16 sm:w-20 sm:h-20 text-2xl sm:text-3xl",
   xl: "w-24 h-24 sm:w-28 sm:h-28 text-4xl sm:text-5xl",
 };
 
