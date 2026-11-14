@@ -1,28 +1,28 @@
 @import "tailwindcss";
 
 :root {
-  /* tema escuro, como uma sala de cinema */
-  --background: #14171B;
-  --foreground: #E9ECEF;
+  /* tema escuro, grafite neutro */
+  --background: #141517;
+  --foreground: #ECEDEE;
 
   /* cartões, painéis e barras sobre o fundo */
-  --surface: #1D2228;
-  --surface-strong: #283039;
+  --surface: #1D1F22;
+  --surface-strong: #272A2E;
 
   /* paleta de identidade Nitrate */
-  --brand-slate: #9BA6B2; /* texto secundário */
+  --brand-slate: #9A9EA5; /* texto secundário */
   --brand-orange: #FF7A33;
-  --brand-blue: #6E9BFF;
+  --brand-blue: #8FB3FF;
 
   /* cores de botoes primarios */
   --brand-btn: #FF6A1C;
-  --brand-btn-text: #14171B;
+  --brand-btn-text: #141517;
 
   /* paleta extra */
   --brand-violet: #A78BFA;
   --brand-crimson: #F06A6A;
   --brand-emerald: #4ADE80;
-  --brand-charcoal: #0C0E11; /* blocos mais escuros que o fundo (capas, rodapé) */
+  --brand-charcoal: #0D0E10; /* blocos mais escuros que o fundo (capas, rodapé) */
   --brand-teal: #38BDF8;
 }
 

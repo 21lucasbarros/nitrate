@@ -86,7 +86,7 @@ export function ReviewCard({ review, hideMovie = false, hideUser = false, excerp
           <button
             type="button"
             onClick={() => setRevealed(true)}
-            className="group/spoiler mt-3 flex items-center gap-3 w-full max-w-2xl px-4 py-3 rounded-md border border-dashed border-brand-crimson/30 bg-brand-crimson/5 text-left text-sm text-brand-slate hover:border-brand-crimson/60 transition-colors"
+            className="group/spoiler mt-3 flex items-center gap-3 w-full max-w-2xl px-4 py-3 rounded-xl border border-dashed border-brand-crimson/30 bg-brand-crimson/5 text-left text-sm text-brand-slate hover:border-brand-crimson/60 transition-colors"
           >
             <WarningIcon size={20} className="shrink-0 text-brand-crimson" />
             <span className="flex-1">Esta review contém spoilers.</span>

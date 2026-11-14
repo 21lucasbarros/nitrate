@@ -51,7 +51,7 @@ export default function TrendingReviews() {
         {featured.loading
           ? Array.from({ length: 3 }, (_, i) => (
               <div key={i} className="flex gap-5 sm:gap-9 py-10 sm:py-12">
-                <div className="w-28 sm:w-32 aspect-2/3 rounded-sm bg-foreground/5 animate-pulse" />
+                <div className="w-28 sm:w-32 aspect-2/3 rounded-lg bg-foreground/5 animate-pulse" />
                 <div className="flex-1 space-y-3 pt-2">
                   <div className="h-7 w-1/3 rounded bg-foreground/5 animate-pulse" />
                   <div className="h-4 w-1/4 rounded bg-foreground/5 animate-pulse" />

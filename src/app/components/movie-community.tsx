@@ -13,8 +13,8 @@ export function NitrateRating({ stats }: { stats: MovieStats }) {
 
   return (
     <div>
-      <div className="flex items-end justify-between gap-4 pb-2 border-b border-foreground/10">
-        <span className="text-[13px] font-medium tracking-[0.12em] uppercase text-brand-slate">Nota no Nitrate</span>
+      <div className="flex items-baseline justify-between gap-4 pb-2.5 border-b border-foreground/10">
+        <span className="text-[15px] font-medium text-foreground/90">Nota no Nitrate</span>
         {stats.likesCount > 0 && (
           <span className="flex items-center gap-1 text-xs text-brand-slate/60" title="Pessoas que curtiram">
             <HeartIcon size={13} weight="fill" className="text-brand-orange" />
@@ -117,11 +117,11 @@ export function WhereToWatch({ providers }: { providers: WatchProviders }) {
 function ProviderLogo({ provider }: { provider: WatchProvider }) {
   const src = logoUrl(provider.logoPath);
   return (
-    <li title={provider.name} className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-sm bg-surface">
+    <li title={provider.name} className="flex items-center gap-2 pl-1 pr-3 py-1 rounded bg-surface">
       {src ? (
-        <Image src={src} alt="" width={28} height={28} className="w-7 h-7 rounded-[3px] object-cover" />
+        <Image src={src} alt="" width={28} height={28} className="w-7 h-7 rounded object-cover" />
       ) : (
-        <span className="w-7 h-7 rounded-[3px] bg-foreground/10" />
+        <span className="w-7 h-7 rounded bg-foreground/10" />
       )}
       <span className="text-sm text-foreground/85">{provider.name}</span>
     </li>

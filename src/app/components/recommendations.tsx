@@ -52,7 +52,7 @@ export function Recommendations({ items, loading }: RecommendationsProps) {
               <Poster title={rec.title} posterPath={rec.posterPath} size="w185" sizes="80px" />
             </div>
             <div className="flex flex-col min-w-0 py-1">
-              <h3 className="font-serif text-lg font-semibold leading-tight group-hover:text-brand-orange transition-colors">
+              <h3 className="font-medium leading-tight group-hover:text-brand-orange transition-colors">
                 {rec.title}{" "}
                 {rec.releaseYear && <span className="text-foreground/40 font-normal text-sm">{rec.releaseYear}</span>}
               </h3>

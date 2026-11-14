@@ -85,7 +85,7 @@ export default function CTA() {
           {[...POSTER_STRIP, ...POSTER_STRIP].map((url, i) => (
             <div
               key={i}
-              className="w-16 sm:w-20 aspect-2/3 rounded-sm overflow-hidden shrink-0 opacity-30 grayscale"
+              className="w-16 sm:w-20 aspect-2/3 rounded-lg overflow-hidden shrink-0 opacity-30 grayscale"
             >
               <img src={url} alt="" className="w-full h-full object-cover" />
             </div>

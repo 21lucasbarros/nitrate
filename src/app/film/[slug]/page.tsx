@@ -179,7 +179,7 @@ function FilmView({ film }: { film: Movie }) {
             )}
 
             {credits.data?.tagline && (
-              <p className="mt-8 text-sm font-medium tracking-[0.12em] uppercase text-brand-slate">{credits.data.tagline}</p>
+              <p className="mt-8 text-sm font-medium uppercase tracking-wide text-brand-slate">{credits.data.tagline}</p>
             )}
             {film.overview && (
               <p className={`${credits.data?.tagline ? "mt-3" : "mt-8"} font-serif text-lg leading-[1.7] text-foreground/85 max-w-2xl`}>
@@ -279,10 +279,9 @@ function ActionPanel(props: {
   onToggleWatchlist: () => void;
 }) {
   const iconButton = "flex flex-col items-center gap-1.5 py-4 text-xs font-medium transition-colors hover:bg-surface-strong";
-  const row = "w-full py-3.5 text-sm text-foreground/85 border-t border-foreground/5 hover:bg-surface-strong hover:text-foreground transition-colors";
 
   return (
-    <div className="rounded-md bg-surface overflow-hidden text-center">
+    <div className="rounded-md bg-surface text-center overflow-hidden">
       <div className="grid grid-cols-3">
         <button onClick={props.onLog} className={`${iconButton} ${props.watched ? "text-brand-emerald" : "text-brand-slate"}`}>
           <EyeIcon size={30} weight={props.watched ? "fill" : "regular"} />
@@ -323,14 +322,22 @@ function ActionPanel(props: {
         )}
       </div>
 
-      <button onClick={props.onLog} className={row}>
-        {props.watched ? "Assisti de novo…" : "Registrar ou avaliar…"}
-      </button>
-      {props.onEdit && (
-        <button onClick={props.onEdit} className={row}>
-          Editar última review…
+      <div className="border-t border-foreground/5 p-3 flex flex-col gap-1">
+        <button
+          onClick={props.onLog}
+          className="w-full py-2 rounded-md bg-brand-btn text-brand-btn-text text-sm font-semibold hover:bg-brand-btn/90 transition-colors"
+        >
+          {props.watched ? "Assisti de novo" : "Registrar ou avaliar"}
         </button>
-      )}
+        {props.onEdit && (
+          <button
+            onClick={props.onEdit}
+            className="w-full py-2 rounded-md text-sm text-brand-slate hover:text-foreground hover:bg-surface-strong transition-colors"
+          >
+            Editar última review
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -364,7 +371,7 @@ function FilmTabs({ film, cast: castOrNull, providers }: {
             role="tab"
             aria-selected={tab === t.id}
             onClick={() => setTab(t.id)}
-            className={`-mb-px pb-2 text-[13px] font-semibold tracking-[0.1em] uppercase border-b-2 transition-colors ${tab === t.id ? "border-brand-orange text-foreground" : "border-transparent text-brand-orange/80 hover:text-brand-orange"}`}
+            className={`-mb-px pb-2.5 text-sm border-b-2 transition-colors ${tab === t.id ? "border-brand-orange text-foreground" : "border-transparent text-brand-slate hover:text-foreground"}`}
           >
             {t.label}
           </button>
@@ -376,7 +383,7 @@ function FilmTabs({ film, cast: castOrNull, providers }: {
           (castLoading ? (
             <div className="flex flex-wrap gap-2">
               {Array.from({ length: 8 }, (_, i) => (
-                <span key={i} className="h-8 w-28 rounded-sm bg-surface animate-pulse" />
+                <span key={i} className="h-8 w-28 rounded bg-surface animate-pulse" />
               ))}
             </div>
           ) : cast.length === 0 ? (
@@ -389,7 +396,7 @@ function FilmTabs({ film, cast: castOrNull, providers }: {
                     <Link
                       href={`/person/${person.tmdbId}`}
                       title={person.role ? `${person.name} como ${person.role}` : person.name}
-                      className="block px-3 py-1.5 rounded-sm bg-surface text-sm text-foreground/80 hover:bg-surface-strong hover:text-foreground transition-colors"
+                      className="block px-3.5 py-1.5 rounded bg-surface text-sm text-foreground/80 hover:bg-surface-strong hover:text-foreground transition-colors"
                     >
                       {person.name}
                     </Link>
@@ -399,7 +406,7 @@ function FilmTabs({ film, cast: castOrNull, providers }: {
               {cast.length > CAST_PREVIEW && (
                 <button
                   onClick={() => setShowAll(!showAll)}
-                  className="mt-3 px-3 py-1.5 rounded-sm bg-surface text-sm text-brand-slate hover:text-foreground"
+                  className="mt-3 px-3 py-1.5 rounded text-sm text-brand-slate hover:text-foreground"
                 >
                   {showAll ? "Mostrar menos" : `Mostrar todos (${cast.length})`}
                 </button>
@@ -414,7 +421,7 @@ function FilmTabs({ film, cast: castOrNull, providers }: {
                 <dt className="text-brand-slate uppercase tracking-[0.1em] text-xs pt-1.5">Gêneros</dt>
                 <dd className="flex flex-wrap gap-2">
                   {film.genres.map((g) => (
-                    <span key={g} className="px-3 py-1 rounded-sm bg-surface text-foreground/80">{g}</span>
+                    <span key={g} className="px-2.5 py-1 rounded bg-surface text-foreground/80">{g}</span>
                   ))}
                 </dd>
               </>
