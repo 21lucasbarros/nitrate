@@ -1,16 +1,18 @@
 import Link from "next/link";
-import { ChatTextIcon, HeartIcon } from "@phosphor-icons/react";
+import { ArrowsClockwiseIcon, ChatTextIcon, HeartIcon } from "@phosphor-icons/react";
 import { toRating } from "@/utils/rating";
+import { filmHref } from "@/utils/movie-link";
 import { StarRating } from "./ui/star-rating";
 import { Poster } from "./ui/poster";
 
 export interface MovieGridItem {
-  movie: { id: number | string; title: string; posterPath: string | null; releaseYear?: number | null };
+  movie: { id: number | string; slug?: string | null; title: string; posterPath: string | null; releaseYear?: number | null };
   /** padrão: /movies/{movie.id} */
   href?: string;
   /** nota do usuário, exibida abaixo do pôster */
   rating?: number | null;
   liked?: boolean;
+  rewatch?: boolean;
   /** se a pessoa escreveu uma review, link para ela (ícone abaixo do pôster) */
   reviewHref?: string;
 }
@@ -31,9 +33,10 @@ export function MovieGrid({ items, variant = "default", showTitles = false }: Mo
 
   return (
     <ul className={`grid ${cols} gap-x-4 gap-y-6 sm:gap-x-5`}>
-      {items.map(({ movie, href, rating, liked, reviewHref }) => (
-        <li key={movie.id}>
-          <Link href={href ?? `/movies/${movie.id}`} className="group block" title={movie.title}>
+      {items.map(({ movie, href, rating, liked, rewatch, reviewHref }, index) => (
+        // o mesmo filme pode aparecer mais de uma vez no diário (reassistido)
+        <li key={`${movie.id}-${index}`}>
+          <Link href={href ?? filmHref(movie)} className="group block" title={movie.title}>
             <Poster
               title={movie.title}
               posterPath={movie.posterPath}
@@ -47,10 +50,15 @@ export function MovieGrid({ items, variant = "default", showTitles = false }: Mo
               </p>
             )}
           </Link>
-          {(rating != null || liked || reviewHref) && (
+          {(rating != null || liked || rewatch || reviewHref) && (
             <div className="flex items-center gap-1.5 mt-2">
               {rating != null && <StarRating rating={toRating(rating)} size={12} />}
               {liked && <HeartIcon size={12} weight="fill" className="text-brand-orange" />}
+              {rewatch && (
+                <ArrowsClockwiseIcon size={12} weight="bold" className="text-brand-emerald" aria-label="Reassistido">
+                  <title>Reassistido</title>
+                </ArrowsClockwiseIcon>
+              )}
               {/* fora do link do pôster: um link não pode ficar dentro de outro */}
               {reviewHref && (
                 <Link

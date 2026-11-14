@@ -4,6 +4,7 @@ import Link from "next/link";
 import { SparkleIcon } from "@phosphor-icons/react";
 import type { Recommendation } from "@/lib/types/review";
 import { Poster } from "./ui/poster";
+import { filmHref } from "@/utils/movie-link";
 
 const MAX_CARDS = 6;
 const MAX_REASONS = 2;
@@ -44,7 +45,7 @@ export function Recommendations({ items, loading }: RecommendationsProps) {
       {items.slice(0, MAX_CARDS).map((rec) => (
         <li key={rec.movieId}>
           <Link
-            href={`/movies/${rec.movieId}`}
+            href={filmHref({ id: rec.movieId, slug: rec.slug })}
             className="group flex gap-4 h-full p-3 rounded-xl border border-foreground/10 hover:border-brand-orange/40 hover:bg-white transition-colors"
           >
             <div className="w-20 shrink-0">

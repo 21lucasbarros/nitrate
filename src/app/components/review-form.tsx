@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CircleNotchIcon, HeartIcon, TrashIcon, WarningIcon } from "@phosphor-icons/react";
+import { ArrowsClockwiseIcon, CircleNotchIcon, HeartIcon, TrashIcon, WarningIcon } from "@phosphor-icons/react";
 import { ApiError } from "@/lib/api-client";
 import { createReview, deleteReview, updateReview } from "@/lib/services/review-service";
 import type { MovieReview } from "@/lib/types/review";
@@ -10,22 +10,27 @@ import { todayIso } from "@/utils/format";
 import { Poster } from "./ui/poster";
 import { StarInput } from "./ui/star-input";
 
-const TEXT_MAX = 5000;
+const TEXT_MAX = 20000; // igual ao limite do backend (reviews importadas do Letterboxd são longas)
 
 interface ReviewFormProps {
   movie: Movie;
   existing: MovieReview | null;
+  /** já existe alguma review deste filme: a nova é um reassistido */
+  previouslyWatched?: boolean;
   onSaved: (review: MovieReview) => void;
   onDeleted: () => void;
   onCancel: () => void;
 }
 
-export function ReviewForm({ movie, existing, onSaved, onDeleted, onCancel }: ReviewFormProps) {
+export function ReviewForm({ movie, existing, previouslyWatched = false, onSaved, onDeleted, onCancel }: ReviewFormProps) {
   const [rating, setRating] = useState<number | null>(existing?.rating ?? null);
   const [liked, setLiked] = useState(existing?.liked ?? false);
   const [watchedOn, setWatchedOn] = useState(existing?.watchedOn ?? todayIso());
   const [text, setText] = useState(existing?.text ?? "");
   const [spoiler, setSpoiler] = useState(existing?.spoiler ?? false);
+  const [rewatch, setRewatch] = useState(existing?.rewatch ?? previouslyWatched);
+  // a segunda review de um filme no Nitrate é sempre reassistido (o backend garante)
+  const rewatchLocked = !existing && previouslyWatched;
   const [busy, setBusy] = useState<"save" | "delete" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,6 +46,7 @@ export function ReviewForm({ movie, existing, onSaved, onDeleted, onCancel }: Re
       watchedOn,
       text: text.trim() || null,
       spoiler: hasText && spoiler,
+      rewatch: rewatch || rewatchLocked,
     };
     try {
       const saved = existing
@@ -75,7 +81,7 @@ export function ReviewForm({ movie, existing, onSaved, onDeleted, onCancel }: Re
         </div>
         <div className="min-w-0">
           <span className="text-xs font-bold tracking-[0.2em] uppercase text-brand-orange">
-            {existing ? "Editar review" : "Eu assisti…"}
+            {existing ? "Editar review" : previouslyWatched ? "Assisti de novo…" : "Eu assisti…"}
           </span>
           <h2 className="text-xl sm:text-2xl font-medium tracking-tight leading-tight mt-1 truncate">
             {movie.title}{" "}
@@ -115,6 +121,20 @@ export function ReviewForm({ movie, existing, onSaved, onDeleted, onCancel }: Re
           />
         </label>
       </div>
+
+      <label
+        className={`flex items-center gap-2.5 w-fit text-sm select-none ${rewatchLocked ? "text-brand-slate/50" : "cursor-pointer text-brand-slate/80"}`}
+      >
+        <input
+          type="checkbox"
+          checked={rewatch || rewatchLocked}
+          disabled={rewatchLocked}
+          onChange={(e) => setRewatch(e.target.checked)}
+          className="w-4 h-4 accent-brand-orange"
+        />
+        <ArrowsClockwiseIcon size={16} weight="bold" className={rewatch || rewatchLocked ? "text-brand-orange" : ""} />
+        {rewatchLocked ? "Reassistido (você já registrou este filme)" : "Já tinha assistido antes"}
+      </label>
 
       <div className="flex flex-col gap-2">
         <textarea

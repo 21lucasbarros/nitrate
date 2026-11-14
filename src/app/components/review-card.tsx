@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { EyeIcon, HeartIcon, WarningIcon } from "@phosphor-icons/react";
+import { ArrowsClockwiseIcon, EyeIcon, HeartIcon, WarningIcon } from "@phosphor-icons/react";
 import { useAuth } from "@/lib/auth-context";
 import type { MovieReview } from "@/lib/types/review";
 import { toRating } from "@/utils/rating";
+import { filmHref } from "@/utils/movie-link";
 import { shortDate, timeAgo } from "@/utils/format";
 import { StarRating } from "./ui/star-rating";
 import { Poster } from "./ui/poster";
@@ -39,7 +40,7 @@ export function ReviewCard({ review, hideMovie = false, hideUser = false, excerp
   return (
     <article className="group flex items-start gap-5 sm:gap-7 py-8">
       {!hideMovie && (
-        <Link href={`/movies/${movie.id}`} className="w-20 sm:w-24 shrink-0">
+        <Link href={filmHref(movie)} className="w-20 sm:w-24 shrink-0">
           <Poster title={movie.title} posterPath={movie.posterPath} size="w185" sizes="96px" />
         </Link>
       )}
@@ -47,7 +48,7 @@ export function ReviewCard({ review, hideMovie = false, hideUser = false, excerp
       <div className="flex flex-col min-w-0 flex-1">
         {!hideMovie && (
           <h3 className="text-lg sm:text-xl font-medium tracking-tight leading-tight">
-            <Link href={`/movies/${movie.id}`} className="hover:text-brand-blue transition-colors">
+            <Link href={filmHref(movie)} className="hover:text-brand-blue transition-colors">
               {movie.title}
             </Link>{" "}
             {movie.releaseYear && (
@@ -69,6 +70,12 @@ export function ReviewCard({ review, hideMovie = false, hideUser = false, excerp
           {review.rating !== null && <StarRating rating={toRating(review.rating)} size={16} />}
           {review.liked && (
             <HeartIcon size={15} weight="fill" className="text-brand-orange" aria-label="Curtiu" />
+          )}
+          {review.rewatch && (
+            <span className="flex items-center gap-1 text-xs font-medium text-brand-emerald" title="Reassistido">
+              <ArrowsClockwiseIcon size={14} weight="bold" />
+              reassistido
+            </span>
           )}
           <span
             className="font-mono text-xs uppercase tracking-wide"

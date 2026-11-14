@@ -9,6 +9,7 @@ export interface PersonSummary {
 
 export interface PersonCredit {
   id: number | null; // filme já importado para o Nitrate?
+  slug: string | null;
   tmdbId: number;
   title: string;
   releaseYear: number | null;

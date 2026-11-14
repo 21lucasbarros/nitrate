@@ -184,6 +184,7 @@ function Profile() {
                   movie: review.movie,
                   rating: review.rating,
                   liked: review.liked,
+                  rewatch: review.rewatch,
                   reviewHref: review.text ? reviewHref(review) : undefined,
                 }))}
               />

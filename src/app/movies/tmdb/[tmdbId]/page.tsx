@@ -8,6 +8,7 @@ import Header from "@/app/components/header";
 import { ApiError } from "@/lib/api-client";
 import { useFetch } from "@/lib/hooks/use-fetch";
 import { getMovieByTmdbId } from "@/lib/services/movie-service";
+import { filmHref } from "@/utils/movie-link";
 
 /**
  * Ponte para filmes que vieram da busca no TMDB: o backend importa o filme
@@ -23,7 +24,7 @@ export default function TmdbMovieRedirect() {
 
   useEffect(() => {
     // replace: o "voltar" do navegador não deve cair de novo nesta página intermediária
-    if (movie.data) router.replace(`/movies/${movie.data.id}`);
+    if (movie.data) router.replace(filmHref(movie.data));
   }, [movie.data, router]);
 
   const notFound =

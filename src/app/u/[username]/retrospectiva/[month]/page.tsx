@@ -24,6 +24,7 @@ import type { RankedItem, Retrospective, RetrospectiveFilm } from "@/lib/types/r
 import { monthLabel } from "@/utils/format";
 import { posterUrl } from "@/utils/poster";
 import { toRating } from "@/utils/rating";
+import { filmHref } from "@/utils/movie-link";
 
 const fetchMonths = () => getMyRetrospectiveMonths();
 
@@ -258,7 +259,7 @@ function Favorites({ films }: { films: RetrospectiveFilm[] }) {
 
 function FavoriteCard({ film, rank, large = false }: { film: RetrospectiveFilm; rank: number; large?: boolean }) {
   return (
-    <Link href={`/movies/${film.movie.id}`} className={`group block ${large ? "w-56 sm:w-64 shrink-0" : ""}`}>
+    <Link href={filmHref(film.movie)} className={`group block ${large ? "w-56 sm:w-64 shrink-0" : ""}`}>
       <div className="relative">
         <Poster
           title={film.movie.title}
@@ -377,7 +378,7 @@ function MonthWall({ films }: { films: RetrospectiveFilm[] }) {
       <ol className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-8 gap-4">
         {films.map((film) => (
           <li key={`${film.movie.id}-${film.watchedOn}`}>
-            <Link href={`/movies/${film.movie.id}`} className="group block" title={film.movie.title}>
+            <Link href={filmHref(film.movie)} className="group block" title={film.movie.title}>
               <div className="relative">
                 <Poster
                   title={film.movie.title}

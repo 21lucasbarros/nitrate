@@ -6,6 +6,7 @@ import { useFetch } from "@/lib/hooks/use-fetch";
 import { getFeaturedReviews } from "@/lib/services/review-service";
 import { timeAgo } from "@/utils/format";
 import { toRating } from "@/utils/rating";
+import { filmHref } from "@/utils/movie-link";
 import { StarRating } from "./ui/star-rating";
 import { Poster } from "./ui/poster";
 
@@ -63,7 +64,7 @@ export default function TrendingReviews() {
                 key={review.id}
                 className="group flex items-start gap-5 sm:gap-9 py-10 sm:py-12"
               >
-                <Link href={`/movies/${review.movie.id}`} className="w-28 sm:w-32 shrink-0">
+                <Link href={filmHref(review.movie)} className="w-28 sm:w-32 shrink-0">
                   <Poster
                     title={review.movie.title}
                     posterPath={review.movie.posterPath}
@@ -75,7 +76,7 @@ export default function TrendingReviews() {
                 <div className="flex flex-col justify-center min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-4 mb-1">
                     <h3 className="text-xl sm:text-2xl md:text-[28px] font-medium tracking-tight leading-tight text-foreground">
-                      <Link href={`/movies/${review.movie.id}`} className="hover:text-brand-blue transition-colors">
+                      <Link href={filmHref(review.movie)} className="hover:text-brand-blue transition-colors">
                         {review.movie.title}
                       </Link>{" "}
                       {review.movie.releaseYear && (

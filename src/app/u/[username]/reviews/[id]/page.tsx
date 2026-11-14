@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeftIcon, CircleNotchIcon, EyeIcon, HeartIcon, WarningIcon } from "@phosphor-icons/react";
+import { ArrowLeftIcon, ArrowsClockwiseIcon, CircleNotchIcon, EyeIcon, HeartIcon, WarningIcon } from "@phosphor-icons/react";
 
 import Header from "@/app/components/header";
 import { Avatar } from "@/app/components/ui/avatar";
@@ -16,6 +16,7 @@ import { getReview } from "@/lib/services/review-service";
 import type { MovieReview } from "@/lib/types/review";
 import { shortDate, timeAgo } from "@/utils/format";
 import { toRating } from "@/utils/rating";
+import { filmHref } from "@/utils/movie-link";
 
 export default function ReviewPage() {
   const params = useParams<{ username: string; id: string }>();
@@ -74,7 +75,7 @@ function ReviewView({ review }: { review: MovieReview }) {
       </Link>
 
       <div className="mt-8 flex flex-col sm:flex-row gap-8 sm:gap-12">
-        <Link href={`/movies/${movie.id}`} className="w-40 sm:w-52 shrink-0 group">
+        <Link href={filmHref(movie)} className="w-40 sm:w-52 shrink-0 group">
           <Poster title={movie.title} posterPath={movie.posterPath} size="w500" sizes="208px" className="group-hover:ring-brand-orange/50 transition-all" />
         </Link>
 
@@ -88,7 +89,7 @@ function ReviewView({ review }: { review: MovieReview }) {
           </Link>
 
           <h1 className="mt-6 text-4xl sm:text-5xl font-semibold tracking-tighter leading-[0.95]">
-            <Link href={`/movies/${movie.id}`} className="hover:text-brand-blue transition-colors">
+            <Link href={filmHref(movie)} className="hover:text-brand-blue transition-colors">
               {movie.title}
             </Link>{" "}
             {movie.releaseYear && <span className="text-foreground/40 font-light text-3xl sm:text-4xl">{movie.releaseYear}</span>}
@@ -97,6 +98,11 @@ function ReviewView({ review }: { review: MovieReview }) {
           <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-brand-slate/60">
             {review.rating !== null && <StarRating rating={toRating(review.rating)} size={20} />}
             {review.liked && <HeartIcon size={18} weight="fill" className="text-brand-orange" aria-label="Curtiu" />}
+            {review.rewatch && (
+              <span className="flex items-center gap-1.5 font-medium text-brand-emerald">
+                <ArrowsClockwiseIcon size={16} weight="bold" /> Reassistido
+              </span>
+            )}
             <span>Assistido em {shortDate(review.watchedOn)}</span>
             <span aria-hidden="true">·</span>
             <span>registrado {timeAgo(review.createdAt)}</span>
@@ -130,7 +136,7 @@ function ReviewView({ review }: { review: MovieReview }) {
           )}
 
           {isOwn && (
-            <Link href={`/movies/${movie.id}`} className="inline-block mt-10 text-sm font-medium text-brand-blue hover:underline underline-offset-4">
+            <Link href={filmHref(movie)} className="inline-block mt-10 text-sm font-medium text-brand-blue hover:underline underline-offset-4">
               Editar na página do filme
             </Link>
           )}
