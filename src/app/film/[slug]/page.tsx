@@ -23,7 +23,8 @@ import { Modal } from "@/app/components/ui/modal";
 import { ApiError } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
 import { useFetch } from "@/lib/hooks/use-fetch";
-import { getMovieBySlug, getMovieCredits, type CreditPerson } from "@/lib/services/movie-service";
+import { getMovieBySlug, getMovieCredits, getMovieStats, getWatchProviders, type CreditPerson } from "@/lib/services/movie-service";
+import { NitrateRating, WhereToWatch } from "@/app/components/movie-community";
 import { getMovieReviews } from "@/lib/services/review-service";
 import { getMovieState } from "@/lib/services/user-service";
 import { addToWatchlist, removeFromWatchlist } from "@/lib/services/watchlist-service";
@@ -71,6 +72,8 @@ function FilmView({ film }: { film: Movie }) {
   const { status, refreshUser } = useAuth();
   const reviews = useFetch(film.id, getMovieReviews);
   const credits = useFetch(film.id, getMovieCredits);
+  const stats = useFetch(film.id, getMovieStats);
+  const providers = useFetch(film.id, getWatchProviders);
   const myState = useFetch(status === "authenticated" ? film.id : null, getMovieState);
 
   // "edit" = editar a review mais recente; "new" = registrar de novo (reassistido)
@@ -98,6 +101,7 @@ function FilmView({ film }: { film: Movie }) {
     setEditing(null);
     myState.reload();
     reviews.reload();
+    stats.reload(); // a nota média muda com a nova review
     refreshUser();
   };
 
@@ -157,8 +161,16 @@ function FilmView({ film }: { film: Movie }) {
             </p>
           )}
 
+          <div className="mt-8 w-full max-w-sm">
+            {stats.data ? (
+              <NitrateRating stats={stats.data} />
+            ) : (
+              <div className="h-36 rounded-2xl bg-foreground/5 animate-pulse" />
+            )}
+          </div>
+
           {film.rating !== null && (
-            <p className="mt-6 text-sm text-brand-slate/60">
+            <p className="mt-4 text-sm text-brand-slate/60">
               Nota TMDB <span className="font-mono text-foreground">{film.rating.toFixed(1)}</span>/10
             </p>
           )}
@@ -253,6 +265,8 @@ function FilmView({ film }: { film: Movie }) {
           </div>
         )}
       </section>
+
+      {providers.data && <WhereToWatch providers={providers.data} />}
 
       {credits.data && credits.data.cast.length > 0 && <Cast cast={credits.data.cast} />}
 

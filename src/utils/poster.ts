@@ -17,3 +17,8 @@ export function posterUrl(path: string | null | undefined, size: PosterSize = "w
 export function profileUrl(path: string | null | undefined, size: ProfileSize = "w185"): string | null {
   return tmdbImage(path, size);
 }
+
+/** logo de um serviço de streaming no TMDB */
+export function logoUrl(path: string | null | undefined): string | null {
+  return tmdbImage(path, "w92");
+}

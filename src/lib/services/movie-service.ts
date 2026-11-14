@@ -39,3 +39,35 @@ export interface MovieCredits {
 export function getMovieCredits(id: number): Promise<MovieCredits> {
   return apiFetch<MovieCredits>(`/movies/${id}/credits`);
 }
+
+/** como o filme foi recebido no Nitrate (cada pessoa conta uma vez) */
+export interface MovieStats {
+  averageRating: number | null;
+  ratingsCount: number;
+  watchedCount: number;
+  likesCount: number;
+  ratingDistribution: Record<string, number>; // "0.5" .. "5.0"
+}
+
+export function getMovieStats(id: number): Promise<MovieStats> {
+  return apiFetch<MovieStats>(`/movies/${id}/stats`);
+}
+
+export interface WatchProvider {
+  id: number;
+  name: string;
+  logoPath: string | null;
+}
+
+/** onde assistir no Brasil (dados da JustWatch, via TMDB) */
+export interface WatchProviders {
+  link: string | null;
+  streaming: WatchProvider[];
+  free: WatchProvider[];
+  rent: WatchProvider[];
+  buy: WatchProvider[];
+}
+
+export function getWatchProviders(id: number): Promise<WatchProviders> {
+  return apiFetch<WatchProviders>(`/movies/${id}/watch-providers`);
+}
