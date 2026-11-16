@@ -11,6 +11,7 @@ import { MovieGrid } from "@/app/components/movie-grid";
 import { EditFavoritesButton, FavoriteFilms, FavoritesEditor } from "@/app/components/favorite-films";
 import { FollowButton } from "@/app/components/follow-button";
 import { UserList } from "@/app/components/user-list";
+import { Modal } from "@/app/components/ui/modal";
 import { SectionHeading } from "@/app/components/ui/section-heading";
 import { ReviewCard, reviewHref } from "@/app/components/review-card";
 import { Pagination } from "@/app/components/ui/pagination";
@@ -79,6 +80,8 @@ function Profile() {
   const pathname = usePathname();
   const { status, user: me, refreshUser } = useAuth();
   const [editingFavorites, setEditingFavorites] = useState(false);
+  // modal aberto pelos números "seguindo" / "seguidores" do topo
+  const [peopleModal, setPeopleModal] = useState<"following" | "followers" | null>(null);
 
   const rawTab = searchParams.get("tab") ?? "";
   const tabParam = TAB_ALIASES[rawTab] ?? rawTab;
@@ -91,8 +94,8 @@ function Profile() {
   const watchlist = useFetch(tab === "watchlist" ? username : null, getUserWatchlist);
   const recentFilms = useFetch(tab === "perfil" ? username : null, fetchRecentFilms);
   const recentReviews = useFetch(tab === "perfil" ? username : null, fetchRecentReviews);
-  const following = useFetch(tab === "rede" ? username : null, getFollowing);
-  const followers = useFetch(tab === "rede" ? username : null, getFollowers);
+  const following = useFetch(tab === "rede" || peopleModal === "following" ? username : null, getFollowing);
+  const followers = useFetch(tab === "rede" || peopleModal === "followers" ? username : null, getFollowers);
 
   if (profile.error instanceof ApiError && profile.error.status === 404) {
     return (
@@ -141,7 +144,7 @@ function Profile() {
 
   // depois de confirmado: a lista de seguidores e o total de quem você segue (usado na home)
   const afterFollowSaved = () => {
-    if (tab === "rede") followers.reload();
+    if (tab === "rede" || peopleModal === "followers") followers.reload();
     refreshUser();
   };
 
@@ -151,11 +154,15 @@ function Profile() {
     watchlist: user.watchlistCount,
   };
 
-  const stats: { label: string; value: number; tab: TabId }[] = [
-    { label: user.filmsCount === 1 ? "filme" : "filmes", value: user.filmsCount, tab: "diario" },
-    { label: user.reviewsCount === 1 ? "review" : "reviews", value: user.reviewsCount, tab: "reviews" },
-    { label: "seguindo", value: user.followingCount, tab: "rede" },
-    { label: user.followersCount === 1 ? "seguidor" : "seguidores", value: user.followersCount, tab: "rede" },
+  const stats: { label: string; value: number; onClick: () => void }[] = [
+    { label: user.filmsCount === 1 ? "filme" : "filmes", value: user.filmsCount, onClick: () => selectTab("diario") },
+    { label: user.reviewsCount === 1 ? "review" : "reviews", value: user.reviewsCount, onClick: () => selectTab("reviews") },
+    { label: "seguindo", value: user.followingCount, onClick: () => setPeopleModal("following") },
+    {
+      label: user.followersCount === 1 ? "seguidor" : "seguidores",
+      value: user.followersCount,
+      onClick: () => setPeopleModal("followers"),
+    },
   ];
 
   return (
@@ -204,7 +211,7 @@ function Profile() {
         <dl className="md:ml-auto flex gap-6 sm:gap-8">
           {stats.map((stat) => (
             <div key={stat.label}>
-              <button onClick={() => selectTab(stat.tab)} className="group flex flex-col-reverse items-center">
+              <button onClick={stat.onClick} className="group flex flex-col-reverse items-center">
                 <dt className="text-xs text-brand-slate group-hover:text-foreground transition-colors">{stat.label}</dt>
                 <dd className="text-xl font-semibold tabular-nums">{stat.value}</dd>
               </button>
@@ -217,7 +224,9 @@ function Profile() {
         id="profile-tabs"
         role="tablist"
         aria-label="Seções do perfil"
-        className="flex gap-6 overflow-x-auto border-b border-foreground/10 scroll-mt-24"
+        // a linha de baixo é uma sombra interna (e não borda) para o sublinhado da aba ficar por cima
+        // sem transbordar: com -mb-px, o overflow-x-auto criava uma barra de rolagem vertical
+        className="flex gap-6 overflow-x-auto [scrollbar-width:none] shadow-[inset_0_-1px_0_rgb(236_237_238/0.1)] scroll-mt-24"
       >
         {TABS.map((t) => (
           <button
@@ -225,7 +234,7 @@ function Profile() {
             role="tab"
             aria-selected={tab === t.id}
             onClick={() => selectTab(t.id)}
-            className={`shrink-0 -mb-px pb-3 text-sm border-b-2 transition-colors ${tab === t.id ? "border-brand-orange text-foreground" : "border-transparent text-brand-slate hover:text-foreground"}`}
+            className={`shrink-0 pb-3 text-sm border-b-2 transition-colors ${tab === t.id ? "border-brand-orange text-foreground" : "border-transparent text-brand-slate hover:text-foreground"}`}
           >
             {t.label}
             {counts[t.id] !== undefined && <span className="ml-1.5 text-xs text-brand-slate/60">{counts[t.id]}</span>}
@@ -355,6 +364,38 @@ function Profile() {
           </div>
         )}
       </section>
+
+      <Modal
+        open={peopleModal !== null}
+        onClose={() => setPeopleModal(null)}
+        label={peopleModal === "following" ? `Quem ${user.name} segue` : `Quem segue ${user.name}`}
+      >
+        <h2 className="pr-10 text-lg font-semibold">
+          {peopleModal === "following" ? "Seguindo" : "Seguidores"}
+          <span className="ml-2 text-sm font-normal text-brand-slate/70">
+            {peopleModal === "following" ? user.followingCount : user.followersCount}
+          </span>
+        </h2>
+        <div className="mt-5 -mx-3">
+          {(() => {
+            const list = peopleModal === "following" ? following : followers;
+            if (!list.data) return <Loading />;
+            return (
+              <UserList
+                users={list.data}
+                columns={1}
+                // ir para outro perfil reaproveita esta página, então o modal precisa fechar
+                onSelect={() => setPeopleModal(null)}
+                empty={
+                  peopleModal === "following"
+                    ? isMe ? "Você ainda não segue ninguém." : `${user.name} ainda não segue ninguém.`
+                    : isMe ? "Ninguém segue você ainda." : `Ninguém segue ${user.name} ainda.`
+                }
+              />
+            );
+          })()}
+        </div>
+      </Modal>
 
       {isMe && (
         <FavoritesEditor
