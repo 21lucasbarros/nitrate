@@ -1,64 +1,76 @@
 import Image from "next/image";
-import { ArrowSquareOutIcon, HeartIcon } from "@phosphor-icons/react";
+import { ArrowSquareOutIcon, EyeIcon, HeartIcon } from "@phosphor-icons/react";
 import type { MovieStats, WatchProvider, WatchProviders } from "@/lib/services/movie-service";
-import { toRating } from "@/utils/rating";
 import { logoUrl } from "@/utils/poster";
-import { StarRating } from "./ui/star-rating";
+import { RatingMeter, formatScore } from "./ui/rating-meter";
 
-const RATING_STEPS = ["0.5", "1.0", "1.5", "2.0", "2.5", "3.0", "3.5", "4.0", "4.5", "5.0"];
+// faixas da distribuição: cada uma junta a nota cheia e a meia abaixo dela ("4" = 3,5 e 4,0)
+const RATING_BANDS = [5, 4, 3, 2, 1].map((n) => ({
+  label: String(n),
+  keys: [(n - 0.5).toFixed(1), n.toFixed(1)],
+}));
 
-/** nota média no Nitrate, com o histograma das notas (estilo Letterboxd) */
+/** nota média no Nitrate, com a distribuição em faixas horizontais */
 export function NitrateRating({ stats }: { stats: MovieStats }) {
-  const max = Math.max(1, ...RATING_STEPS.map((k) => stats.ratingDistribution[k] ?? 0));
+  const bands = RATING_BANDS.map((band) => ({
+    ...band,
+    count: band.keys.reduce((sum, k) => sum + (stats.ratingDistribution[k] ?? 0), 0),
+  }));
+  const total = Math.max(1, stats.ratingsCount);
 
   return (
-    <div>
-      <div className="flex items-baseline justify-between gap-4 pb-2.5 border-b border-foreground/10">
-        <span className="text-[15px] font-medium text-foreground/90">Nota no Nitrate</span>
-        {stats.likesCount > 0 && (
-          <span className="flex items-center gap-1 text-xs text-brand-slate/60" title="Pessoas que curtiram">
-            <HeartIcon size={13} weight="fill" className="text-brand-orange" />
-            {stats.likesCount}
-          </span>
-        )}
-      </div>
+    <div className="rounded-md border border-foreground/10 p-5">
+      <span className="text-xs uppercase tracking-[0.14em] text-brand-slate">Nota no Nitrate</span>
 
       {stats.averageRating === null ? (
-        <p className="mt-3 text-sm text-brand-slate/60">
+        <p className="mt-3 text-sm text-brand-slate/70">
           {stats.watchedCount > 0
             ? `${stats.watchedCount} ${stats.watchedCount === 1 ? "pessoa registrou" : "pessoas registraram"}, sem nota ainda.`
             : "Ninguém avaliou ainda. Seja a primeira nota."}
         </p>
       ) : (
-        <div className="mt-3 flex items-end gap-5">
-          <div className="shrink-0">
-            <div className="font-serif text-5xl font-semibold leading-none">
-              {stats.averageRating.toLocaleString("pt-BR", { minimumFractionDigits: 1 })}
-            </div>
-            <div className="mt-2">
-              <StarRating rating={toRating(stats.averageRating)} size={14} />
-            </div>
-            <div className="mt-1.5 text-xs text-brand-slate/60">
-              {stats.ratingsCount} {stats.ratingsCount === 1 ? "nota" : "notas"}
-            </div>
+        <>
+          <div className="mt-3 flex items-baseline gap-1.5">
+            <span className="font-serif text-5xl font-semibold leading-none tabular-nums">{formatScore(stats.averageRating)}</span>
+            <span className="text-sm text-brand-slate">/5</span>
           </div>
+          <RatingMeter value={stats.averageRating} className="mt-3 h-1.5" />
 
-          {/* histograma: uma barra por meia estrela */}
-          <div className="flex-1 flex items-end gap-[3px] h-14" aria-label="Distribuição das notas">
-            {RATING_STEPS.map((step) => {
-              const count = stats.ratingDistribution[step] ?? 0;
-              return (
-                <div
-                  key={step}
-                  title={`${Number(step).toLocaleString("pt-BR")}★: ${count} ${count === 1 ? "pessoa" : "pessoas"}`}
-                  className={`flex-1 rounded-t-[2px] ${count > 0 ? "bg-brand-slate/50 hover:bg-brand-orange" : "bg-foreground/5"}`}
-                  style={{ height: count > 0 ? `${Math.max(8, (count / max) * 100)}%` : "3px" }}
-                />
-              );
-            })}
-          </div>
-        </div>
+          <ul className="mt-5 flex flex-col gap-1.5" aria-label="Distribuição das notas">
+            {bands.map((band) => (
+              <li
+                key={band.label}
+                title={`${band.count} ${band.count === 1 ? "pessoa" : "pessoas"}`}
+                className="grid grid-cols-[12px_1fr_28px] items-center gap-2.5 text-xs text-brand-slate tabular-nums"
+              >
+                <span>{band.label}</span>
+                <span className="h-1 rounded-full bg-foreground/5 overflow-hidden">
+                  <span
+                    className="block h-full rounded-full bg-brand-slate/60"
+                    style={{ width: `${(band.count / total) * 100}%` }}
+                  />
+                </span>
+                <span className="text-right">{band.count > 0 ? `${Math.round((band.count / total) * 100)}%` : "–"}</span>
+              </li>
+            ))}
+          </ul>
+        </>
       )}
+
+      {/* quem passou por aqui */}
+      <div className="mt-5 pt-4 border-t border-foreground/10 flex gap-5 text-xs text-brand-slate">
+        <span className="flex items-center gap-1.5">
+          <EyeIcon size={14} className="text-brand-emerald" />
+          {stats.watchedCount} {stats.watchedCount === 1 ? "assistiu" : "assistiram"}
+        </span>
+        <span className="flex items-center gap-1.5">
+          <HeartIcon size={14} className="text-brand-orange" />
+          {stats.likesCount} {stats.likesCount === 1 ? "curtiu" : "curtiram"}
+        </span>
+        {stats.averageRating !== null && (
+          <span className="ml-auto">{stats.ratingsCount} {stats.ratingsCount === 1 ? "nota" : "notas"}</span>
+        )}
+      </div>
     </div>
   );
 }

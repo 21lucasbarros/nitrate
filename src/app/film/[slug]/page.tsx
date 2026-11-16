@@ -14,7 +14,8 @@ import {
 
 import Header from "@/app/components/header";
 import { Poster } from "@/app/components/ui/poster";
-import { StarRating } from "@/app/components/ui/star-rating";
+import { PersonPhoto } from "@/app/components/ui/person-photo";
+import { RatingMeterInput } from "@/app/components/ui/rating-meter";
 import { SectionHeading } from "@/app/components/ui/section-heading";
 import { ReviewCard } from "@/app/components/review-card";
 import { ReviewForm } from "@/app/components/review-form";
@@ -29,17 +30,16 @@ import {
   getMovieStats,
   getWatchProviders,
   type CreditPerson,
-  type WatchProviders,
 } from "@/lib/services/movie-service";
-import { getMovieReviews } from "@/lib/services/review-service";
+import { createReview, getMovieReviews, updateReview } from "@/lib/services/review-service";
 import { getMovieState } from "@/lib/services/user-service";
 import { addToWatchlist, removeFromWatchlist } from "@/lib/services/watchlist-service";
+import type { MovieReview, ReviewRequest } from "@/lib/types/review";
 import type { Movie } from "@/types/movie";
-import { shortDate } from "@/utils/format";
+import { shortDate, todayIso } from "@/utils/format";
 import { backdropUrl } from "@/utils/poster";
-import { toRating } from "@/utils/rating";
 
-const CAST_PREVIEW = 15;
+const CAST_PREVIEW = 12;
 
 export default function FilmPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -137,73 +137,55 @@ function FilmView({ film }: { film: Movie }) {
 
       <div className={`relative max-w-[1180px] mx-auto px-6 pb-24 ${backdrop ? "" : "pt-32"}`}>
         <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] lg:grid-cols-[230px_1fr_260px] gap-8 lg:gap-10">
-          {/* pôster + números */}
-          <aside className="flex flex-col items-center md:items-stretch gap-4">
+          {/* pôster */}
+          <aside className="flex justify-center md:block">
             <div className="w-44 md:w-full">
               <Poster title={film.title} posterPath={film.posterPath} size="w500" sizes="230px" className="shadow-2xl shadow-black/60" />
             </div>
-            {stats.data && (stats.data.watchedCount > 0 || stats.data.likesCount > 0) && (
-              <div className="flex justify-center gap-5 text-xs text-brand-slate">
-                <span className="flex items-center gap-1.5" title="Pessoas que registraram">
-                  <EyeIcon size={15} weight="fill" className="text-brand-emerald" /> {stats.data.watchedCount}
-                </span>
-                <span className="flex items-center gap-1.5" title="Pessoas que curtiram">
-                  <HeartIcon size={15} weight="fill" className="text-brand-orange" /> {stats.data.likesCount}
-                </span>
-              </div>
-            )}
           </aside>
 
-          {/* título, sinopse, elenco */}
+          {/* título, sinopse, elenco, ficha */}
           <section className="min-w-0 md:pt-10 lg:pt-16">
-            <h1 className="font-serif text-4xl sm:text-5xl font-semibold leading-[1.05] tracking-tight">
-              {film.title}{" "}
-              {film.releaseYear && (
-                <span className="font-sans text-xl sm:text-2xl font-normal text-brand-slate align-middle">{film.releaseYear}</span>
-              )}
-            </h1>
-            {(directors.length > 0 || film.director) && (
-              <p className="mt-3 text-lg text-brand-slate">
-                Dirigido por{" "}
-                {directors.length > 0
-                  ? directors.map((d, i) => (
-                      <span key={d.tmdbId}>
-                        {i > 0 && (i === directors.length - 1 ? " e " : ", ")}
-                        <Link href={`/person/${d.tmdbId}`} className="text-foreground underline-offset-4 decoration-foreground/30 underline hover:decoration-brand-orange">
-                          {d.name}
-                        </Link>
-                      </span>
-                    ))
-                  : <span className="text-foreground">{film.director}</span>}
-              </p>
-            )}
-
+            {/* linha de contexto acima do título: ano e gêneros */}
+            <p className="flex flex-wrap items-center gap-x-2 text-xs uppercase tracking-[0.14em] text-foreground/70">
+              {[film.releaseYear, ...film.genres.slice(0, 3)].filter(Boolean).map((item, i) => (
+                <span key={String(item)} className="flex items-center gap-2">
+                  {i > 0 && <span className="w-1 h-1 rounded-full bg-brand-orange" />}
+                  {item}
+                </span>
+              ))}
+            </p>
+            <h1 className="mt-3 font-serif text-4xl sm:text-5xl font-semibold leading-[1.05] tracking-tight">{film.title}</h1>
             {credits.data?.tagline && (
-              <p className="mt-8 text-sm font-medium uppercase tracking-wide text-brand-slate">{credits.data.tagline}</p>
-            )}
-            {film.overview && (
-              <p className={`${credits.data?.tagline ? "mt-3" : "mt-8"} font-serif text-lg leading-[1.7] text-foreground/85 max-w-2xl`}>
-                {film.overview}
-              </p>
+              <p className="mt-4 font-serif text-lg italic text-brand-slate">“{credits.data.tagline}”</p>
             )}
 
-            <FilmTabs film={film} cast={credits.data?.cast} providers={providers.data} />
+            {film.overview && (
+              <p className="mt-6 text-base leading-[1.75] text-foreground/80 max-w-2xl">{film.overview}</p>
+            )}
+
+            <CastStrip cast={credits.data?.cast} />
+            <FactSheet film={film} directors={directors} />
+
+            <section className="mt-12">
+              <SectionHeading title="Onde assistir" />
+              {providers.data ? <WhereToWatch providers={providers.data} /> : <p className="text-sm text-brand-slate">Carregando…</p>}
+            </section>
           </section>
 
           {/* painel de ações + nota do Nitrate */}
           <aside className="md:col-span-2 lg:col-span-1 lg:pt-16 grid sm:grid-cols-2 lg:grid-cols-1 gap-6 content-start">
             {status === "authenticated" && myState.data && (
               <ActionPanel
-                watched={timesWatched > 0}
+                film={film}
+                review={myReview}
                 timesWatched={timesWatched}
-                liked={myReview?.liked ?? false}
-                rating={myReview?.rating ?? null}
-                lastWatched={myReview?.watchedOn ?? null}
                 inWatchlist={inWatchlist}
                 watchlistBusy={watchlistBusy}
                 onLog={() => setEditing("new")}
                 onEdit={myReview ? () => setEditing("edit") : undefined}
                 onToggleWatchlist={toggleWatchlist}
+                onChanged={afterChange}
               />
             )}
             {status === "anonymous" && (
@@ -265,76 +247,112 @@ function FilmView({ film }: { film: Movie }) {
   );
 }
 
-/** Painel lateral: o que a pessoa já fez com o filme e os atalhos para registrar. */
+/** Painel lateral: nota rápida, o que a pessoa já fez com o filme e o atalho para registrar. */
 function ActionPanel(props: {
-  watched: boolean;
+  film: Movie;
+  review: MovieReview | null;
   timesWatched: number;
-  liked: boolean;
-  rating: number | null;
-  lastWatched: string | null;
   inWatchlist: boolean;
   watchlistBusy: boolean;
   onLog: () => void;
   onEdit?: () => void;
   onToggleWatchlist: () => void;
+  onChanged: () => void;
 }) {
-  const iconButton = "flex flex-col items-center gap-1.5 py-4 text-xs font-medium transition-colors hover:bg-surface-strong";
+  const { review } = props;
+  const watched = props.timesWatched > 0;
+  const liked = review?.liked ?? false;
+  const [busy, setBusy] = useState(false);
+
+  // salva direto da página, sem abrir o formulário: atualiza a última review ou cria um registro de hoje
+  const quickSave = async (changes: Partial<ReviewRequest>) => {
+    setBusy(true);
+    try {
+      if (review) {
+        await updateReview(review.id, {
+          rating: review.rating,
+          text: review.text,
+          liked: review.liked,
+          rewatch: review.rewatch,
+          spoiler: review.spoiler,
+          watchedOn: review.watchedOn,
+          ...changes,
+        });
+      } else {
+        await createReview({
+          movieId: props.film.id,
+          rating: null,
+          text: null,
+          liked: false,
+          rewatch: false,
+          spoiler: false,
+          watchedOn: todayIso(),
+          ...changes,
+        });
+      }
+      props.onChanged();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const toggle = (active: boolean, activeColor: string) =>
+    `flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left transition-colors hover:bg-surface-strong disabled:opacity-50 ${active ? activeColor : "text-brand-slate"}`;
 
   return (
-    <div className="rounded-md bg-surface text-center overflow-hidden">
-      <div className="grid grid-cols-3">
-        <button onClick={props.onLog} className={`${iconButton} ${props.watched ? "text-brand-emerald" : "text-brand-slate"}`}>
-          <EyeIcon size={30} weight={props.watched ? "fill" : "regular"} />
-          {props.watched ? "Assistido" : "Assistir"}
+    <div className="rounded-md bg-surface overflow-hidden">
+      <div className="p-5">
+        <span className="text-xs uppercase tracking-[0.14em] text-brand-slate">Sua nota</span>
+        <div className="mt-3">
+          <RatingMeterInput value={review?.rating ?? null} onChange={(rating) => quickSave({ rating })} disabled={busy} />
+        </div>
+        {review?.watchedOn && (
+          <p className="mt-4 flex items-center gap-1.5 text-xs text-brand-slate">
+            {props.timesWatched > 1 && <ArrowsClockwiseIcon size={12} weight="bold" className="text-brand-emerald" />}
+            {props.timesWatched > 1 ? `${props.timesWatched} sessões · última em ` : "Assistido em "}
+            {shortDate(review.watchedOn)}
+          </p>
+        )}
+      </div>
+
+      <div className="border-t border-foreground/5 py-1">
+        <button onClick={props.onLog} className={toggle(watched, "text-brand-emerald")}>
+          <EyeIcon size={18} weight={watched ? "fill" : "regular"} />
+          {watched ? "Já assisti" : "Marcar como assistido"}
         </button>
-        <button onClick={props.onEdit ?? props.onLog} className={`${iconButton} ${props.liked ? "text-brand-orange" : "text-brand-slate"}`}>
-          <HeartIcon size={30} weight={props.liked ? "fill" : "regular"} />
-          {props.liked ? "Curtido" : "Curtir"}
+        <button
+          onClick={() => (review ? quickSave({ liked: !liked }) : props.onLog())}
+          disabled={busy}
+          aria-pressed={liked}
+          className={toggle(liked, "text-brand-orange")}
+        >
+          <HeartIcon size={18} weight={liked ? "fill" : "regular"} />
+          {liked ? "Curti" : "Curtir"}
         </button>
         <button
           onClick={props.onToggleWatchlist}
           disabled={props.watchlistBusy}
           aria-pressed={props.inWatchlist}
-          className={`${iconButton} disabled:opacity-50 ${props.inWatchlist ? "text-brand-blue" : "text-brand-slate"}`}
+          className={toggle(props.inWatchlist, "text-brand-blue")}
         >
-          <BookmarkSimpleIcon size={30} weight={props.inWatchlist ? "fill" : "regular"} />
-          Watchlist
+          <BookmarkSimpleIcon size={18} weight={props.inWatchlist ? "fill" : "regular"} />
+          {props.inWatchlist ? "Na watchlist" : "Quero assistir"}
         </button>
       </div>
 
-      <div className="border-t border-foreground/5 py-4">
-        <span className="text-xs text-brand-slate">{props.rating !== null ? "Sua nota" : "Sem nota"}</span>
-        <div className="mt-1.5 flex justify-center">
-          {props.rating !== null ? (
-            <StarRating rating={toRating(props.rating)} size={26} />
-          ) : (
-            <button onClick={props.onEdit ?? props.onLog} className="text-sm text-brand-slate hover:text-brand-orange">
-              Dar uma nota
-            </button>
-          )}
-        </div>
-        {props.lastWatched && (
-          <p className="mt-2 flex items-center justify-center gap-1.5 text-xs text-brand-slate">
-            {props.timesWatched > 1 && <ArrowsClockwiseIcon size={12} weight="bold" className="text-brand-emerald" />}
-            {props.timesWatched > 1 ? `${props.timesWatched} vezes · última em ` : "Assistido em "}
-            {shortDate(props.lastWatched)}
-          </p>
-        )}
-      </div>
-
-      <div className="border-t border-foreground/5 p-3 flex flex-col gap-1">
+      <div className="border-t border-foreground/5 p-3 flex gap-2">
         <button
           onClick={props.onLog}
-          className="w-full py-2 rounded-md bg-brand-btn text-brand-btn-text text-sm font-semibold hover:bg-brand-btn/90 transition-colors"
+          className="flex-1 py-2 rounded-md bg-brand-btn text-brand-btn-text text-sm font-semibold hover:bg-brand-btn/90 transition-colors"
         >
-          {props.watched ? "Assisti de novo" : "Registrar ou avaliar"}
+          {watched ? "Nova sessão" : "Escrever review"}
         </button>
         {props.onEdit && (
           <button
             onClick={props.onEdit}
-            className="w-full py-2 rounded-md text-sm text-brand-slate hover:text-foreground hover:bg-surface-strong transition-colors"
+            className="px-3 py-2 rounded-md text-sm text-brand-slate hover:text-foreground hover:bg-surface-strong transition-colors"
           >
-            Editar última review
+            Editar
           </button>
         )}
       </div>
@@ -342,109 +360,102 @@ function ActionPanel(props: {
   );
 }
 
-type TabId = "elenco" | "detalhes" | "onde";
-
-/** Abas abaixo da sinopse: elenco, detalhes e onde assistir. */
-function FilmTabs({ film, cast: castOrNull, providers }: {
-  film: Movie;
-  cast: CreditPerson[] | undefined; // undefined = ainda carregando
-  providers: WatchProviders | undefined;
-}) {
-  const [tab, setTab] = useState<TabId>("elenco");
-  const castLoading = castOrNull === undefined;
-  const cast = castOrNull ?? [];
+/** Elenco em fotos, numa faixa que rola de lado; "ver todos" abre a grade completa. */
+function CastStrip({ cast: castOrNull }: { cast: CreditPerson[] | undefined }) {
   const [showAll, setShowAll] = useState(false);
+  const cast = castOrNull ?? [];
+  if (castOrNull !== undefined && cast.length === 0) return null;
+
   const visible = showAll ? cast : cast.slice(0, CAST_PREVIEW);
 
-  const tabs: { id: TabId; label: string }[] = [
-    { id: "elenco", label: "Elenco" },
-    { id: "detalhes", label: "Detalhes" },
-    { id: "onde", label: "Onde assistir" },
-  ];
+  return (
+    <section className="mt-12">
+      <SectionHeading
+        title="Elenco"
+        count={cast.length || undefined}
+        action={
+          cast.length > CAST_PREVIEW && (
+            <button onClick={() => setShowAll(!showAll)} className="text-sm text-brand-slate hover:text-foreground transition-colors">
+              {showAll ? "Mostrar menos" : "Ver todos"}
+            </button>
+          )
+        }
+      />
+      <ul
+        className={
+          showAll
+            ? "grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-x-4 gap-y-6"
+            : "flex gap-4 overflow-x-auto pb-3 -mx-1 px-1 snap-x [scrollbar-width:thin]"
+        }
+      >
+        {castOrNull === undefined
+          ? Array.from({ length: 6 }, (_, i) => (
+              <li key={i} className="w-24 shrink-0">
+                <span className="block aspect-square rounded-full bg-surface animate-pulse" />
+                <span className="block mt-2.5 h-3 w-16 mx-auto rounded bg-surface animate-pulse" />
+              </li>
+            ))
+          : visible.map((person) => (
+              <li key={`${person.tmdbId}-${person.role}`} className={showAll ? "" : "w-24 shrink-0 snap-start"}>
+                <Link href={`/person/${person.tmdbId}`} className="group block text-center">
+                  <PersonPhoto
+                    name={person.name}
+                    profilePath={person.profilePath}
+                    className="transition group-hover:ring-2 group-hover:ring-brand-orange"
+                  />
+                  <span className="mt-2.5 block text-sm leading-tight text-foreground/90 group-hover:text-foreground">{person.name}</span>
+                  {person.role && (
+                    <span className="mt-0.5 block text-xs leading-tight text-brand-slate line-clamp-2">{person.role}</span>
+                  )}
+                </Link>
+              </li>
+            ))}
+      </ul>
+    </section>
+  );
+}
+
+/** Ficha técnica: os dados do filme em blocos, cada um com o rótulo em cima. */
+function FactSheet({ film, directors }: { film: Movie; directors: CreditPerson[] }) {
+  const facts: { label: string; value: React.ReactNode }[] = [];
+
+  if (directors.length > 0 || film.director) {
+    facts.push({
+      label: "Direção",
+      value: directors.length > 0
+        ? directors.map((d, i) => (
+            <span key={d.tmdbId}>
+              {i > 0 && ", "}
+              <Link href={`/person/${d.tmdbId}`} className="hover:text-brand-orange transition-colors">{d.name}</Link>
+            </span>
+          ))
+        : film.director,
+    });
+  }
+  if (film.releaseYear) facts.push({ label: "Lançamento", value: film.releaseYear });
+  if (film.genres.length > 0) facts.push({ label: "Gêneros", value: film.genres.join(", ") });
+  if (film.franchise) facts.push({ label: "Franquia", value: film.franchise });
+  if (film.rating !== null) {
+    facts.push({
+      label: "Nota TMDB",
+      value: <><span className="tabular-nums">{film.rating.toFixed(1)}</span><span className="text-brand-slate"> /10</span></>,
+    });
+  }
+
+  if (facts.length === 0) return null;
 
   return (
-    <div className="mt-10">
-      <div role="tablist" className="flex gap-6 border-b border-foreground/10">
-        {tabs.map((t) => (
-          <button
-            key={t.id}
-            role="tab"
-            aria-selected={tab === t.id}
-            onClick={() => setTab(t.id)}
-            className={`-mb-px pb-2.5 text-sm border-b-2 transition-colors ${tab === t.id ? "border-brand-orange text-foreground" : "border-transparent text-brand-slate hover:text-foreground"}`}
-          >
-            {t.label}
-          </button>
+    <section className="mt-12">
+      <SectionHeading title="Ficha técnica" />
+      <dl className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-5">
+        {facts.map((fact) => (
+          <div key={fact.label} className="border-l-2 border-brand-orange/50 pl-3">
+            <dt className="text-[11px] uppercase tracking-[0.14em] text-brand-slate">{fact.label}</dt>
+            <dd className="mt-1.5 text-sm text-foreground/90">{fact.value}</dd>
+          </div>
         ))}
-      </div>
-
-      <div role="tabpanel" className="pt-5">
-        {tab === "elenco" &&
-          (castLoading ? (
-            <div className="flex flex-wrap gap-2">
-              {Array.from({ length: 8 }, (_, i) => (
-                <span key={i} className="h-8 w-28 rounded bg-surface animate-pulse" />
-              ))}
-            </div>
-          ) : cast.length === 0 ? (
-            <p className="text-sm text-brand-slate">Elenco indisponível.</p>
-          ) : (
-            <>
-              <ul className="flex flex-wrap gap-2">
-                {visible.map((person) => (
-                  <li key={`${person.tmdbId}-${person.role}`}>
-                    <Link
-                      href={`/person/${person.tmdbId}`}
-                      title={person.role ? `${person.name} como ${person.role}` : person.name}
-                      className="block px-3.5 py-1.5 rounded bg-surface text-sm text-foreground/80 hover:bg-surface-strong hover:text-foreground transition-colors"
-                    >
-                      {person.name}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-              {cast.length > CAST_PREVIEW && (
-                <button
-                  onClick={() => setShowAll(!showAll)}
-                  className="mt-3 px-3 py-1.5 rounded text-sm text-brand-slate hover:text-foreground"
-                >
-                  {showAll ? "Mostrar menos" : `Mostrar todos (${cast.length})`}
-                </button>
-              )}
-            </>
-          ))}
-
-        {tab === "detalhes" && (
-          <dl className="grid grid-cols-[120px_1fr] gap-y-3 text-sm">
-            {film.genres.length > 0 && (
-              <>
-                <dt className="text-brand-slate uppercase tracking-[0.1em] text-xs pt-1.5">Gêneros</dt>
-                <dd className="flex flex-wrap gap-2">
-                  {film.genres.map((g) => (
-                    <span key={g} className="px-2.5 py-1 rounded bg-surface text-foreground/80">{g}</span>
-                  ))}
-                </dd>
-              </>
-            )}
-            {film.franchise && (
-              <>
-                <dt className="text-brand-slate uppercase tracking-[0.1em] text-xs pt-0.5">Franquia</dt>
-                <dd className="text-foreground/85">{film.franchise}</dd>
-              </>
-            )}
-            {film.rating !== null && (
-              <>
-                <dt className="text-brand-slate uppercase tracking-[0.1em] text-xs pt-0.5">Nota TMDB</dt>
-                <dd className="text-foreground/85"><span className="font-mono">{film.rating.toFixed(1)}</span>/10</dd>
-              </>
-            )}
-          </dl>
-        )}
-
-        {tab === "onde" &&
-          (providers ? <WhereToWatch providers={providers} /> : <p className="text-sm text-brand-slate">Carregando…</p>)}
-      </div>
-    </div>
+      </dl>
+    </section>
   );
 }
 
