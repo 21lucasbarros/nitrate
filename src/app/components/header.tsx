@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { MagnifyingGlassIcon, PlusIcon, SignOutIcon } from "@phosphor-icons/react";
+import { GearSixIcon, PlusIcon, SignOutIcon } from "@phosphor-icons/react";
 import { useAuth } from "@/lib/auth-context";
+import { HeaderSearch } from "./header-search";
+import { NotificationBell } from "./notification-bell";
 import { Avatar } from "./ui/avatar";
 
 const navLink = "px-3 py-2 text-sm font-medium text-brand-slate hover:text-foreground transition-colors";
@@ -34,9 +36,7 @@ export default function Header() {
           ) : (
             <Link href="/importar" className={navLink}>Importar</Link>
           )}
-          <Link href="/movies" aria-label="Buscar filmes, pessoas e perfis" className={navLink}>
-            <MagnifyingGlassIcon size={18} className="my-0.5" />
-          </Link>
+          <HeaderSearch />
         </nav>
 
         <div className="flex gap-3 items-center ml-auto md:ml-0 min-h-9">
@@ -50,8 +50,17 @@ export default function Header() {
                 <PlusIcon size={14} weight="bold" />
                 Registrar
               </Link>
+              <NotificationBell />
               <Link href={`/u/${user.username}`} aria-label="Meu perfil" title={`@${user.username}`} className="rounded-full ring-2 ring-transparent hover:ring-brand-orange/60 transition-shadow">
                 <Avatar name={user.name} username={user.username} size="sm" />
+              </Link>
+              <Link
+                href="/configuracoes"
+                aria-label="Configurações"
+                title="Configurações"
+                className="hidden sm:block p-2 -mr-2 text-brand-slate/70 hover:text-foreground transition-colors"
+              >
+                <GearSixIcon size={18} />
               </Link>
               <button
                 onClick={handleSignOut}

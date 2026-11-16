@@ -8,6 +8,9 @@ export interface UserSummary {
 
 export interface UserProfile extends UserSummary {
   createdAt: string; // ISO
+  bio: string | null;
+  twitter: string | null; // só o @, sem a URL
+  instagram: string | null;
   filmsCount: number;
   reviewsCount: number; // só as que têm texto
   likesCount: number;
@@ -16,4 +19,22 @@ export interface UserProfile extends UserSummary {
   followingCount: number;
   favorites: Movie[]; // até 5, em ordem
   followedByMe: boolean | null; // null para visitantes e no próprio perfil
+}
+
+// Espelha ProfileUpdateDTO
+export interface ProfileUpdate {
+  name: string;
+  bio: string;
+  twitter: string;
+  instagram: string;
+}
+
+// Espelha NotificationDTO (Radar de Estreias)
+export interface AppNotification {
+  id: number;
+  type: "CINEMA" | "STREAMING";
+  detail: string | null; // data de estreia ou serviços de streaming
+  createdAt: string; // ISO
+  read: boolean;
+  movie: Movie;
 }

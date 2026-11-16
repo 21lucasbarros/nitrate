@@ -1,11 +1,37 @@
 import { apiFetch } from "../api-client";
 import type { MovieReview, MovieUserState, Recommendation, WatchlistItem } from "../types/review";
 import type { Page } from "../types/page";
-import type { UserProfile, UserSummary } from "../types/user";
+import type { AppNotification, ProfileUpdate, UserProfile, UserSummary } from "../types/user";
 import type { Movie } from "@/types/movie";
 
 export function getMe(): Promise<UserProfile> {
   return apiFetch<UserProfile>("/users/me");
+}
+
+export function updateMyProfile(data: ProfileUpdate): Promise<UserProfile> {
+  return apiFetch<UserProfile>("/users/me/profile", { method: "PUT", body: JSON.stringify(data) });
+}
+
+/** cópia de tudo o que o Nitrate guarda sobre a pessoa (LGPD) */
+export function exportMyData(): Promise<unknown> {
+  return apiFetch<unknown>("/users/me/export");
+}
+
+/** exclusão definitiva; a senha confirma que é a dona da conta */
+export function deleteMyAccount(password: string): Promise<void> {
+  return apiFetch<void>("/users/me", { method: "DELETE", body: JSON.stringify({ password }) });
+}
+
+export function getMyNotifications(): Promise<AppNotification[]> {
+  return apiFetch<AppNotification[]>("/users/me/notifications");
+}
+
+export function getUnreadNotificationsCount(): Promise<{ count: number }> {
+  return apiFetch<{ count: number }>("/users/me/notifications/unread-count");
+}
+
+export function markNotificationsRead(): Promise<void> {
+  return apiFetch<void>("/users/me/notifications/read", { method: "POST" });
 }
 
 export function getMyRecommendations(): Promise<Recommendation[]> {

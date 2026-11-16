@@ -3,7 +3,14 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
-import { CircleNotchIcon, DownloadSimpleIcon, SparkleIcon } from "@phosphor-icons/react";
+import {
+  CircleNotchIcon,
+  DownloadSimpleIcon,
+  InstagramLogoIcon,
+  PencilSimpleIcon,
+  SparkleIcon,
+  XLogoIcon,
+} from "@phosphor-icons/react";
 
 import Header from "@/app/components/header";
 import { Avatar } from "@/app/components/ui/avatar";
@@ -176,6 +183,14 @@ function Profile() {
               {!isMe && status === "authenticated" && user.followedByMe !== null && (
                 <FollowButton username={user.username} following={user.followedByMe} onChange={setFollowing} onSaved={afterFollowSaved} />
               )}
+              {isMe && (
+                <Link
+                  href="/configuracoes"
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-surface-strong text-xs font-semibold text-foreground hover:bg-foreground/15 transition-colors"
+                >
+                  <PencilSimpleIcon size={12} weight="bold" /> Editar perfil
+                </Link>
+              )}
               {!isMe && status === "anonymous" && (
                 <Link
                   href={`/sign-in?redirect=${encodeURIComponent(`/u/${user.username}`)}`}
@@ -190,6 +205,32 @@ function Profile() {
               <span aria-hidden="true"> · </span>
               desde {monthYear(user.createdAt)}
             </p>
+            {user.bio && <p className="mt-3 max-w-xl text-sm leading-relaxed text-foreground/85 whitespace-pre-line">{user.bio}</p>}
+            {(user.twitter || user.instagram) && (
+              <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                {/* só o @ vem do banco: o domínio é fixo aqui, então o link nunca aponta para outro site */}
+                {user.twitter && (
+                  <a
+                    href={`https://x.com/${encodeURIComponent(user.twitter)}`}
+                    target="_blank"
+                    rel="noopener noreferrer nofollow"
+                    className="inline-flex items-center gap-1.5 text-brand-slate hover:text-foreground"
+                  >
+                    <XLogoIcon size={14} /> @{user.twitter}
+                  </a>
+                )}
+                {user.instagram && (
+                  <a
+                    href={`https://instagram.com/${encodeURIComponent(user.instagram)}`}
+                    target="_blank"
+                    rel="noopener noreferrer nofollow"
+                    className="inline-flex items-center gap-1.5 text-brand-slate hover:text-foreground"
+                  >
+                    <InstagramLogoIcon size={14} /> @{user.instagram}
+                  </a>
+                )}
+              </div>
+            )}
             {isMe && (
               <div className="mt-2.5 flex flex-wrap gap-x-5 gap-y-1 text-sm">
                 {/* a retrospectiva é só do dono do diário */}
