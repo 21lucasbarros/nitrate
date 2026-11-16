@@ -32,9 +32,9 @@ export function RatingMeterInput({ value, onChange, disabled = false }: {
   return (
     <div className={disabled ? "opacity-50 pointer-events-none" : ""}>
       <div className="flex items-baseline justify-between">
-        <span className="font-serif text-4xl font-semibold leading-none tabular-nums">
+        <span className="text-4xl font-bold tracking-tighter leading-none tabular-nums">
           {shown > 0 ? formatScore(shown) : "–"}
-          <span className="ml-1 font-sans text-sm font-normal text-brand-slate">/5</span>
+          <span className="ml-1 text-sm font-normal tracking-normal text-brand-slate">/5</span>
         </span>
         {value !== null && hover === null && (
           <button type="button" onClick={() => onChange(null)} className="text-xs text-brand-slate hover:text-foreground">

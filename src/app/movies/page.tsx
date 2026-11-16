@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { CircleNotchIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
 import Header from "@/app/components/header";
 import { MovieGrid } from "@/app/components/movie-grid";
@@ -24,7 +25,22 @@ const MAX_PEOPLE = 6;
 const SEARCH_DEBOUNCE_MS = 400;
 
 export default function MoviesPage() {
-  const [query, setQuery] = useState("");
+  // useSearchParams precisa de Suspense para o build estático do Next
+  return (
+    <Suspense>
+      <MoviesFromUrl />
+    </Suspense>
+  );
+}
+
+/** ?q= vem da busca do header; a key recria a página quando a busca muda estando já em /movies */
+function MoviesFromUrl() {
+  const q = useSearchParams().get("q") ?? "";
+  return <Movies key={q} initialQuery={q} />;
+}
+
+function Movies({ initialQuery }: { initialQuery: string }) {
+  const [query, setQuery] = useState(initialQuery);
   const debouncedQuery = useDebouncedValue(query.trim(), SEARCH_DEBOUNCE_MS);
   const isSearching = query.trim().length >= MIN_QUERY;
 

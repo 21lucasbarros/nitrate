@@ -39,7 +39,7 @@ import type { Movie } from "@/types/movie";
 import { shortDate, todayIso } from "@/utils/format";
 import { backdropUrl } from "@/utils/poster";
 
-const CAST_PREVIEW = 12;
+const CAST_PREVIEW = 8;
 
 export default function FilmPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -164,7 +164,7 @@ function FilmView({ film }: { film: Movie }) {
               <p className="mt-6 text-base leading-[1.75] text-foreground/80 max-w-2xl">{film.overview}</p>
             )}
 
-            <CastStrip cast={credits.data?.cast} />
+            <CastList cast={credits.data?.cast} />
             <FactSheet film={film} directors={directors} />
 
             <section className="mt-12">
@@ -360,57 +360,49 @@ function ActionPanel(props: {
   );
 }
 
-/** Elenco em fotos, numa faixa que rola de lado; "ver todos" abre a grade completa. */
-function CastStrip({ cast: castOrNull }: { cast: CreditPerson[] | undefined }) {
+/** Elenco em lista de duas colunas (foto, nome e personagem); "ver todos" abre o resto no lugar. */
+function CastList({ cast: castOrNull }: { cast: CreditPerson[] | undefined }) {
   const [showAll, setShowAll] = useState(false);
   const cast = castOrNull ?? [];
   if (castOrNull !== undefined && cast.length === 0) return null;
 
   const visible = showAll ? cast : cast.slice(0, CAST_PREVIEW);
+  const hidden = cast.length - CAST_PREVIEW;
 
   return (
     <section className="mt-12">
-      <SectionHeading
-        title="Elenco"
-        count={cast.length || undefined}
-        action={
-          cast.length > CAST_PREVIEW && (
-            <button onClick={() => setShowAll(!showAll)} className="text-sm text-brand-slate hover:text-foreground transition-colors">
-              {showAll ? "Mostrar menos" : "Ver todos"}
-            </button>
-          )
-        }
-      />
-      <ul
-        className={
-          showAll
-            ? "grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-x-4 gap-y-6"
-            : "flex gap-4 overflow-x-auto pb-3 -mx-1 px-1 snap-x [scrollbar-width:thin]"
-        }
-      >
+      <SectionHeading title="Elenco" count={cast.length || undefined} />
+      <ul className="grid sm:grid-cols-2 gap-x-6 gap-y-1">
         {castOrNull === undefined
-          ? Array.from({ length: 6 }, (_, i) => (
-              <li key={i} className="w-24 shrink-0">
-                <span className="block aspect-square rounded-full bg-surface animate-pulse" />
-                <span className="block mt-2.5 h-3 w-16 mx-auto rounded bg-surface animate-pulse" />
+          ? Array.from({ length: CAST_PREVIEW }, (_, i) => (
+              <li key={i} className="flex items-center gap-3 py-2">
+                <span className="w-11 h-11 shrink-0 rounded-full bg-surface animate-pulse" />
+                <span className="h-3 w-32 rounded bg-surface animate-pulse" />
               </li>
             ))
           : visible.map((person) => (
-              <li key={`${person.tmdbId}-${person.role}`} className={showAll ? "" : "w-24 shrink-0 snap-start"}>
-                <Link href={`/person/${person.tmdbId}`} className="group block text-center">
-                  <PersonPhoto
-                    name={person.name}
-                    profilePath={person.profilePath}
-                    className="transition group-hover:ring-2 group-hover:ring-brand-orange"
-                  />
-                  <span className="mt-2.5 block text-sm leading-tight text-foreground/90 group-hover:text-foreground">{person.name}</span>
-                  {person.role && (
-                    <span className="mt-0.5 block text-xs leading-tight text-brand-slate line-clamp-2">{person.role}</span>
-                  )}
+              <li key={`${person.tmdbId}-${person.role}`}>
+                <Link
+                  href={`/person/${person.tmdbId}`}
+                  className="group flex items-center gap-3 -mx-2 px-2 py-2 rounded-md hover:bg-surface transition-colors"
+                >
+                  <PersonPhoto name={person.name} profilePath={person.profilePath} sizes="44px" className="w-11 shrink-0" />
+                  <span className="min-w-0">
+                    <span className="block text-sm text-foreground/90 truncate group-hover:text-foreground">{person.name}</span>
+                    {person.role && <span className="block text-xs text-brand-slate truncate">{person.role}</span>}
+                  </span>
                 </Link>
               </li>
             ))}
       </ul>
+      {hidden > 0 && (
+        <button
+          onClick={() => setShowAll(!showAll)}
+          className="mt-3 w-full py-2 rounded-md border border-foreground/10 text-sm text-brand-slate hover:text-foreground hover:border-foreground/20 transition-colors"
+        >
+          {showAll ? "Mostrar menos" : `Ver mais ${hidden} ${hidden === 1 ? "pessoa" : "pessoas"} do elenco`}
+        </button>
+      )}
     </section>
   );
 }

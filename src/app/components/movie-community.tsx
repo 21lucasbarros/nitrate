@@ -31,7 +31,7 @@ export function NitrateRating({ stats }: { stats: MovieStats }) {
       ) : (
         <>
           <div className="mt-3 flex items-baseline gap-1.5">
-            <span className="font-serif text-5xl font-semibold leading-none tabular-nums">{formatScore(stats.averageRating)}</span>
+            <span className="text-5xl font-bold tracking-tighter leading-none tabular-nums">{formatScore(stats.averageRating)}</span>
             <span className="text-sm text-brand-slate">/5</span>
           </div>
           <RatingMeter value={stats.averageRating} className="mt-3 h-1.5" />
@@ -58,7 +58,7 @@ export function NitrateRating({ stats }: { stats: MovieStats }) {
       )}
 
       {/* quem passou por aqui */}
-      <div className="mt-5 pt-4 border-t border-foreground/10 flex gap-5 text-xs text-brand-slate">
+      <div className="mt-5 pt-4 border-t border-foreground/10 flex flex-wrap gap-x-4 gap-y-1 text-xs text-brand-slate whitespace-nowrap">
         <span className="flex items-center gap-1.5">
           <EyeIcon size={14} className="text-brand-emerald" />
           {stats.watchedCount} {stats.watchedCount === 1 ? "assistiu" : "assistiram"}
