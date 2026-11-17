@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { GearSixIcon, PlusIcon, SignOutIcon } from "@phosphor-icons/react";
+import { GearSixIcon, MagnifyingGlassIcon, PlusIcon, SignOutIcon } from "@phosphor-icons/react";
 import { useAuth } from "@/lib/auth-context";
 import { useLogoEgg } from "@/lib/hooks/use-easter-eggs";
 import { DreamBigLogo } from "./easter-eggs/dream-big-logo";
@@ -57,13 +57,15 @@ export default function Header() {
           {status === "authenticated" && (
             <>
               {/* registrar começa pela busca: escolher o filme */}
+              {/* no celular o "Registrar" dá lugar à lupa; registrar começa na página do filme */}
               <Link
                 href="/movies"
-                className="flex items-center gap-1.5 bg-brand-btn text-brand-btn-text px-3 py-1.5 rounded-md text-sm font-semibold hover:bg-brand-btn/90 transition-colors"
+                className="hidden md:flex items-center gap-1.5 bg-brand-btn text-brand-btn-text px-3 py-1.5 rounded-md text-sm font-semibold hover:bg-brand-btn/90 transition-colors"
               >
                 <PlusIcon size={14} weight="bold" />
                 Registrar
               </Link>
+              <MobileSearchLink />
               <NotificationBell />
               <Link href={`/u/${user.username}`} aria-label="Meu perfil" title={`@${user.username}`} className="rounded-full ring-2 ring-transparent hover:ring-brand-orange/60 transition-shadow">
                 <Avatar name={user.name} username={user.username} size="sm" />
@@ -86,8 +88,16 @@ export default function Header() {
               </button>
             </>
           )}
+          {status === "loading" && (
+            // a sessão ainda está carregando (a API pode demorar a acordar): marca o lugar dos botões
+            <span aria-hidden="true" className="flex items-center gap-3">
+              <span className="w-7 h-7 rounded-full bg-surface animate-pulse" />
+              <span className="w-9 h-9 rounded-full bg-surface animate-pulse" />
+            </span>
+          )}
           {status === "anonymous" && (
             <>
+              <MobileSearchLink />
               <Link href="/sign-in" className={`hidden sm:block ${navLink}`}>
                 Entrar
               </Link>
@@ -102,5 +112,14 @@ export default function Header() {
         </div>
       </div>
     </header>
+  );
+}
+
+/** lupa do celular (a busca do desktop fica na navegação, que some no celular) */
+function MobileSearchLink() {
+  return (
+    <Link href="/movies?buscar=1" aria-label="Buscar filmes, pessoas e perfis" className="md:hidden p-2 -mx-1 text-brand-slate hover:text-foreground transition-colors">
+      <MagnifyingGlassIcon size={20} />
+    </Link>
   );
 }

@@ -40,11 +40,13 @@ export default function MoviesPage() {
 
 /** ?q= vem da busca do header; a key recria a página quando a busca muda estando já em /movies */
 function MoviesFromUrl() {
-  const q = useSearchParams().get("q") ?? "";
-  return <Movies key={q} initialQuery={q} />;
+  const params = useSearchParams();
+  const q = params.get("q") ?? "";
+  // ?buscar=1: veio da lupa do celular, o campo já abre focado
+  return <Movies key={q} initialQuery={q} focusSearch={params.has("buscar")} />;
 }
 
-function Movies({ initialQuery }: { initialQuery: string }) {
+function Movies({ initialQuery, focusSearch }: { initialQuery: string; focusSearch: boolean }) {
   const [query, setQuery] = useState(initialQuery);
   const debouncedQuery = useDebouncedValue(query.trim(), SEARCH_DEBOUNCE_MS);
   const isSearching = query.trim().length >= MIN_QUERY;
@@ -74,6 +76,7 @@ function Movies({ initialQuery }: { initialQuery: string }) {
               className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-slate/60 group-focus-within:text-brand-orange pointer-events-none"
             />
             <input
+              autoFocus={focusSearch}
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}

@@ -8,6 +8,7 @@ import TrendingReviews from './components/trending-reviews';
 import CTA from './components/cta';
 import Footer from './components/footer';
 import UserHome from './components/user-home';
+import { HomeSkeleton } from './components/home-skeleton';
 
 export default function HomePage() {
   const { status, user } = useAuth();
@@ -15,8 +16,8 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-background text-foreground font-sans selection:bg-brand-blue selection:text-background">
       <Header />
-      {/* enquanto descobre se há sessão, só reserva o espaço para o footer não pular */}
-      {status === "loading" && <div className="min-h-screen" />}
+      {/* enquanto descobre se há sessão (a API pode demorar a acordar), mostra o formato da home */}
+      {status === "loading" && <HomeSkeleton />}
       {status === "authenticated" && <UserHome user={user} />}
       {status === "anonymous" && (
         <>

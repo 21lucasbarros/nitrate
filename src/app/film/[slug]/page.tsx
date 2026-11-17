@@ -5,12 +5,17 @@ import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
+  ArrowRightIcon,
   ArrowsClockwiseIcon,
   BookmarkSimpleIcon,
+  CheckIcon,
   CircleNotchIcon,
+  DotsThreeIcon,
   EyeIcon,
   HeartIcon,
   ListPlusIcon,
+  ShareNetworkIcon,
+  StarIcon,
 } from "@phosphor-icons/react";
 
 import Header from "@/app/components/header";
@@ -19,7 +24,12 @@ import { Poster } from "@/app/components/ui/poster";
 import { PersonPhoto } from "@/app/components/ui/person-photo";
 import { RatingMeterInput } from "@/app/components/ui/rating-meter";
 import { SectionHeading } from "@/app/components/ui/section-heading";
-import { ReviewCard } from "@/app/components/review-card";
+import { ReviewCard, reviewHref } from "@/app/components/review-card";
+import { Avatar } from "@/app/components/ui/avatar";
+import { BottomSheet } from "@/app/components/ui/bottom-sheet";
+import { SlowHint } from "@/app/components/ui/slow-hint";
+import { StarRating } from "@/app/components/ui/star-rating";
+import { formatScore } from "@/app/components/ui/rating-meter";
 import { ReviewForm } from "@/app/components/review-form";
 import { Modal } from "@/app/components/ui/modal";
 import { NitrateRating, WhereToWatch } from "@/app/components/movie-community";
@@ -45,6 +55,8 @@ import type { MovieReview, ReviewRequest } from "@/lib/types/review";
 import type { Movie } from "@/types/movie";
 import { shortDate, todayIso } from "@/utils/format";
 import { backdropUrl } from "@/utils/poster";
+import { toRating } from "@/utils/rating";
+import type { MovieStats } from "@/lib/services/movie-service";
 
 const CAST_PREVIEW = 8;
 
@@ -68,8 +80,9 @@ export default function FilmPage() {
   if (!movie.data) {
     return (
       <Shell>
-        <div className="pt-48 pb-24 flex justify-center text-brand-slate/40">
+        <div className="pt-48 pb-24 flex flex-col items-center gap-6 text-brand-slate/40">
           {movie.error ? "Não foi possível carregar o filme." : <CircleNotchIcon size={32} className="animate-spin" />}
+          {!movie.error && <SlowHint className="px-6 text-center" />}
         </div>
       </Shell>
     );
@@ -83,7 +96,7 @@ export default function FilmPage() {
 }
 
 function FilmView({ film }: { film: Movie }) {
-  const { status, refreshUser } = useAuth();
+  const { status, user: me, refreshUser } = useAuth();
   const reviews = useFetch(film.id, getMovieReviews);
   const credits = useFetch(film.id, getMovieCredits);
   const stats = useFetch(film.id, getMovieStats);
@@ -95,6 +108,8 @@ function FilmView({ film }: { film: Movie }) {
   // "edit" = editar a review mais recente; "new" = registrar (ou registrar de novo)
   const [editing, setEditing] = useState<"edit" | "new" | null>(null);
   const [watchlistBusy, setWatchlistBusy] = useState(false);
+  // a gaveta de ações do celular
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   const myReview = myState.data?.review ?? null;
   const timesWatched = myState.data?.reviewsCount ?? 0;
@@ -127,11 +142,77 @@ function FilmView({ film }: { film: Movie }) {
   const directors = credits.data?.directors ?? [];
   const backdrop = backdropUrl(credits.data?.backdropPath);
 
+  const poster = (
+    <Poster title={film.title} posterPath={film.posterPath} size="w500" sizes="(min-width: 768px) 230px, 112px" className="shadow-2xl shadow-black/60" />
+  );
+  const posterWithEgg = egg?.posterClicks === "truman-crack" ? <TrumanPoster>{poster}</TrumanPoster> : poster;
+
+  // o mesmo painel no lado direito (desktop) e dentro da gaveta (celular)
+  const actionPanel = (inSheet: boolean) =>
+    status === "authenticated" && myState.data ? (
+      <ActionPanel
+        film={film}
+        review={myReview}
+        timesWatched={timesWatched}
+        inWatchlist={inWatchlist}
+        watchlistBusy={watchlistBusy}
+        // abrir o formulário fecha a gaveta: um modal de cada vez
+        onLog={() => {
+          if (inSheet) setSheetOpen(false);
+          setEditing("new");
+        }}
+        onEdit={myReview ? () => {
+          if (inSheet) setSheetOpen(false);
+          setEditing("edit");
+        } : undefined}
+        onToggleWatchlist={toggleWatchlist}
+        onChanged={afterChange}
+        watchlistPills={egg?.watchlist === "pills"}
+        ratingQuotes={egg?.ratingQuotes}
+      />
+    ) : null;
+
   return (
     <>
       {egg?.pageIntro === "matrix-rain" && <MatrixRain />}
+
+      {/* celular: cena no topo, título e pôster lado a lado, notas e a barra que abre a gaveta */}
+      <MobileFilmHeader
+        film={film}
+        backdrop={backdrop}
+        directors={directors}
+        tagline={credits.data?.tagline ?? null}
+        poster={posterWithEgg}
+        stats={stats.data}
+        myRating={myReview?.rating ?? null}
+        onOpenSheet={status === "authenticated" ? () => setSheetOpen(true) : undefined}
+      >
+        {status === "authenticated" && me && myState.data && (
+          <button
+            type="button"
+            onClick={() => setSheetOpen(true)}
+            className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl bg-surface hover:bg-surface-strong transition-colors text-left"
+          >
+            <Avatar name={me.name} username={me.username} size="xs" />
+            <span className="flex-1 min-w-0 text-sm truncate">
+              {timesWatched > 0 ? "Você registrou este filme" : inWatchlist ? "Está na sua watchlist" : "Registrar, avaliar ou guardar"}
+            </span>
+            {myReview?.rating != null && <StarRating rating={toRating(myReview.rating)} size={12} />}
+            <DotsThreeIcon size={22} weight="bold" className="shrink-0 text-brand-slate" />
+          </button>
+        )}
+        {status === "anonymous" && (
+          <Link
+            href={`/sign-in?redirect=${encodeURIComponent(`/film/${film.slug}`)}`}
+            className="block w-full px-4 py-3.5 rounded-xl bg-surface text-sm text-brand-slate"
+          >
+            <span className="font-semibold text-foreground">Entre</span> para registrar, avaliar ou guardar na watchlist.
+          </Link>
+        )}
+      </MobileFilmHeader>
+
       {/* imagem de fundo: uma cena do filme, desbotando para o fundo da página */}
-      <div className="relative h-[300px] sm:h-[420px] lg:h-[520px] -mb-[180px] sm:-mb-[260px] lg:-mb-[320px]">
+      <div className="hidden md:block relative h-[420px] lg:h-[520px] -mb-[260px] lg:-mb-[320px]">
         {backdrop && (
           <Image
             src={backdrop}
@@ -147,23 +228,14 @@ function FilmView({ film }: { film: Movie }) {
         <div className="absolute inset-0 bg-linear-to-r from-background via-transparent to-background opacity-80" />
       </div>
 
-      <div className={`relative max-w-[1180px] mx-auto px-6 pb-24 ${backdrop ? "" : "pt-32"}`}>
+      <div className={`relative max-w-[1180px] mx-auto px-6 pb-24 ${backdrop ? "" : "md:pt-32"}`}>
         <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] lg:grid-cols-[230px_1fr_260px] gap-8 lg:gap-10">
           {/* pôster */}
-          <aside className="flex justify-center md:block">
-            <div className="w-44 md:w-full">
-              {egg?.posterClicks === "truman-crack" ? (
-                <TrumanPoster>
-                  <Poster title={film.title} posterPath={film.posterPath} size="w500" sizes="230px" className="shadow-2xl shadow-black/60" />
-                </TrumanPoster>
-              ) : (
-                <Poster title={film.title} posterPath={film.posterPath} size="w500" sizes="230px" className="shadow-2xl shadow-black/60" />
-              )}
-            </div>
-          </aside>
+          <aside className="hidden md:block">{posterWithEgg}</aside>
 
           {/* título, sinopse, elenco, ficha */}
           <section className="min-w-0 md:pt-10 lg:pt-16">
+            <div className="hidden md:block">
             {/* linha de contexto acima do título: ano e gêneros */}
             <p className="flex flex-wrap items-center gap-x-2 text-xs uppercase tracking-[0.14em] text-foreground/70">
               {[film.releaseYear, ...film.genres.slice(0, 3)].filter(Boolean).map((item, i) => (
@@ -181,6 +253,7 @@ function FilmView({ film }: { film: Movie }) {
             {film.overview && (
               <p className="mt-6 text-base leading-[1.75] text-foreground/80 max-w-2xl">{film.overview}</p>
             )}
+            </div>
 
             <CastList cast={credits.data?.cast} />
             <FactSheet film={film} directors={directors} />
@@ -192,22 +265,8 @@ function FilmView({ film }: { film: Movie }) {
           </section>
 
           {/* painel de ações + nota do Nitrate */}
-          <aside className="md:col-span-2 lg:col-span-1 lg:pt-16 grid sm:grid-cols-2 lg:grid-cols-1 gap-6 content-start">
-            {status === "authenticated" && myState.data && (
-              <ActionPanel
-                film={film}
-                review={myReview}
-                timesWatched={timesWatched}
-                inWatchlist={inWatchlist}
-                watchlistBusy={watchlistBusy}
-                onLog={() => setEditing("new")}
-                onEdit={myReview ? () => setEditing("edit") : undefined}
-                onToggleWatchlist={toggleWatchlist}
-                onChanged={afterChange}
-                watchlistPills={egg?.watchlist === "pills"}
-                ratingQuotes={egg?.ratingQuotes}
-              />
-            )}
+          <aside className="hidden md:grid md:col-span-2 lg:col-span-1 lg:pt-16 sm:grid-cols-2 lg:grid-cols-1 gap-6 content-start">
+            {actionPanel(false)}
             {status === "anonymous" && (
               <div className="rounded-md bg-surface p-5 text-center text-sm text-brand-slate">
                 <Link
@@ -244,6 +303,31 @@ function FilmView({ film }: { film: Movie }) {
           )}
         </section>
       </div>
+
+      {status === "authenticated" && myState.data && (
+        <BottomSheet
+          open={sheetOpen}
+          onClose={() => setSheetOpen(false)}
+          label={`Ações para ${film.title}`}
+          header={
+            <>
+              <p className="font-serif text-xl font-semibold leading-tight">{film.title}</p>
+              {film.releaseYear && <p className="mt-0.5 text-sm text-brand-slate">{film.releaseYear}</p>}
+            </>
+          }
+        >
+          {actionPanel(true)}
+          {myReview && (
+            <Link
+              href={reviewHref(myReview)}
+              className="flex items-center justify-between px-5 py-4 border-t border-foreground/5 text-sm text-brand-slate hover:text-foreground"
+            >
+              Ver sua review <ArrowRightIcon size={14} />
+            </Link>
+          )}
+          <ShareFilmRow film={film} />
+        </BottomSheet>
+      )}
 
       {status === "authenticated" && myState.data && (
         <Modal
@@ -490,6 +574,149 @@ function FactSheet({ film, directors }: { film: Movie; directors: CreditPerson[]
         ))}
       </dl>
     </section>
+  );
+}
+
+/** Topo da página do filme no celular: cena, título e pôster lado a lado, sinopse, notas e a barra de ações. */
+function MobileFilmHeader({ film, backdrop, directors, tagline, poster, stats, myRating, onOpenSheet, children }: {
+  film: Movie;
+  backdrop: string | null;
+  directors: CreditPerson[];
+  tagline: string | null;
+  poster: React.ReactNode;
+  stats: MovieStats | undefined;
+  myRating: number | null;
+  onOpenSheet?: () => void;
+  children: React.ReactNode;
+}) {
+  const director = directors[0];
+
+  return (
+    <div className="md:hidden">
+      {/* a cena ocupa o topo, por baixo do cabeçalho translúcido */}
+      <div className={`relative ${backdrop ? "h-[56vh] min-h-[320px] max-h-[520px]" : "h-48"}`}>
+        {backdrop && <Image src={backdrop} alt="" fill priority sizes="100vw" className="object-cover object-[center_30%]" />}
+        <div className="absolute inset-0 bg-linear-to-t from-background via-background/20 to-background/40" />
+        {onOpenSheet && (
+          <button
+            type="button"
+            onClick={onOpenSheet}
+            aria-label="Ações do filme"
+            className="absolute top-20 right-4 w-10 h-10 flex items-center justify-center rounded-full bg-black/45 backdrop-blur-md text-foreground"
+          >
+            <DotsThreeIcon size={22} weight="bold" />
+          </button>
+        )}
+      </div>
+
+      <div className="relative px-5 -mt-24 flex items-end gap-4">
+        <div className="flex-1 min-w-0 pb-1">
+          <h1 className="font-serif text-[28px] font-semibold leading-[1.1] tracking-tight">{film.title}</h1>
+          <p className="mt-3 text-[11px] uppercase tracking-[0.16em] text-brand-slate">
+            {[film.releaseYear, director || film.director ? "Direção" : null].filter(Boolean).join(" · ")}
+          </p>
+          {director ? (
+            <Link href={`/person/${director.tmdbId}`} className="mt-0.5 block font-semibold text-foreground/90">
+              {director.name}
+            </Link>
+          ) : (
+            film.director && <p className="mt-0.5 font-semibold text-foreground/90">{film.director}</p>
+          )}
+          {film.genres.length > 0 && (
+            <ul className="mt-3 flex flex-wrap gap-1.5">
+              {film.genres.slice(0, 2).map((genre) => (
+                <li key={genre} className="px-2 py-0.5 rounded-full bg-surface text-[11px] text-brand-slate">{genre}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div className="w-28 shrink-0">{poster}</div>
+      </div>
+
+      {(tagline || film.overview) && (
+        <div className="px-5 mt-7">
+          {tagline && <p className="text-xs uppercase tracking-[0.16em] text-brand-orange">{tagline}</p>}
+          {film.overview && <p className="mt-2 text-[15px] leading-relaxed text-foreground/80">{film.overview}</p>}
+        </div>
+      )}
+
+      {stats && (
+        <div className="mt-7 px-5 py-6 border-y border-foreground/10">
+          <MobileRatings stats={stats} myRating={myRating} />
+        </div>
+      )}
+
+      <div className="px-5 py-6 border-b border-foreground/10">{children}</div>
+    </div>
+  );
+}
+
+const HISTOGRAM_STEPS = [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5];
+
+/** histograma das notas em meias estrelas, com a média ao lado; a barra da sua nota fica laranja */
+function MobileRatings({ stats, myRating }: { stats: MovieStats; myRating: number | null }) {
+  const counts = HISTOGRAM_STEPS.map((step) => stats.ratingDistribution[step.toFixed(1)] ?? 0);
+  const max = Math.max(1, ...counts);
+
+  return (
+    <section>
+      <div className="flex items-baseline justify-between">
+        <h2 className="text-[11px] uppercase tracking-[0.16em] text-brand-slate">Notas no Nitrate</h2>
+        <span className="text-xs text-brand-slate/70">
+          {stats.ratingsCount} {stats.ratingsCount === 1 ? "nota" : "notas"} · {stats.watchedCount} {stats.watchedCount === 1 ? "assistiu" : "assistiram"}
+        </span>
+      </div>
+      {stats.averageRating === null ? (
+        <p className="mt-3 text-sm text-brand-slate/70">Ninguém avaliou ainda. Seja a primeira nota.</p>
+      ) : (
+        <div className="mt-4 flex items-end gap-3">
+          <StarIcon size={12} weight="fill" className="mb-0.5 shrink-0 text-brand-orange" />
+          <div className="flex-1 flex items-end gap-[3px] h-16" aria-label="Distribuição das notas">
+            {counts.map((count, i) => (
+              <span
+                key={HISTOGRAM_STEPS[i]}
+                title={`${formatScore(HISTOGRAM_STEPS[i])}: ${count}`}
+                className={`flex-1 rounded-t-[2px] ${myRating === HISTOGRAM_STEPS[i] ? "bg-brand-orange" : "bg-brand-slate/35"}`}
+                style={{ height: `${Math.max(3, (count / max) * 100)}%` }}
+              />
+            ))}
+          </div>
+          <div className="shrink-0 flex flex-col items-end">
+            <span className="text-3xl font-light tabular-nums leading-none">{formatScore(stats.averageRating)}</span>
+            <span className="mt-1.5"><StarRating rating={toRating(stats.averageRating)} size={9} /></span>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/** linha "Compartilhar" da gaveta: folha nativa do celular ou copia o link */
+function ShareFilmRow({ film }: { film: Movie }) {
+  const [copied, setCopied] = useState(false);
+  const share = async () => {
+    const url = `${window.location.origin}/film/${film.slug}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: `${film.title} no Nitrate`, url });
+      } catch {
+        // cancelou
+      }
+      return;
+    }
+    await navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <button
+      type="button"
+      onClick={share}
+      className="w-full flex items-center justify-between px-5 py-4 border-t border-foreground/5 text-sm text-brand-slate hover:text-foreground"
+    >
+      {copied ? "Link copiado" : "Compartilhar"}
+      {copied ? <CheckIcon size={16} className="text-brand-emerald" /> : <ShareNetworkIcon size={16} />}
+    </button>
   );
 }
 

@@ -29,6 +29,7 @@ import { reviewHref } from "@/app/components/review-card";
 import { ShareReviewStoryModal } from "@/app/components/review-story-share";
 import { Avatar } from "@/app/components/ui/avatar";
 import { Modal } from "@/app/components/ui/modal";
+import { SlowHint } from "@/app/components/ui/slow-hint";
 import { Poster } from "@/app/components/ui/poster";
 import { ReviewText } from "@/app/components/ui/review-text";
 import { StarRating } from "@/app/components/ui/star-rating";
@@ -77,8 +78,9 @@ export default function ReviewPage() {
           </Link>
         </div>
       ) : !review.data ? (
-        <div className="pt-48 pb-24 flex justify-center text-brand-slate/40">
+        <div className="pt-48 pb-24 flex flex-col items-center gap-6 text-brand-slate/40">
           {review.error ? "Não foi possível carregar a review." : <CircleNotchIcon size={32} className="animate-spin" />}
+          {!review.error && <SlowHint className="px-6 text-center" />}
         </div>
       ) : (
         <ReviewView
