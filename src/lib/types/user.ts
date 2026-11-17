@@ -21,6 +21,12 @@ export interface UserProfile extends UserSummary {
   followedByMe: boolean | null; // null para visitantes e no próprio perfil
 }
 
+// Espelha SimilarUserDTO
+export interface SimilarUser extends UserSummary {
+  sharedFilms: number; // filmes que os dois avaliaram
+  compatibility: number; // 0 a 100: o quanto as notas batem
+}
+
 // Espelha ProfileUpdateDTO
 export interface ProfileUpdate {
   name: string;

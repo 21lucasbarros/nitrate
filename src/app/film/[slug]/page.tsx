@@ -10,9 +10,11 @@ import {
   CircleNotchIcon,
   EyeIcon,
   HeartIcon,
+  ListPlusIcon,
 } from "@phosphor-icons/react";
 
 import Header from "@/app/components/header";
+import { AddToListModal } from "@/app/components/add-to-list";
 import { Poster } from "@/app/components/ui/poster";
 import { PersonPhoto } from "@/app/components/ui/person-photo";
 import { RatingMeterInput } from "@/app/components/ui/rating-meter";
@@ -263,6 +265,7 @@ function ActionPanel(props: {
   const watched = props.timesWatched > 0;
   const liked = review?.liked ?? false;
   const [busy, setBusy] = useState(false);
+  const [addingToList, setAddingToList] = useState(false);
 
   // salva direto da página, sem abrir o formulário: atualiza a última review ou cria um registro de hoje
   const quickSave = async (changes: Partial<ReviewRequest>) => {
@@ -338,7 +341,12 @@ function ActionPanel(props: {
           <BookmarkSimpleIcon size={18} weight={props.inWatchlist ? "fill" : "regular"} />
           {props.inWatchlist ? "Na watchlist" : "Quero assistir"}
         </button>
+        <button onClick={() => setAddingToList(true)} className={toggle(false, "")}>
+          <ListPlusIcon size={18} />
+          Adicionar à lista
+        </button>
       </div>
+      <AddToListModal open={addingToList} movie={props.film} onClose={() => setAddingToList(false)} />
 
       <div className="border-t border-foreground/5 p-3 flex gap-2">
         <button

@@ -74,6 +74,19 @@ dialog.modal::backdrop {
   backdrop-filter: blur(4px);
 }
 
+/* faixa de pôsteres da landing: o conteúdo vem duplicado, então andar metade da largura fecha o ciclo sem emenda */
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes marquee-reverse {
+  from {
+    transform: translateX(-50%);
+  }
+}
+
 @keyframes modal-in {
   from {
     opacity: 0;

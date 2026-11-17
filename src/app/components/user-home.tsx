@@ -5,7 +5,7 @@ import { ArrowRightIcon, ArrowsClockwiseIcon, ChatTextIcon, HeartIcon, SparkleIc
 import type { UserProfile } from "@/lib/types/user";
 import type { MovieReview } from "@/lib/types/review";
 import { useFetch } from "@/lib/hooks/use-fetch";
-import { getMyFeed, getMyRecommendations, getUserWatchlist } from "@/lib/services/user-service";
+import { getMyFeed, getMyRecommendations, getSimilarUsers, getUserWatchlist } from "@/lib/services/user-service";
 import { getRecentReviews } from "@/lib/services/review-service";
 import { getMovies } from "@/lib/services/movie-service";
 import { getMyRetrospectiveMonths } from "@/lib/services/retrospective-service";
@@ -15,6 +15,8 @@ import { filmHref } from "@/utils/movie-link";
 import { toRating } from "@/utils/rating";
 import { MovieGrid } from "./movie-grid";
 import { Recommendations } from "./recommendations";
+import { SimilarUsers } from "./similar-users";
+import { WhatToWatchButton } from "./what-to-watch";
 import { reviewHref, ReviewCard } from "./review-card";
 import { Avatar } from "./ui/avatar";
 import { Poster } from "./ui/poster";
@@ -31,6 +33,7 @@ const fetchFeed = () => getMyFeed(RECENT_LIMIT);
 const fetchRetroMonths = () => getMyRetrospectiveMonths();
 const fetchMovies = () => getMovies();
 const fetchRecommendations = () => getMyRecommendations();
+const fetchSimilar = () => getSimilarUsers();
 
 export default function UserHome({ user }: { user: UserProfile }) {
   const firstName = user.name.split(" ")[0];
@@ -44,6 +47,8 @@ export default function UserHome({ user }: { user: UserProfile }) {
   // a chave inclui a contagem de filmes: registrar um filme novo refaz as recomendações
   const recommendations = useFetch(`${user.username}:${user.filmsCount}`, fetchRecommendations);
   const retroMonths = useFetch(user.username, fetchRetroMonths);
+  // a chave inclui quem você segue e quantos filmes registrou: os dois mudam as sugestões
+  const similar = useFetch(`${user.username}:${user.followingCount}:${user.filmsCount}`, fetchSimilar);
   // o mês que acabou ganha destaque; se ele estiver vazio, mostramos o mês em andamento
   const lastMonth = shiftMonth(currentMonth(), -1);
   const retroMonth = retroMonths.data?.includes(lastMonth)
@@ -95,6 +100,13 @@ export default function UserHome({ user }: { user: UserProfile }) {
         )}
       </section>
 
+      {similar.data && similar.data.length > 0 && (
+        <section className="mt-12">
+          <SectionHeading title="Cinéfilos com gosto parecido" href={`/u/${user.username}?tab=rede`} linkLabel="Amigos" />
+          <SimilarUsers users={similar.data.slice(0, 4)} />
+        </section>
+      )}
+
       {retroMonth && (
         <Link
           href={`/u/${user.username}/retrospectiva/${retroMonth}`}
@@ -121,7 +133,18 @@ export default function UserHome({ user }: { user: UserProfile }) {
       </section>
 
       <section className="mt-12">
-        <SectionHeading title="Sua watchlist" href={`/u/${user.username}?tab=watchlist`} count={user.watchlistCount} />
+        <SectionHeading
+          title="Sua watchlist"
+          count={user.watchlistCount}
+          action={
+            <span className="flex items-baseline gap-5">
+              {watchlist.data && <WhatToWatchButton movies={watchlist.data.map((item) => item.movie)} />}
+              <Link href={`/u/${user.username}?tab=watchlist`} className="text-sm text-brand-slate hover:text-foreground transition-colors">
+                Ver tudo
+              </Link>
+            </span>
+          }
+        />
         {watchlist.data && watchlist.data.length > 0 ? (
           <MovieGrid variant="compact" items={watchlist.data.slice(0, 6)} />
         ) : watchlist.loading ? (

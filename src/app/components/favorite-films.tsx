@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowDownIcon,
@@ -18,8 +17,9 @@ import { getMovieByTmdbId, searchMovies } from "@/lib/services/movie-service";
 import { MAX_FAVORITES, setMyFavorites } from "@/lib/services/user-service";
 import type { Movie, MovieSearchResult } from "@/types/movie";
 import { filmHref } from "@/utils/movie-link";
-import { posterUrl } from "@/utils/poster";
+import { IconButton } from "./ui/icon-button";
 import { Modal } from "./ui/modal";
+import { MovieThumb } from "./ui/movie-thumb";
 import { Poster } from "./ui/poster";
 
 /** Os filmes favoritos no topo do perfil, na ordem escolhida. */
@@ -36,10 +36,13 @@ export function FavoriteFilms({ films, isMe, onEdit }: { films: Movie[]; isMe: b
     ) : null;
   }
 
+  // flex em vez de grid: no celular (3 por linha) a segunda linha, com o 4º e o 5º, fica centralizada
+  const item = "w-[calc((100%-1.5rem)/3)] sm:w-[calc((100%-4rem)/5)]";
+
   return (
-    <ol className="grid grid-cols-3 sm:grid-cols-5 gap-3 sm:gap-4">
+    <ol className="flex flex-wrap justify-center gap-3 sm:gap-4">
       {films.map((film) => (
-        <li key={film.id}>
+        <li key={film.id} className={item}>
           <Link href={filmHref(film)} title={film.releaseYear ? `${film.title} (${film.releaseYear})` : film.title} className="group block">
             <Poster
               title={film.title}
@@ -52,7 +55,7 @@ export function FavoriteFilms({ films, isMe, onEdit }: { films: Movie[]; isMe: b
         </li>
       ))}
       {isMe && films.length < MAX_FAVORITES && (
-        <li>
+        <li className={item}>
           <button
             onClick={onEdit}
             aria-label="Adicionar favorito"
@@ -148,7 +151,7 @@ function Editor({ initial, onClose, onSaved }: { initial: Movie[]; onClose: () =
         {picks.map((movie, i) => (
           <li key={movie.id} className="flex items-center gap-3 p-2 pr-3 rounded-md bg-background/60">
             <span className="w-5 text-center text-sm text-brand-slate tabular-nums">{i + 1}</span>
-            <Thumb title={movie.title} posterPath={movie.posterPath} />
+            <MovieThumb title={movie.title} posterPath={movie.posterPath} />
             <span className="flex-1 min-w-0 truncate">
               {movie.title} {movie.releaseYear && <span className="text-brand-slate text-sm">{movie.releaseYear}</span>}
             </span>
@@ -196,7 +199,7 @@ function Editor({ initial, onClose, onSaved }: { initial: Movie[]; onClose: () =
                       disabled={already || adding !== null}
                       className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left hover:bg-background/60 disabled:opacity-50 transition-colors"
                     >
-                      <Thumb title={result.title} posterPath={result.posterPath} />
+                      <MovieThumb title={result.title} posterPath={result.posterPath} />
                       <span className="flex-1 min-w-0 truncate">
                         {result.title} {result.releaseYear && <span className="text-brand-slate text-sm">{result.releaseYear}</span>}
                       </span>
@@ -230,33 +233,5 @@ function Editor({ initial, onClose, onSaved }: { initial: Movie[]; onClose: () =
         </button>
       </div>
     </div>
-  );
-}
-
-function Thumb({ title, posterPath }: { title: string; posterPath: string | null }) {
-  const src = posterUrl(posterPath, "w185");
-  return src ? (
-    <Image src={src} alt="" width={32} height={48} className="w-8 h-12 rounded object-cover shrink-0" />
-  ) : (
-    <span className="w-8 h-12 rounded bg-foreground/10 shrink-0" title={title} />
-  );
-}
-
-function IconButton({ label, disabled, onClick, children }: {
-  label: string;
-  disabled?: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={label}
-      title={label}
-      className="p-1.5 rounded-full text-brand-slate hover:text-foreground hover:bg-surface-strong disabled:opacity-25 disabled:hover:bg-transparent"
-    >
-      {children}
-    </button>
   );
 }

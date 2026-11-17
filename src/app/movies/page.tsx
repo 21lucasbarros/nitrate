@@ -9,16 +9,21 @@ import { MovieGrid } from "@/app/components/movie-grid";
 import { PersonPhoto } from "@/app/components/ui/person-photo";
 import { useFetch } from "@/lib/hooks/use-fetch";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
-import { getMovies, searchMovies } from "@/lib/services/movie-service";
+import { getMovies, getTopRatedMovies, getTrendingMovies, searchMovies } from "@/lib/services/movie-service";
+import { cachedFetcher } from "@/lib/cache";
 import { searchPeople } from "@/lib/services/person-service";
 import { searchUsers } from "@/lib/services/user-service";
 import { UserList } from "@/app/components/user-list";
 import { SectionHeading } from "@/app/components/ui/section-heading";
-import type { MovieSearchResult } from "@/types/movie";
+import type { Movie, MovieSearchResult } from "@/types/movie";
 import { departmentLabel, type PersonSummary } from "@/types/person";
 import { movieHref } from "@/utils/movie-link";
 
 const fetchMovies = () => getMovies();
+// a curadoria da comunidade muda devagar: não precisa buscar de novo a cada visita
+const fetchTrending = cachedFetcher(() => getTrendingMovies(), 5 * 60 * 1000);
+const fetchTopRated = cachedFetcher(() => getTopRatedMovies(), 5 * 60 * 1000);
+const COMMUNITY_ROW = 6;
 
 const MIN_QUERY = 2;
 const MAX_PEOPLE = 6;
@@ -45,6 +50,8 @@ function Movies({ initialQuery }: { initialQuery: string }) {
   const isSearching = query.trim().length >= MIN_QUERY;
 
   const catalog = useFetch(isSearching ? null : "all", fetchMovies);
+  const trending = useFetch(isSearching ? null : "trending", fetchTrending);
+  const topRated = useFetch(isSearching ? null : "top", fetchTopRated);
   const searchKey = debouncedQuery.length >= MIN_QUERY ? debouncedQuery : null;
   const search = useFetch(searchKey, searchMovies);
   const people = useFetch(searchKey, searchPeople);
@@ -95,15 +102,35 @@ function Movies({ initialQuery }: { initialQuery: string }) {
             pending={searchPending}
             failed={Boolean(search.error) && !searchPending}
           />
-        ) : catalog.loading ? (
-          <p className="text-brand-slate/50">Carregando filmes…</p>
-        ) : catalog.error ? (
-          <p className="text-red-500">Não foi possível carregar os filmes.</p>
         ) : (
-          <MovieGrid items={(catalog.data ?? []).map((movie) => ({ movie }))} />
+          <>
+            <CommunityRow title="Em alta na comunidade" movies={trending.data} />
+            <CommunityRow title="Mais bem avaliados pela comunidade" movies={topRated.data} />
+            <section>
+              <SectionHeading title="Todo o catálogo" count={catalog.data?.length} />
+              {catalog.loading ? (
+                <p className="text-brand-slate/50">Carregando filmes…</p>
+              ) : catalog.error ? (
+                <p className="text-red-500">Não foi possível carregar os filmes.</p>
+              ) : (
+                <MovieGrid items={(catalog.data ?? []).map((movie) => ({ movie }))} />
+              )}
+            </section>
+          </>
         )}
       </main>
     </div>
+  );
+}
+
+/** uma fileira da curadoria da comunidade; some se ainda não houver dados suficientes */
+function CommunityRow({ title, movies }: { title: string; movies: Movie[] | undefined }) {
+  if (!movies || movies.length === 0) return null;
+  return (
+    <section className="mb-14">
+      <SectionHeading title={title} />
+      <MovieGrid variant="compact" showTitles items={movies.slice(0, COMMUNITY_ROW).map((movie) => ({ movie }))} />
+    </section>
   );
 }
 

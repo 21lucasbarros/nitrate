@@ -19,14 +19,17 @@ export default function Hero() {
         </p>
 
         <div className="mt-10 sm:mt-12 flex flex-col sm:flex-row gap-4">
-          <button className="group flex items-center justify-center gap-3 bg-foreground text-background px-8 py-4 rounded-full text-base sm:text-lg font-medium hover:bg-brand-blue transition-colors w-full sm:w-auto">
-            Começar gratuitamente
+          <Link
+            href="/sign-in"
+            className="group flex items-center justify-center gap-3 bg-foreground text-background px-8 py-4 rounded-full text-base sm:text-lg font-medium hover:bg-brand-blue transition-colors w-full sm:w-auto"
+          >
+            Começar agora
             <ArrowRightIcon
               size={20}
               weight="bold"
               className="group-hover:translate-x-1 transition-transform"
             />
-          </button>
+          </Link>
           <Link
             href="/importar"
             className="flex items-center justify-center gap-3 bg-transparent border border-brand-slate/20 text-brand-slate px-8 py-4 rounded-full text-base sm:text-lg font-medium hover:border-brand-slate hover:text-foreground transition-all w-full sm:w-auto"

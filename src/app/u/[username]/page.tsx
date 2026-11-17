@@ -8,6 +8,7 @@ import {
   DownloadSimpleIcon,
   InstagramLogoIcon,
   PencilSimpleIcon,
+  PlusIcon,
   SparkleIcon,
   XLogoIcon,
 } from "@phosphor-icons/react";
@@ -17,6 +18,10 @@ import { Avatar } from "@/app/components/ui/avatar";
 import { MovieGrid } from "@/app/components/movie-grid";
 import { EditFavoritesButton, FavoriteFilms, FavoritesEditor } from "@/app/components/favorite-films";
 import { FollowButton } from "@/app/components/follow-button";
+import { ListCard, listHref } from "@/app/components/list-card";
+import { ListEditor } from "@/app/components/list-editor";
+import { SimilarUsers } from "@/app/components/similar-users";
+import { WhatToWatchButton } from "@/app/components/what-to-watch";
 import { UserList } from "@/app/components/user-list";
 import { Modal } from "@/app/components/ui/modal";
 import { SectionHeading } from "@/app/components/ui/section-heading";
@@ -29,9 +34,11 @@ import {
   getFollowers,
   getFollowing,
   getProfile,
+  getSimilarUsers,
   getUserReviews,
   getUserWatchlist,
 } from "@/lib/services/user-service";
+import { getUserLists } from "@/lib/services/list-service";
 import { monthYear } from "@/utils/format";
 
 const TABS = [
@@ -39,6 +46,7 @@ const TABS = [
   { id: "diario", label: "Diário" },
   { id: "reviews", label: "Reviews" },
   { id: "watchlist", label: "Watchlist" },
+  { id: "listas", label: "Listas" },
   { id: "rede", label: "Amigos" },
 ] as const;
 
@@ -63,6 +71,7 @@ const fetchDiaryPage = (key: string) => {
   );
 };
 const fetchRecentFilms = (username: string) => getUserReviews(username, { page: 0, size: RECENT_FILMS });
+const fetchSimilar = () => getSimilarUsers();
 const fetchRecentReviews = (username: string) =>
   getUserReviews(username, { page: 0, size: RECENT_REVIEWS, withText: true });
 
@@ -87,6 +96,7 @@ function Profile() {
   const pathname = usePathname();
   const { status, user: me, refreshUser } = useAuth();
   const [editingFavorites, setEditingFavorites] = useState(false);
+  const [creatingList, setCreatingList] = useState(false);
   // modal aberto pelos números "seguindo" / "seguidores" do topo
   const [peopleModal, setPeopleModal] = useState<"following" | "followers" | null>(null);
 
@@ -103,6 +113,9 @@ function Profile() {
   const recentReviews = useFetch(tab === "perfil" ? username : null, fetchRecentReviews);
   const following = useFetch(tab === "rede" || peopleModal === "following" ? username : null, getFollowing);
   const followers = useFetch(tab === "rede" || peopleModal === "followers" ? username : null, getFollowers);
+  const lists = useFetch(tab === "listas" ? username : null, getUserLists);
+  // gostos parecidos: só na própria aba de amigos
+  const similar = useFetch(tab === "rede" && me?.username === username ? username : null, fetchSimilar);
 
   if (profile.error instanceof ApiError && profile.error.status === 404) {
     return (
@@ -376,13 +389,58 @@ function Profile() {
           (watchlist.loading ? (
             <Loading />
           ) : watchlist.data && watchlist.data.length > 0 ? (
-            <MovieGrid items={watchlist.data.map((item) => ({ movie: item.movie }))} />
+            <>
+              {isMe && (
+                <div className="-mt-2 mb-6 flex justify-end">
+                  <WhatToWatchButton movies={watchlist.data.map((item) => item.movie)} />
+                </div>
+              )}
+              <MovieGrid items={watchlist.data.map((item) => ({ movie: item.movie }))} />
+            </>
           ) : (
             <Empty isMe={isMe} me="Sua watchlist está vazia." other={`A watchlist de ${user.name} está vazia.`} />
           ))}
 
+        {tab === "listas" && (
+          <div>
+            {isMe && (
+              <div className="-mt-2 mb-6 flex justify-end">
+                <button
+                  onClick={() => setCreatingList(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-brand-btn text-brand-btn-text text-sm font-semibold hover:bg-brand-btn/90 transition-colors"
+                >
+                  <PlusIcon size={14} weight="bold" /> Nova lista
+                </button>
+              </div>
+            )}
+            {!lists.data ? (
+              <Loading />
+            ) : lists.data.length > 0 ? (
+              <ul className="grid sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-10">
+                {lists.data.map((list) => (
+                  <li key={list.id}>
+                    <ListCard list={list} />
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="py-12 text-center text-brand-slate">
+                {isMe
+                  ? "Você ainda não criou nenhuma lista. Que tal uma maratona ou a filmografia de um diretor?"
+                  : `${user.name} ainda não criou nenhuma lista pública.`}
+              </p>
+            )}
+          </div>
+        )}
+
         {tab === "rede" && (
           <div className="flex flex-col gap-12">
+            {isMe && similar.data && similar.data.length > 0 && (
+              <div>
+                <SectionHeading title="Gostos parecidos com o seu" />
+                <SimilarUsers users={similar.data} />
+              </div>
+            )}
             <div>
               <SectionHeading title="Seguindo" count={user.followingCount} />
               {following.data ? (
@@ -437,6 +495,14 @@ function Profile() {
           })()}
         </div>
       </Modal>
+
+      {isMe && (
+        <ListEditor
+          open={creatingList}
+          onClose={() => setCreatingList(false)}
+          onSaved={(list) => router.push(listHref(list))}
+        />
+      )}
 
       {isMe && (
         <FavoritesEditor

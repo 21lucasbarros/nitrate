@@ -1,7 +1,7 @@
 import { apiFetch } from "../api-client";
 import type { MovieReview, MovieUserState, Recommendation, WatchlistItem } from "../types/review";
 import type { Page } from "../types/page";
-import type { AppNotification, ProfileUpdate, UserProfile, UserSummary } from "../types/user";
+import type { AppNotification, ProfileUpdate, SimilarUser, UserProfile, UserSummary } from "../types/user";
 import type { Movie } from "@/types/movie";
 
 export function getMe(): Promise<UserProfile> {
@@ -86,6 +86,11 @@ export function getFollowers(username: string): Promise<UserSummary[]> {
 
 export function getFollowing(username: string): Promise<UserSummary[]> {
   return apiFetch<UserSummary[]>(`/users/${encodeURIComponent(username)}/following`);
+}
+
+/** quem avaliou os mesmos filmes com notas parecidas (sem quem eu já sigo) */
+export function getSimilarUsers(): Promise<SimilarUser[]> {
+  return apiFetch<SimilarUser[]>("/users/me/similar");
 }
 
 export function searchUsers(query: string): Promise<UserSummary[]> {

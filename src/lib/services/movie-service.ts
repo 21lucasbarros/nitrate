@@ -5,6 +5,16 @@ export function getMovies(): Promise<Movie[]> {
   return apiFetch<Movie[]>("/movies");
 }
 
+/** os filmes que mais gente registrou no último mês */
+export function getTrendingMovies(): Promise<Movie[]> {
+  return apiFetch<Movie[]>("/movies/community/trending");
+}
+
+/** as maiores notas médias entre filmes avaliados por várias pessoas */
+export function getTopRatedMovies(): Promise<Movie[]> {
+  return apiFetch<Movie[]>("/movies/community/top-rated");
+}
+
 export function getMovie(id: number): Promise<Movie> {
   return apiFetch<Movie>(`/movies/${id}`);
 }
