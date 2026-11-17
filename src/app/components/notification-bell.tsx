@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { BellIcon, FilmReelIcon, TelevisionIcon } from "@phosphor-icons/react";
 import { useFetch } from "@/lib/hooks/use-fetch";
@@ -13,17 +13,17 @@ import type { AppNotification } from "@/lib/types/user";
 import { filmHref } from "@/utils/movie-link";
 import { timeAgo } from "@/utils/format";
 import { Poster } from "./ui/poster";
+import { SideDrawer } from "./ui/side-drawer";
 
 // o radar roda uma vez por dia; conferir a cada poucos minutos já é mais que suficiente
 const POLL_MS = 5 * 60 * 1000;
 
 const fetchNotifications = () => getMyNotifications();
 
-/** Sino do header: avisos do Radar de Estreias (filmes da watchlist que estrearam). */
+/** Sino do header: avisos do Radar de Estreias (filmes da watchlist que estrearam), numa gaveta à direita. */
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [unread, setUnread] = useState(0);
-  const ref = useRef<HTMLDivElement>(null);
   const list = useFetch(open ? "me" : null, fetchNotifications);
 
   // contador de não lidas: na montagem e de tempos em tempos
@@ -41,31 +41,21 @@ export function NotificationBell() {
     };
   }, []);
 
-  // clicar fora fecha
-  useEffect(() => {
-    if (!open) return;
-    const onPointerDown = (e: PointerEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("pointerdown", onPointerDown);
-    return () => document.removeEventListener("pointerdown", onPointerDown);
-  }, [open]);
-
   // abrir conta como ler, mas só depois de a lista chegar: assim ela ainda mostra quais eram novas
   const hasUnreadInList = list.data?.some((n) => !n.read) ?? false;
   useEffect(() => {
     if (hasUnreadInList) markNotificationsRead().catch(() => {});
   }, [hasUnreadInList]);
 
-  const toggle = () => {
-    if (!open) setUnread(0);
-    setOpen(!open);
+  const openDrawer = () => {
+    setUnread(0);
+    setOpen(true);
   };
 
   return (
-    <div ref={ref} className="relative">
+    <>
       <button
-        onClick={toggle}
+        onClick={openDrawer}
         aria-label={unread > 0 ? `Notificações (${unread} novas)` : "Notificações"}
         aria-expanded={open}
         className="relative p-2 text-brand-slate hover:text-foreground transition-colors"
@@ -78,32 +68,36 @@ export function NotificationBell() {
         )}
       </button>
 
-      {open && (
-        <div className="absolute right-0 top-full mt-2 w-[min(360px,calc(100vw-2rem))] rounded-md bg-surface ring-1 ring-foreground/10 shadow-2xl shadow-black/60 overflow-hidden">
-          <div className="px-4 py-3 border-b border-foreground/5">
-            <p className="text-sm font-semibold">Radar de Estreias</p>
-            <p className="text-xs text-brand-slate">Avisamos quando um filme da sua watchlist estreia.</p>
+      <SideDrawer
+        open={open}
+        onClose={() => setOpen(false)}
+        label="Notificações"
+        title={
+          <>
+            <p className="font-semibold">Radar de Estreias</p>
+            <p className="mt-0.5 text-xs text-brand-slate">Avisamos quando um filme da sua watchlist estreia.</p>
+          </>
+        }
+      >
+        {!list.data ? (
+          <p className="px-5 py-6 text-sm text-brand-slate/70">{list.error ? "Não foi possível carregar." : "Carregando…"}</p>
+        ) : list.data.length === 0 ? (
+          <div className="px-6 py-14 flex flex-col items-center text-center">
+            <BellIcon size={36} weight="light" className="text-brand-slate/40" />
+            <p className="mt-4 text-sm text-brand-slate leading-relaxed">
+              Nenhum aviso ainda. Adicione filmes que ainda vão estrear à sua watchlist e o Nitrate avisa aqui quando
+              chegarem aos cinemas ou ao streaming.
+            </p>
           </div>
-
-          <div className="max-h-[60vh] overflow-y-auto">
-            {!list.data ? (
-              <p className="px-4 py-6 text-sm text-brand-slate/70">{list.error ? "Não foi possível carregar." : "Carregando…"}</p>
-            ) : list.data.length === 0 ? (
-              <p className="px-4 py-6 text-sm text-brand-slate leading-relaxed">
-                Nenhum aviso ainda. Adicione filmes que ainda vão estrear à sua watchlist e o Nitrate avisa aqui quando
-                chegarem aos cinemas ou ao streaming.
-              </p>
-            ) : (
-              <ul>
-                {list.data.map((n) => (
-                  <NotificationItem key={n.id} notification={n} onSelect={() => setOpen(false)} />
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
+        ) : (
+          <ul>
+            {list.data.map((n) => (
+              <NotificationItem key={n.id} notification={n} onSelect={() => setOpen(false)} />
+            ))}
+          </ul>
+        )}
+      </SideDrawer>
+    </>
   );
 }
 
@@ -114,7 +108,7 @@ function NotificationItem({ notification: n, onSelect }: { notification: AppNoti
       <Link
         href={filmHref(n.movie)}
         onClick={onSelect}
-        className={`flex gap-3 px-4 py-3 hover:bg-surface-strong transition-colors ${n.read ? "" : "bg-brand-orange/5"}`}
+        className={`flex gap-3 px-5 py-3.5 hover:bg-surface-strong transition-colors ${n.read ? "" : "bg-brand-orange/5"}`}
       >
         <div className="w-10 shrink-0">
           <Poster title={n.movie.title} posterPath={n.movie.posterPath} size="w185" sizes="40px" />
