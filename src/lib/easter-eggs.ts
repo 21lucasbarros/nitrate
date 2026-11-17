@@ -20,6 +20,8 @@ export interface EasterEgg {
   ratingQuotes?: Record<number, string>;
   /** a imagem de compartilhar a review em outro formato */
   story?: "business-card";
+  /** cliques seguidos no pôster da página do filme */
+  posterClicks?: "truman-crack";
 }
 
 const EGGS: Record<string, EasterEgg> = {
@@ -36,6 +38,8 @@ const EGGS: Record<string, EasterEgg> = {
   "matrix-1999": { pageIntro: "matrix-rain", watchlist: "pills" },
   // Whiplash (2014): 4 estrelas não é o tempo do Fletcher
   "whiplash-em-busca-da-perfeicao-2014": { ratingQuotes: { 4: "Were you rushing or were you dragging?" } },
+  // O Show de Truman (1998): clicar várias vezes no pôster racha o "cenário" do site
+  "o-show-de-truman-o-show-da-vida-1998": { posterClicks: "truman-crack" },
   // O Poderoso Chefão (1972)
   "o-poderoso-chefao-1972": { watchlist: { quote: "I'm gonna make him an offer he can't refuse." } },
   // Psicopata Americano (2000): a review vira um cartão de visita

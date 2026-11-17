@@ -29,6 +29,7 @@ import { easterEggFor } from "@/lib/easter-eggs";
 import { showQuote, useMovieEasterEgg } from "@/lib/hooks/use-easter-eggs";
 import { MatrixPills } from "@/app/components/easter-eggs/matrix-pills";
 import { MatrixRain } from "@/app/components/easter-eggs/matrix-rain";
+import { TrumanPoster } from "@/app/components/easter-eggs/truman-poster";
 import { useFetch } from "@/lib/hooks/use-fetch";
 import {
   getMovieBySlug,
@@ -151,7 +152,13 @@ function FilmView({ film }: { film: Movie }) {
           {/* pôster */}
           <aside className="flex justify-center md:block">
             <div className="w-44 md:w-full">
-              <Poster title={film.title} posterPath={film.posterPath} size="w500" sizes="230px" className="shadow-2xl shadow-black/60" />
+              {egg?.posterClicks === "truman-crack" ? (
+                <TrumanPoster>
+                  <Poster title={film.title} posterPath={film.posterPath} size="w500" sizes="230px" className="shadow-2xl shadow-black/60" />
+                </TrumanPoster>
+              ) : (
+                <Poster title={film.title} posterPath={film.posterPath} size="w500" sizes="230px" className="shadow-2xl shadow-black/60" />
+              )}
             </div>
           </aside>
 

@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { TrumanLogo } from "./easter-eggs/truman-logo";
 import { HeartIcon } from "@phosphor-icons/react/dist/ssr";
 
 export default function Footer() {
   return (
     <footer className="bg-brand-charcoal text-foreground/50 py-10 sm:py-12 px-6 md:px-12 xl:px-24 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-8 md:gap-6 text-center md:text-left">
-      {/* clique várias vezes seguidas: easter egg de O Show de Truman */}
-      <TrumanLogo />
+      <div className="text-xl sm:text-2xl font-bold tracking-tighter text-foreground uppercase flex items-center justify-center md:justify-start gap-1">
+        Nitrate<div className="w-1.5 h-1.5 rounded-full bg-brand-orange mt-1"></div>
+      </div>
       <div className="flex flex-wrap justify-center gap-4 sm:gap-6 text-xs sm:text-sm font-medium">
         <Link href="/movies" className="hover:text-foreground transition-colors">Filmes</Link>
         <Link href="/importar" className="hover:text-foreground transition-colors">Migração</Link>

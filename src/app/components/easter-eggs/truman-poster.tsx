@@ -45,10 +45,10 @@ function makeCrack(x: number, y: number): Crack {
 }
 
 /**
- * Easter egg de O Show de Truman: clicar várias vezes seguidas na logo do rodapé racha o
- * "cenário" do site, como o barco do Truman batendo na parede pintada de céu.
+ * Easter egg de O Show de Truman: clicar várias vezes seguidas no pôster racha o "cenário"
+ * do site, como o barco do Truman batendo na parede pintada de céu.
  */
-export function TrumanLogo() {
+export function TrumanPoster({ children }: { children: React.ReactNode }) {
   const clicks = useRef<{ count: number; last: number }>({ count: 0, last: 0 });
   const [crack, setCrack] = useState<Crack | null>(null);
   const [broken, setBroken] = useState(false);
@@ -60,8 +60,8 @@ export function TrumanLogo() {
     state.last = now;
 
     if (state.count === CRACK_AT && !crack) {
-      // o impacto fica um pouco acima do rodapé, no "fundo" da página
-      setCrack(makeCrack(e.clientX, Math.max(120, e.clientY - 180)));
+      // a rachadura nasce de onde o pôster foi clicado
+      setCrack(makeCrack(e.clientX, e.clientY));
     }
     if (state.count === BREAK_AT && !broken) {
       setBroken(true);
@@ -71,13 +71,10 @@ export function TrumanLogo() {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={handleClick}
-        className="text-xl sm:text-2xl font-bold tracking-tighter text-foreground uppercase flex items-center justify-center md:justify-start gap-1 select-none"
-      >
-        Nitrate<span className="w-1.5 h-1.5 rounded-full bg-brand-orange mt-1" />
-      </button>
+      {/* div e não botão: o pôster continua parecendo só um pôster */}
+      <div onClick={handleClick} className="select-none">
+        {children}
+      </div>
 
       {crack && (
         <svg
