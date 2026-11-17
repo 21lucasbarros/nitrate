@@ -8,6 +8,8 @@ import {
   CheckIcon,
   CircleNotchIcon,
   DownloadSimpleIcon,
+  EyeIcon,
+  EyeSlashIcon,
   InstagramLogoIcon,
   WarningIcon,
   XLogoIcon,
@@ -232,6 +234,7 @@ function DeleteAccountSection({ username }: { username: string }) {
   const [open, setOpen] = useState(false);
   const [confirmation, setConfirmation] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -241,6 +244,7 @@ function DeleteAccountSection({ username }: { username: string }) {
     setOpen(false);
     setConfirmation("");
     setPassword("");
+    setShowPassword(false);
     setError(null);
   };
 
@@ -301,14 +305,25 @@ function DeleteAccountSection({ username }: { username: string }) {
 
           <label className="flex flex-col gap-2">
             <span className="text-sm text-brand-slate">Sua senha</span>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
-              required
-              className={input}
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                required
+                className={`${input} pr-10`}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                aria-pressed={showPassword}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-brand-slate/50 hover:text-foreground focus:outline-none focus-visible:text-brand-blue transition-colors"
+              >
+                {showPassword ? <EyeSlashIcon size={18} /> : <EyeIcon size={18} />}
+              </button>
+            </div>
           </label>
 
           {error && (

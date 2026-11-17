@@ -13,6 +13,8 @@ import {
   AtIcon,
   CheckCircleIcon,
   XCircleIcon,
+  EyeIcon,
+  EyeSlashIcon,
 } from "@phosphor-icons/react";
 
 import {
@@ -40,6 +42,19 @@ export default function SignInPage() {
   const [isLogin, setIsLogin] = useState(true);
   const [isAnimating, setIsAnimating] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const passwordToggle = (
+    <button
+      type="button"
+      onClick={() => setShowPassword((v) => !v)}
+      aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+      aria-pressed={showPassword}
+      className="absolute inset-y-0 right-0 pr-4 flex items-center text-brand-slate/40 hover:text-foreground focus:outline-none focus-visible:text-brand-blue transition-colors"
+    >
+      {showPassword ? <EyeSlashIcon size={20} /> : <EyeIcon size={20} />}
+    </button>
+  );
 
   // quem já está logado não precisa ver o formulário (também cobre o redirect após o login)
   const token = useAuthToken();
@@ -68,6 +83,7 @@ export default function SignInPage() {
     if (isLoading) return;
 
     setServerError(null);
+    setShowPassword(false);
     setIsAnimating(true);
     setTimeout(() => {
       setIsLogin(!isLogin);
@@ -198,11 +214,13 @@ export default function SignInPage() {
                       <LockKeyIcon size={20} />
                     </div>
                     <input
-                      type="password"
+                      type={showPassword ? "text" : "password"}
+                      autoComplete="current-password"
                       placeholder="Sua senha secreta"
-                      className="w-full pl-12 pr-4 py-3.5 bg-transparent border border-brand-slate/20 rounded-xl text-foreground placeholder:text-brand-slate/40 focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue transition-all"
+                      className="w-full pl-12 pr-12 py-3.5 bg-transparent border border-brand-slate/20 rounded-xl text-foreground placeholder:text-brand-slate/40 focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue transition-all"
                       {...loginForm.register("password")}
                     />
+                    {passwordToggle}
                   </div>
                   {loginForm.formState.errors.password && (
                     <p className="mt-1.5 text-xs text-red-500">
@@ -333,11 +351,13 @@ export default function SignInPage() {
                       <LockKeyIcon size={20} />
                     </div>
                     <input
-                      type="password"
+                      type={showPassword ? "text" : "password"}
+                      autoComplete="new-password"
                       placeholder="Sua senha secreta"
-                      className="w-full pl-12 pr-4 py-3.5 bg-transparent border border-brand-slate/20 rounded-xl text-foreground placeholder:text-brand-slate/40 focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue transition-all"
+                      className="w-full pl-12 pr-12 py-3.5 bg-transparent border border-brand-slate/20 rounded-xl text-foreground placeholder:text-brand-slate/40 focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue transition-all"
                       {...registerForm.register("password")}
                     />
+                    {passwordToggle}
                   </div>
                   {registerForm.formState.errors.password && (
                     <p className="mt-1.5 text-xs text-red-500">
@@ -352,11 +372,13 @@ export default function SignInPage() {
                       <LockKeyIcon size={20} />
                     </div>
                     <input
-                      type="password"
+                      type={showPassword ? "text" : "password"}
+                      autoComplete="new-password"
                       placeholder="Confirme sua senha"
-                      className="w-full pl-12 pr-4 py-3.5 bg-transparent border border-brand-slate/20 rounded-xl text-foreground placeholder:text-brand-slate/40 focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue transition-all"
+                      className="w-full pl-12 pr-12 py-3.5 bg-transparent border border-brand-slate/20 rounded-xl text-foreground placeholder:text-brand-slate/40 focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue transition-all"
                       {...registerForm.register("confirmPassword")}
                     />
+                    {passwordToggle}
                   </div>
                   {registerForm.formState.errors.confirmPassword && (
                     <p className="mt-1.5 text-xs text-red-500">
