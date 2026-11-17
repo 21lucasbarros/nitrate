@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRightIcon, ArrowsClockwiseIcon, ChatTextIcon, HeartIcon, SparkleIcon, UsersThreeIcon } from "@phosphor-icons/react";
+import { ArrowRightIcon, SparkleIcon, UsersThreeIcon } from "@phosphor-icons/react";
 import type { UserProfile } from "@/lib/types/user";
-import type { MovieReview } from "@/lib/types/review";
 import { useFetch } from "@/lib/hooks/use-fetch";
 import { getMyFeed, getMyRecommendations, getSimilarUsers, getUserWatchlist } from "@/lib/services/user-service";
 import { getRecentReviews } from "@/lib/services/review-service";
@@ -11,17 +10,13 @@ import { getMovies } from "@/lib/services/movie-service";
 import { getMyRetrospectiveMonths } from "@/lib/services/retrospective-service";
 import { cachedFetcher } from "@/lib/cache";
 import { currentMonth, monthLabel, shiftMonth } from "@/utils/format";
-import { filmHref } from "@/utils/movie-link";
-import { toRating } from "@/utils/rating";
 import { MovieGrid } from "./movie-grid";
 import { Recommendations } from "./recommendations";
 import { SimilarUsers } from "./similar-users";
 import { WhatToWatchButton } from "./what-to-watch";
-import { reviewHref, ReviewCard } from "./review-card";
-import { Avatar } from "./ui/avatar";
-import { Poster } from "./ui/poster";
+import { ActivityPoster } from "./activity-poster";
+import { ReviewCard } from "./review-card";
 import { SectionHeading } from "./ui/section-heading";
-import { StarRating } from "./ui/star-rating";
 
 // uma fileira de pôsteres (6) e, abaixo, as reviews escritas mais recentes
 const RECENT_LIMIT = 12;
@@ -73,8 +68,8 @@ export default function UserHome({ user }: { user: UserProfile }) {
       <section className="mt-10">
         <SectionHeading
           title={followsSomeone ? "Seus amigos assistiram" : "Na comunidade"}
-          href={followsSomeone ? `/u/${user.username}?tab=rede` : undefined}
-          linkLabel="Amigos"
+          href={followsSomeone ? "/amigos" : undefined}
+          linkLabel="Ver tudo"
         />
         {!followsSomeone && (
           <p className="-mt-1 mb-5 flex items-center gap-2 text-sm text-brand-slate">
@@ -102,7 +97,7 @@ export default function UserHome({ user }: { user: UserProfile }) {
 
       {similar.data && similar.data.length > 0 && (
         <section className="mt-12">
-          <SectionHeading title="Cinéfilos com gosto parecido" href={`/u/${user.username}?tab=rede`} linkLabel="Amigos" />
+          <SectionHeading title="Cinéfilos com gosto parecido" href="/amigos?tab=pessoas" linkLabel="Amigos" />
           <SimilarUsers users={similar.data.slice(0, 4)} />
         </section>
       )}
@@ -172,36 +167,6 @@ export default function UserHome({ user }: { user: UserProfile }) {
         {movies.loading ? <GridSkeleton /> : <MovieGrid variant="compact" items={discover.map((movie) => ({ movie }))} />}
       </section>
     </main>
-  );
-}
-
-/** pôster da atividade, com quem registrou e a nota numa legenda embaixo */
-function ActivityPoster({ review }: { review: MovieReview }) {
-  return (
-    <li className="min-w-0">
-      <Link href={filmHref(review.movie)} title={review.movie.title} className="group block">
-        <Poster
-          title={review.movie.title}
-          posterPath={review.movie.posterPath}
-          sizes="(min-width: 640px) 180px, 30vw"
-          className="group-hover:ring-2 group-hover:ring-brand-orange transition-shadow"
-        />
-      </Link>
-      <Link href={`/u/${review.user.username}`} className="mt-2.5 flex items-center gap-2 min-w-0 group">
-        <Avatar name={review.user.name} username={review.user.username} size="xs" />
-        <span className="text-sm truncate text-foreground/85 group-hover:text-brand-orange">{review.user.name}</span>
-      </Link>
-      <div className="mt-1 flex items-center gap-1.5 text-brand-slate">
-        {review.rating !== null && <StarRating rating={toRating(review.rating)} size={11} />}
-        {review.liked && <HeartIcon size={11} weight="fill" className="text-brand-orange" />}
-        {review.rewatch && <ArrowsClockwiseIcon size={11} weight="bold" />}
-        {review.text && (
-          <Link href={reviewHref(review)} aria-label="Ler a review" className="hover:text-foreground">
-            <ChatTextIcon size={12} weight="fill" />
-          </Link>
-        )}
-      </div>
-    </li>
   );
 }
 
