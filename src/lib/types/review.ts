@@ -25,6 +25,20 @@ export interface ReviewRequest {
   watchedOn: string | null;
 }
 
+// Espelha ReviewEngagementDTO e ReviewCommentDTO
+export interface ReviewEngagement {
+  likesCount: number;
+  likedByMe: boolean | null; // null para visitantes
+  commentsCount: number;
+}
+
+export interface ReviewComment {
+  id: number;
+  user: UserSummary;
+  text: string;
+  createdAt: string; // ISO
+}
+
 export interface WatchlistItem {
   movie: Movie;
   addedAt: string;

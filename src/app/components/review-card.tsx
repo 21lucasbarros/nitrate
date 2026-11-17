@@ -11,6 +11,7 @@ import { shortDate, timeAgo } from "@/utils/format";
 import { StarRating } from "./ui/star-rating";
 import { Poster } from "./ui/poster";
 import { Avatar } from "./ui/avatar";
+import { ReviewText } from "./ui/review-text";
 
 interface ReviewCardProps {
   review: MovieReview;
@@ -105,11 +106,11 @@ export function ReviewCard({ review, hideMovie = false, hideUser = false, excerp
                 Spoiler
               </span>
             )}
-            <p
-              className={`${review.spoiler ? "mt-1.5" : "mt-3"} font-serif text-[17px] leading-[1.7] text-foreground/85 max-w-2xl whitespace-pre-line ${excerpt ? "line-clamp-4" : ""}`}
-            >
-              {review.text}
-            </p>
+            <ReviewText
+              text={review.text}
+              inline={excerpt}
+              className={`${review.spoiler ? "mt-1.5" : "mt-3"} font-serif text-[17px] leading-[1.7] text-foreground/85 max-w-2xl ${excerpt ? "line-clamp-4" : ""}`}
+            />
           </>
         )}
 

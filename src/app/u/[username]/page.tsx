@@ -322,6 +322,8 @@ function Profile() {
                   variant="compact"
                   items={recentFilms.data.items.map((review) => ({
                     movie: review.movie,
+                    // o pôster abre o registro (nota, review, curtidas e comentários), não a página do filme
+                    href: reviewHref(review),
                     rating: review.rating,
                     liked: review.liked,
                     rewatch: review.rewatch,
@@ -357,6 +359,7 @@ function Profile() {
               <MovieGrid
                 items={diary.data.items.map((review) => ({
                   movie: review.movie,
+                  href: reviewHref(review),
                   rating: review.rating,
                   liked: review.liked,
                   rewatch: review.rewatch,

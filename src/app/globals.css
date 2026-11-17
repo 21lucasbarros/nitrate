@@ -87,6 +87,34 @@ dialog.modal::backdrop {
   }
 }
 
+/* easter egg de Marty Supreme: a bolinha quica e a sombra acompanha */
+@keyframes pingpong {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(7px);
+  }
+}
+
+@keyframes pingpong-shadow {
+  from {
+    transform: scale(0.5);
+    opacity: 0.4;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes logo-egg-in {
+  from {
+    opacity: 0;
+    transform: rotate(-12deg) scale(0.8);
+  }
+}
+
 @keyframes modal-in {
   from {
     opacity: 0;

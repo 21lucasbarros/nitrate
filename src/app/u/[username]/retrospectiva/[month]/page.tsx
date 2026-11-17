@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -16,8 +16,8 @@ import Header from "@/app/components/header";
 import { Poster } from "@/app/components/ui/poster";
 import { StarRating } from "@/app/components/ui/star-rating";
 import { ApiError } from "@/lib/api-client";
-import { getToken } from "@/lib/auth-storage";
 import { useFetch } from "@/lib/hooks/use-fetch";
+import { shareStoryFile, useStoryImage } from "@/lib/hooks/use-story-image";
 import { getMyRetrospective, getMyRetrospectiveMonths } from "@/lib/services/retrospective-service";
 import { PrivateNotice, useOwnerAccess } from "../retrospective-access";
 import type { RankedItem, Retrospective, RetrospectiveFilm } from "@/lib/types/retrospective";
@@ -400,29 +400,12 @@ function MonthWall({ films }: { films: RetrospectiveFilm[] }) {
 }
 
 function ShareFooter({ retro }: { retro: Retrospective }) {
-  const story = useStoryImage(retro);
+  const story = useStoryImage(`/u/${retro.username}/retrospectiva/${retro.month}/story`, `nitrate-retrospectiva-${retro.month}.png`);
   const [saved, setSaved] = useState(false);
-  const fileName = `nitrate-retrospectiva-${retro.month}.png`;
 
   const shareStory = async () => {
     const file = story.file ?? (await story.load());
-    if (!file) return;
-    // celular: folha de compartilhar com a imagem anexada (Instagram -> Stories)
-    if (navigator.canShare?.({ files: [file] })) {
-      try {
-        await navigator.share({ files: [file] });
-      } catch {
-        // usuário cancelou: nada a fazer
-      }
-      return;
-    }
-    // computador: baixa a imagem
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(file);
-    link.download = fileName;
-    link.click();
-    URL.revokeObjectURL(link.href);
-    setSaved(true);
+    if (file && (await shareStoryFile(file)) === "saved") setSaved(true);
   };
 
   return (
@@ -468,66 +451,4 @@ function ShareFooter({ retro }: { retro: Retrospective }) {
       </div>
     </section>
   );
-}
-
-interface StoryImage {
-  url: string;
-  file: File | null;
-  previewUrl: string | null;
-  failed: boolean;
-}
-
-async function fetchStoryImage(url: string, month: string): Promise<StoryImage> {
-  try {
-    const token = getToken();
-    const response = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
-    if (!response.ok) throw new Error(String(response.status));
-    const blob = await response.blob();
-    const file = new File([blob], `nitrate-retrospectiva-${month}.png`, { type: "image/png" });
-    return { url, file, previewUrl: URL.createObjectURL(blob), failed: false };
-  } catch {
-    return { url, file: null, previewUrl: null, failed: true };
-  }
-}
-
-/**
- * Pré-carrega a imagem do story assim que a página abre. O iOS só deixa abrir o
- * compartilhamento logo após o toque, então o arquivo precisa estar pronto antes.
- */
-function useStoryImage(retro: Retrospective) {
-  const url = `/u/${retro.username}/retrospectiva/${retro.month}/story`;
-  const [state, setState] = useState<StoryImage | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetchStoryImage(url, retro.month).then((image) => {
-      if (!cancelled) setState(image);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [url, retro.month]);
-
-  // libera a URL da prévia quando ela é trocada ou a página sai
-  useEffect(() => {
-    const preview = state?.previewUrl;
-    return () => {
-      if (preview) URL.revokeObjectURL(preview);
-    };
-  }, [state?.previewUrl]);
-
-  // se tocarem em compartilhar antes do pré-carregamento terminar
-  const load = useCallback(async () => {
-    const image = await fetchStoryImage(url, retro.month);
-    setState(image);
-    return image.file;
-  }, [url, retro.month]);
-
-  const current = state?.url === url ? state : null;
-  return {
-    file: current?.file ?? null,
-    previewUrl: current?.previewUrl ?? null,
-    failed: current?.failed ?? false,
-    load,
-  };
 }

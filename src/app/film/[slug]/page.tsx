@@ -25,6 +25,7 @@ import { Modal } from "@/app/components/ui/modal";
 import { NitrateRating, WhereToWatch } from "@/app/components/movie-community";
 import { ApiError } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
+import { useMovieEasterEgg } from "@/lib/easter-eggs";
 import { useFetch } from "@/lib/hooks/use-fetch";
 import {
   getMovieBySlug,
@@ -84,6 +85,7 @@ function FilmView({ film }: { film: Movie }) {
   const stats = useFetch(film.id, getMovieStats);
   const providers = useFetch(film.id, getWatchProviders);
   const myState = useFetch(status === "authenticated" ? film.id : null, getMovieState);
+  useMovieEasterEgg(film);
 
   // "edit" = editar a review mais recente; "new" = registrar (ou registrar de novo)
   const [editing, setEditing] = useState<"edit" | "new" | null>(null);

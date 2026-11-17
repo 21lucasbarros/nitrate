@@ -1,5 +1,5 @@
 import { apiFetch } from "../api-client";
-import type { MovieReview, ReviewRequest } from "../types/review";
+import type { MovieReview, ReviewComment, ReviewEngagement, ReviewRequest } from "../types/review";
 
 export function getRecentReviews(limit = 20): Promise<MovieReview[]> {
   return apiFetch<MovieReview[]>(`/reviews/recent?limit=${limit}`);
@@ -30,6 +30,30 @@ export function updateReview(id: number, data: ReviewRequest): Promise<MovieRevi
     method: "PUT",
     body: JSON.stringify(data),
   });
+}
+
+export function getReviewEngagement(id: number): Promise<ReviewEngagement> {
+  return apiFetch<ReviewEngagement>(`/reviews/${id}/engagement`);
+}
+
+export function likeReview(id: number): Promise<ReviewEngagement> {
+  return apiFetch<ReviewEngagement>(`/reviews/${id}/like`, { method: "POST" });
+}
+
+export function unlikeReview(id: number): Promise<ReviewEngagement> {
+  return apiFetch<ReviewEngagement>(`/reviews/${id}/like`, { method: "DELETE" });
+}
+
+export function getReviewComments(id: number): Promise<ReviewComment[]> {
+  return apiFetch<ReviewComment[]>(`/reviews/${id}/comments`);
+}
+
+export function addReviewComment(id: number, text: string): Promise<ReviewComment> {
+  return apiFetch<ReviewComment>(`/reviews/${id}/comments`, { method: "POST", body: JSON.stringify({ text }) });
+}
+
+export function deleteReviewComment(id: number, commentId: number): Promise<void> {
+  return apiFetch<void>(`/reviews/${id}/comments/${commentId}`, { method: "DELETE" });
 }
 
 export function deleteReview(id: number): Promise<void> {

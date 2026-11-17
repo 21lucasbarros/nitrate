@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { GearSixIcon, PlusIcon, SignOutIcon } from "@phosphor-icons/react";
 import { useAuth } from "@/lib/auth-context";
+import { useLogoEgg } from "@/lib/easter-eggs";
+import { DreamBigLogo } from "./easter-eggs/dream-big-logo";
 import { HeaderSearch } from "./header-search";
 import { NotificationBell } from "./notification-bell";
 import { Avatar } from "./ui/avatar";
@@ -13,6 +15,8 @@ const navLink = "px-3 py-2 text-sm font-medium text-brand-slate hover:text-foreg
 export default function Header() {
   const { status, user, signOut } = useAuth();
   const router = useRouter();
+  // easter egg: a página de certos filmes troca a logo
+  const logoEgg = useLogoEgg();
 
   const handleSignOut = () => {
     signOut();
@@ -22,8 +26,18 @@ export default function Header() {
   return (
     <header className="fixed top-0 w-full z-50 bg-background/85 backdrop-blur-md border-b border-foreground/5">
       <div className="max-w-[1100px] mx-auto px-6 h-16 flex items-center gap-6">
-        <Link href="/" className="text-xl font-bold tracking-tighter uppercase flex items-center gap-1 text-foreground shrink-0">
-          Nitrate<div className="w-1.5 h-1.5 rounded-full bg-brand-orange mt-1"></div>
+        <Link
+          href="/"
+          aria-label="Nitrate"
+          className="text-xl font-bold tracking-tighter uppercase flex items-center gap-1 text-foreground shrink-0"
+        >
+          {logoEgg === "dream-big" ? (
+            <DreamBigLogo />
+          ) : (
+            <>
+              Nitrate<div className="w-1.5 h-1.5 rounded-full bg-brand-orange mt-1"></div>
+            </>
+          )}
         </Link>
 
         <nav aria-label="Navegação Principal" className="hidden md:flex items-center gap-1 ml-auto">

@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
 import { apiFetch } from "@/lib/api-client";
+import { loadGoogleFont } from "@/lib/og-fonts";
 import type { Retrospective } from "@/lib/types/retrospective";
 import { monthLabel } from "@/utils/format";
 import { posterUrl } from "@/utils/poster";
@@ -16,22 +17,6 @@ const HEIGHT = 1920;
 const CHARCOAL = "#1D2128";
 const ORANGE = "#FF6A1C";
 const PAPER = "#F9F9F8";
-
-// fonte dos títulos: o next/og só traz o Geist Regular embutido
-let semiBold: Promise<ArrayBuffer | null> | null = null;
-function loadSemiBold(): Promise<ArrayBuffer | null> {
-  semiBold ??= (async () => {
-    try {
-      // sem user-agent de navegador, o Google Fonts devolve TTF (o next/og não lê woff2)
-      const css = await (await fetch("https://fonts.googleapis.com/css2?family=Geist:wght@600")).text();
-      const url = css.match(/src: url\((.+?)\) format\('(opentype|truetype)'\)/)?.[1];
-      return url ? await (await fetch(url)).arrayBuffer() : null;
-    } catch {
-      return null; // sem a fonte, o título sai no peso regular; a imagem continua sendo gerada
-    }
-  })();
-  return semiBold;
-}
 
 export async function GET(
   request: Request,
@@ -56,7 +41,7 @@ export async function GET(
     return new Response("Retrospectiva não encontrada", { status: 404 });
   }
 
-  const font = await loadSemiBold();
+  const font = await loadGoogleFont("Geist:wght@600");
 
   return new ImageResponse(<Story retro={retro} />, {
     width: WIDTH,

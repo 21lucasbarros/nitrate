@@ -9,6 +9,7 @@ import { toRating } from "@/utils/rating";
 import { filmHref } from "@/utils/movie-link";
 import { StarRating } from "./ui/star-rating";
 import { Poster } from "./ui/poster";
+import { ReviewText } from "./ui/review-text";
 
 const fetchFeatured = () => getFeaturedReviews();
 
@@ -112,9 +113,13 @@ export default function TrendingReviews() {
                     </span>
                   </div>
 
-                  <p className="font-serif text-base sm:text-[17px] leading-[1.7] text-foreground/85 font-normal max-w-2xl line-clamp-5">
-                    {review.text}
-                  </p>
+                  {review.text && (
+                    <ReviewText
+                      text={review.text}
+                      inline
+                      className="font-serif text-base sm:text-[17px] leading-[1.7] text-foreground/85 font-normal max-w-2xl line-clamp-5"
+                    />
+                  )}
                 </div>
               </article>
             ))}

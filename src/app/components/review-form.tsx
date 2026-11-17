@@ -6,8 +6,10 @@ import { ApiError } from "@/lib/api-client";
 import { createReview, deleteReview, updateReview } from "@/lib/services/review-service";
 import type { MovieReview } from "@/lib/types/review";
 import type { Movie } from "@/types/movie";
+import { easterEggFor } from "@/lib/easter-eggs";
 import { todayIso } from "@/utils/format";
 import { Poster } from "./ui/poster";
+import { RichTextEditor } from "./ui/rich-text-editor";
 import { StarInput } from "./ui/star-input";
 
 const TEXT_MAX = 20000; // igual ao limite do backend (reviews importadas do Letterboxd são longas)
@@ -35,6 +37,32 @@ export function ReviewForm({ movie, existing, previouslyWatched = false, onSaved
   const [error, setError] = useState<string | null>(null);
 
   const hasText = text.trim().length > 0;
+
+  // easter egg (Clube da Luta): a primeira letra digitada dispara as regras, uma de cada vez
+  const warnings = easterEggFor(movie)?.reviewWarnings ?? [];
+  const [nextWarning, setNextWarning] = useState(0);
+  const [ruleBroken, setRuleBroken] = useState(false);
+  // o texto com a letra que disparou o aviso: só entra se a pessoa quebrar a regra
+  const [pending, setPending] = useState<string | null>(null);
+
+  const handleText = (value: string) => {
+    if (!ruleBroken && nextWarning < warnings.length && value.length > text.length) {
+      setPending(value);
+      return;
+    }
+    setText(value);
+  };
+
+  const respectRule = () => {
+    setPending(null);
+    setNextWarning((i) => i + 1);
+  };
+
+  const breakRule = () => {
+    if (pending !== null) setText(pending);
+    setPending(null);
+    setRuleBroken(true);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -137,16 +165,24 @@ export function ReviewForm({ movie, existing, previouslyWatched = false, onSaved
       </label>
 
       <div className="flex flex-col gap-2">
-        <textarea
-          aria-label={`Sua review de ${movie.title}`}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          maxLength={TEXT_MAX}
-          rows={6}
-          placeholder="Escreva sua review… (opcional)"
-          className="w-full px-4 py-3.5 bg-transparent border border-brand-slate/20 rounded-xl text-foreground text-base leading-relaxed placeholder:text-brand-slate/40 focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue resize-y"
-        />
-        <div className="flex items-center justify-between gap-4">
+        <div className="relative">
+          <RichTextEditor
+            label={`Sua review de ${movie.title}`}
+            value={text}
+            onChange={handleText}
+            maxLength={TEXT_MAX}
+            placeholder="Escreva sua review… (opcional)"
+          />
+          {pending !== null && warnings[nextWarning] && (
+            <RuleWarning
+              rule={nextWarning + 1}
+              text={warnings[nextWarning]}
+              onRespect={respectRule}
+              onBreak={breakRule}
+            />
+          )}
+        </div>
+        <div className="flex items-center gap-4">
           <label
             className={`flex items-center gap-2.5 text-sm select-none ${hasText ? "cursor-pointer text-brand-slate/80" : "cursor-not-allowed text-brand-slate/35"}`}
             title={hasText ? undefined : "Escreva algo para poder marcar spoilers"}
@@ -163,9 +199,6 @@ export function ReviewForm({ movie, existing, previouslyWatched = false, onSaved
             <WarningIcon size={16} className={hasText && spoiler ? "text-brand-crimson" : ""} />
             Contém spoilers
           </label>
-          <span className="text-xs font-mono text-brand-slate/40">
-            {text.length}/{TEXT_MAX}
-          </span>
         </div>
       </div>
 
@@ -206,5 +239,44 @@ export function ReviewForm({ movie, existing, previouslyWatched = false, onSaved
         </div>
       </div>
     </form>
+  );
+}
+
+/** o aviso do Clube da Luta, por cima do editor */
+function RuleWarning({ rule, text, onRespect, onBreak }: {
+  rule: number;
+  text: string;
+  onRespect: () => void;
+  onBreak: () => void;
+}) {
+  return (
+    <div
+      role="alertdialog"
+      aria-label="Tem certeza que quer continuar?"
+      className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 px-6 rounded-xl bg-background/95 backdrop-blur-sm ring-1 ring-brand-crimson/40 text-center animate-[modal-in_180ms_ease-out]"
+    >
+      <span className="font-mono text-[11px] tracking-[0.3em] uppercase text-brand-crimson">Regra nº {rule}</span>
+      <p className="max-w-md">
+        <strong className="block text-lg font-semibold">Tem certeza que quer continuar?</strong>
+        <span className="mt-2 block font-serif text-[17px] italic leading-relaxed text-foreground/80">{text}</span>
+      </p>
+      <div className="flex flex-wrap justify-center gap-3">
+        <button
+          type="button"
+          onClick={onRespect}
+          autoFocus
+          className="px-4 py-2 rounded-full text-sm font-medium text-brand-slate hover:text-foreground hover:bg-surface-strong transition-colors"
+        >
+          Respeitar a regra
+        </button>
+        <button
+          type="button"
+          onClick={onBreak}
+          className="px-4 py-2 rounded-full bg-brand-crimson text-background text-sm font-semibold hover:bg-brand-crimson/90 transition-colors"
+        >
+          Quebrar a regra
+        </button>
+      </div>
+    </div>
   );
 }
