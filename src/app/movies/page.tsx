@@ -9,7 +9,8 @@ import { MovieGrid } from "@/app/components/movie-grid";
 import { PersonPhoto } from "@/app/components/ui/person-photo";
 import { useFetch } from "@/lib/hooks/use-fetch";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
-import { getMovies, getTopRatedMovies, getTrendingMovies, searchMovies } from "@/lib/services/movie-service";
+import { getCatalog, getTopRatedMovies, getTrendingMovies, searchMovies } from "@/lib/services/movie-service";
+import { Pagination } from "@/app/components/ui/pagination";
 import { cachedFetcher } from "@/lib/cache";
 import { searchPeople } from "@/lib/services/person-service";
 import { searchUsers } from "@/lib/services/user-service";
@@ -19,7 +20,8 @@ import type { Movie, MovieSearchResult } from "@/types/movie";
 import { departmentLabel, type PersonSummary } from "@/types/person";
 import { movieHref } from "@/utils/movie-link";
 
-const fetchMovies = () => getMovies();
+const CATALOG_PER_PAGE = 48; // 6 linhas de 8
+const fetchCatalog = (page: number) => getCatalog(page - 1, CATALOG_PER_PAGE);
 // a curadoria da comunidade muda devagar: não precisa buscar de novo a cada visita
 const fetchTrending = cachedFetcher(() => getTrendingMovies(), 5 * 60 * 1000);
 const fetchTopRated = cachedFetcher(() => getTopRatedMovies(), 5 * 60 * 1000);
@@ -51,7 +53,8 @@ function Movies({ initialQuery, focusSearch }: { initialQuery: string; focusSear
   const debouncedQuery = useDebouncedValue(query.trim(), SEARCH_DEBOUNCE_MS);
   const isSearching = query.trim().length >= MIN_QUERY;
 
-  const catalog = useFetch(isSearching ? null : "all", fetchMovies);
+  const [catalogPage, setCatalogPage] = useState(1);
+  const catalog = useFetch(isSearching ? null : catalogPage, fetchCatalog);
   const trending = useFetch(isSearching ? null : "trending", fetchTrending);
   const topRated = useFetch(isSearching ? null : "top", fetchTopRated);
   const searchKey = debouncedQuery.length >= MIN_QUERY ? debouncedQuery : null;
@@ -110,13 +113,25 @@ function Movies({ initialQuery, focusSearch }: { initialQuery: string; focusSear
             <CommunityRow title="Em alta na comunidade" movies={trending.data} />
             <CommunityRow title="Mais bem avaliados pela comunidade" movies={topRated.data} />
             <section>
-              <SectionHeading title="Todo o catálogo" count={catalog.data?.length} />
-              {catalog.loading ? (
+              <SectionHeading title="Todo o catálogo" count={catalog.data?.totalItems} />
+              {catalog.loading && !catalog.data ? (
                 <p className="text-brand-slate/50">Carregando filmes…</p>
               ) : catalog.error ? (
                 <p className="text-red-500">Não foi possível carregar os filmes.</p>
               ) : (
-                <MovieGrid items={(catalog.data ?? []).map((movie) => ({ movie }))} />
+                <div id="catalogo" className={`scroll-mt-24 ${catalog.loading ? "opacity-50 transition-opacity" : ""}`}>
+                  <MovieGrid items={(catalog.data?.items ?? []).map((movie) => ({ movie }))} />
+                  {catalog.data && (
+                    <Pagination
+                      page={catalogPage}
+                      totalPages={catalog.data.totalPages}
+                      onChange={(p) => {
+                        setCatalogPage(p);
+                        document.getElementById("catalogo")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                      }}
+                    />
+                  )}
+                </div>
               )}
             </section>
           </>

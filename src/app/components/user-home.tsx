@@ -6,7 +6,7 @@ import type { UserProfile } from "@/lib/types/user";
 import { useFetch } from "@/lib/hooks/use-fetch";
 import { getMyFeed, getMyRecommendations, getSimilarUsers, getUserWatchlist } from "@/lib/services/user-service";
 import { getRecentReviews } from "@/lib/services/review-service";
-import { getMovies } from "@/lib/services/movie-service";
+import { getCatalog } from "@/lib/services/movie-service";
 import { getMyRetrospectiveMonths } from "@/lib/services/retrospective-service";
 import { cachedFetcher } from "@/lib/cache";
 import { currentMonth, monthLabel, shiftMonth } from "@/utils/format";
@@ -26,7 +26,9 @@ const RECENT_TEXTS = 3;
 const fetchRecent = cachedFetcher(() => getRecentReviews(RECENT_LIMIT), 5 * 60 * 1000);
 const fetchFeed = () => getMyFeed(RECENT_LIMIT);
 const fetchRetroMonths = () => getMyRetrospectiveMonths();
-const fetchMovies = () => getMovies();
+// "Descubra algo novo": uma página do catálogo basta (antes vinha o acervo inteiro)
+const DISCOVER_POOL = 30;
+const fetchMovies = () => getCatalog(0, DISCOVER_POOL);
 const fetchRecommendations = () => getMyRecommendations();
 const fetchSimilar = () => getSimilarUsers();
 
@@ -53,7 +55,7 @@ export default function UserHome({ user }: { user: UserProfile }) {
       : null;
 
   const watchlistIds = new Set(watchlist.data?.map((item) => item.movie.id));
-  const discover = (movies.data ?? []).filter((movie) => !watchlistIds.has(movie.id)).slice(0, 12);
+  const discover = (movies.data?.items ?? []).filter((movie) => !watchlistIds.has(movie.id)).slice(0, 12);
   const recentWritten = (activity.data ?? []).filter((r) => r.text && !r.spoiler).slice(0, RECENT_TEXTS);
 
   return (

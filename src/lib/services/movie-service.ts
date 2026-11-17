@@ -1,8 +1,10 @@
 import { apiFetch } from "../api-client";
+import type { Page } from "../types/page";
 import type { Movie, MovieSearchResult } from "@/types/movie";
 
-export function getMovies(): Promise<Movie[]> {
-  return apiFetch<Movie[]>("/movies");
+/** o catálogo em páginas (page começa em 0), na ordem em que os filmes entraram no Nitrate */
+export function getCatalog(page: number, size: number): Promise<Page<Movie>> {
+  return apiFetch<Page<Movie>>(`/movies/catalog?page=${page}&size=${size}`);
 }
 
 /** os filmes que mais gente registrou no último mês */
