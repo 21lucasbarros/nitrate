@@ -25,7 +25,10 @@ import { Modal } from "@/app/components/ui/modal";
 import { NitrateRating, WhereToWatch } from "@/app/components/movie-community";
 import { ApiError } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
-import { useMovieEasterEgg } from "@/lib/easter-eggs";
+import { easterEggFor } from "@/lib/easter-eggs";
+import { showQuote, useMovieEasterEgg } from "@/lib/hooks/use-easter-eggs";
+import { MatrixPills } from "@/app/components/easter-eggs/matrix-pills";
+import { MatrixRain } from "@/app/components/easter-eggs/matrix-rain";
 import { useFetch } from "@/lib/hooks/use-fetch";
 import {
   getMovieBySlug,
@@ -86,6 +89,7 @@ function FilmView({ film }: { film: Movie }) {
   const providers = useFetch(film.id, getWatchProviders);
   const myState = useFetch(status === "authenticated" ? film.id : null, getMovieState);
   useMovieEasterEgg(film);
+  const egg = easterEggFor(film);
 
   // "edit" = editar a review mais recente; "new" = registrar (ou registrar de novo)
   const [editing, setEditing] = useState<"edit" | "new" | null>(null);
@@ -102,6 +106,8 @@ function FilmView({ film }: { film: Movie }) {
       if (inWatchlist) await removeFromWatchlist(film.id);
       else await addToWatchlist(film.id);
       myState.setData({ ...myState.data, inWatchlist: !inWatchlist });
+      // easter egg (O Poderoso Chefão): uma oferta irrecusável
+      if (!inWatchlist && typeof egg?.watchlist === "object") showQuote(egg.watchlist.quote);
       refreshUser();
     } finally {
       setWatchlistBusy(false);
@@ -122,6 +128,7 @@ function FilmView({ film }: { film: Movie }) {
 
   return (
     <>
+      {egg?.pageIntro === "matrix-rain" && <MatrixRain />}
       {/* imagem de fundo: uma cena do filme, desbotando para o fundo da página */}
       <div className="relative h-[300px] sm:h-[420px] lg:h-[520px] -mb-[180px] sm:-mb-[260px] lg:-mb-[320px]">
         {backdrop && (
@@ -190,6 +197,8 @@ function FilmView({ film }: { film: Movie }) {
                 onEdit={myReview ? () => setEditing("edit") : undefined}
                 onToggleWatchlist={toggleWatchlist}
                 onChanged={afterChange}
+                watchlistPills={egg?.watchlist === "pills"}
+                ratingQuotes={egg?.ratingQuotes}
               />
             )}
             {status === "anonymous" && (
@@ -262,6 +271,10 @@ function ActionPanel(props: {
   onEdit?: () => void;
   onToggleWatchlist: () => void;
   onChanged: () => void;
+  /** easter egg de Matrix: pílula vermelha ou azul no lugar do botão da watchlist */
+  watchlistPills?: boolean;
+  /** easter egg: fala ao escolher certas notas */
+  ratingQuotes?: Record<number, string>;
 }) {
   const { review } = props;
   const watched = props.timesWatched > 0;
@@ -309,7 +322,15 @@ function ActionPanel(props: {
       <div className="p-5">
         <span className="text-xs uppercase tracking-[0.14em] text-brand-slate">Sua nota</span>
         <div className="mt-3">
-          <RatingMeterInput value={review?.rating ?? null} onChange={(rating) => quickSave({ rating })} disabled={busy} />
+          <RatingMeterInput
+            value={review?.rating ?? null}
+            onChange={(rating) => {
+              quickSave({ rating });
+              const quote = rating !== null ? props.ratingQuotes?.[rating] : undefined;
+              if (quote) showQuote(quote);
+            }}
+            disabled={busy}
+          />
         </div>
         {review?.watchedOn && (
           <p className="mt-4 flex items-center gap-1.5 text-xs text-brand-slate">
@@ -334,15 +355,19 @@ function ActionPanel(props: {
           <HeartIcon size={18} weight={liked ? "fill" : "regular"} />
           {liked ? "Curti" : "Curtir"}
         </button>
-        <button
-          onClick={props.onToggleWatchlist}
-          disabled={props.watchlistBusy}
-          aria-pressed={props.inWatchlist}
-          className={toggle(props.inWatchlist, "text-brand-blue")}
-        >
-          <BookmarkSimpleIcon size={18} weight={props.inWatchlist ? "fill" : "regular"} />
-          {props.inWatchlist ? "Na watchlist" : "Quero assistir"}
-        </button>
+        {props.watchlistPills ? (
+          <MatrixPills inWatchlist={props.inWatchlist} busy={props.watchlistBusy} onToggle={props.onToggleWatchlist} />
+        ) : (
+          <button
+            onClick={props.onToggleWatchlist}
+            disabled={props.watchlistBusy}
+            aria-pressed={props.inWatchlist}
+            className={toggle(props.inWatchlist, "text-brand-blue")}
+          >
+            <BookmarkSimpleIcon size={18} weight={props.inWatchlist ? "fill" : "regular"} />
+            {props.inWatchlist ? "Na watchlist" : "Quero assistir"}
+          </button>
+        )}
         <button onClick={() => setAddingToList(true)} className={toggle(false, "")}>
           <ListPlusIcon size={18} />
           Adicionar à lista

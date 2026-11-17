@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { CircleNotchIcon, InstagramLogoIcon } from "@phosphor-icons/react";
+import { easterEggFor } from "@/lib/easter-eggs";
 import { shareStoryFile, useStoryImage } from "@/lib/hooks/use-story-image";
 import type { MovieReview } from "@/lib/types/review";
 import { Modal } from "./ui/modal";
@@ -23,6 +24,8 @@ function ShareBody({ review }: { review: MovieReview }) {
     `nitrate-${review.movie.slug ?? review.movie.id}.png`,
   );
   const [saved, setSaved] = useState(false);
+  // easter egg (Psicopata Americano): a imagem é um cartão de visita
+  const businessCard = easterEggFor(review.movie)?.story === "business-card";
 
   const share = async () => {
     const file = story.file ?? (await story.load());
@@ -41,7 +44,7 @@ function ShareBody({ review }: { review: MovieReview }) {
             ) : (
               <>
                 <CircleNotchIcon size={24} className="animate-spin" />
-                <span className="text-xs">Imprimindo o ingresso…</span>
+                <span className="text-xs">{businessCard ? "Imprimindo os cartões…" : "Imprimindo o ingresso…"}</span>
               </>
             )}
           </div>
@@ -49,10 +52,13 @@ function ShareBody({ review }: { review: MovieReview }) {
       </div>
 
       <div className="text-center sm:text-left">
-        <span className="text-xs font-bold tracking-[0.2em] uppercase text-brand-orange">Seu ingresso</span>
-        <h2 className="mt-2 text-2xl font-semibold tracking-tight">Mostre o que você assistiu.</h2>
+        <span className="text-xs font-bold tracking-[0.2em] uppercase text-brand-orange">{businessCard ? "Seu cartão de visita" : "Seu ingresso"}</span>
+        <h2 className="mt-2 text-2xl font-semibold tracking-tight">{businessCard ? "Let's see Paul Allen's card." : "Mostre o que você assistiu."}</h2>
         <p className="mt-2 text-sm text-brand-slate leading-relaxed">
-          Pôster, sua nota e a data da sessão num ingresso de cinema. No celular, escolha{" "}
+          {businessCard
+            ? "Off-white sutil, espessura de bom gosto: sua review num cartão corporativo, com nota e tudo. "
+            : "Pôster, sua nota e a data da sessão num ingresso de cinema. "}
+          No celular, escolha{" "}
           <strong className="font-medium text-foreground/85">Instagram → Stories</strong> na hora de compartilhar.
         </p>
         <button

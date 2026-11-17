@@ -34,7 +34,7 @@ import { ReviewText } from "@/app/components/ui/review-text";
 import { StarRating } from "@/app/components/ui/star-rating";
 import { ApiError } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
-import { useMovieEasterEgg } from "@/lib/easter-eggs";
+import { useMovieEasterEgg } from "@/lib/hooks/use-easter-eggs";
 import { useFetch } from "@/lib/hooks/use-fetch";
 import { getMovieCredits, getMovieStats } from "@/lib/services/movie-service";
 import { getReview, getReviewEngagement, likeReview, unlikeReview } from "@/lib/services/review-service";

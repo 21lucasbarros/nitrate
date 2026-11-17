@@ -1,6 +1,8 @@
 import { ImageResponse } from "next/og";
 import { apiFetch } from "@/lib/api-client";
+import { easterEggFor } from "@/lib/easter-eggs";
 import { loadGoogleFont } from "@/lib/og-fonts";
+import { stripMarkup } from "@/utils/review-markup";
 import type { MovieCredits } from "@/lib/services/movie-service";
 import type { MovieReview } from "@/lib/types/review";
 import { shortDate } from "@/utils/format";
@@ -46,6 +48,24 @@ export async function GET(_request: Request, { params }: { params: Promise<{ use
 
   // a cena de fundo é um extra: sem ela, o ingresso aparece sobre o fundo escuro
   const credits = await apiFetch<MovieCredits>(`/movies/${review.movie.id}/credits`).catch(() => null);
+
+  // easter egg (Psicopata Americano): a review vira um cartão de visita
+  if (easterEggFor(review.movie)?.story === "business-card") {
+    const [card, cardItalic] = await Promise.all([
+      loadGoogleFont("Cormorant+Garamond:wght@500"),
+      loadGoogleFont("Cormorant+Garamond:ital,wght@1,500"),
+    ]);
+    const cardFonts = [
+      card && { name: "Card", data: card, weight: 500 as const, style: "normal" as const },
+      cardItalic && { name: "Card", data: cardItalic, weight: 500 as const, style: "italic" as const },
+    ].filter((f): f is NonNullable<typeof f> => Boolean(f));
+    return new ImageResponse(<BusinessCards review={review} />, {
+      width: WIDTH,
+      height: HEIGHT,
+      fonts: cardFonts,
+      headers: { "Cache-Control": "public, max-age=60" },
+    });
+  }
 
   const [sans, serif, serifItalic, mono] = await Promise.all([
     loadGoogleFont("Geist:wght@600"),
@@ -287,3 +307,98 @@ function seatFor(id: number): { row: string; number: number } {
   const rows = "ABCDEFGHJKLMN";
   return { row: rows[id % rows.length], number: ((id * 7) % 24) + 1 };
 }
+
+// ---------- easter egg de Psicopata Americano ----------
+
+const BONE = "#EEE8D5"; // "bone", o off-white sutil do cartão
+const CARD_INK = "#2B2924";
+const CARD_W = 900;
+const CARD_H = 514; // proporção de um cartão de visita (3,5 x 2 polegadas)
+const REVIEW_MAX = 420;
+
+/** frente: nome, cargo e a nota; verso: a review diagramada como texto corporativo */
+function BusinessCards({ review }: { review: MovieReview }) {
+  const { movie, user } = review;
+  const text = review.text ? stripMarkup(review.text).replace(/\s+/g, " ").trim() : "";
+  const excerpt = text.length > REVIEW_MAX ? `${text.slice(0, REVIEW_MAX).replace(/\s+\S*$/, "")}…` : text;
+  const rating = review.rating !== null ? toRating(review.rating) : null;
+
+  return (
+    <div
+      style={{
+        width: WIDTH,
+        height: HEIGHT,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        backgroundColor: "#0E0E0D",
+        backgroundImage: "radial-gradient(ellipse 70% 45% at 50% 42%, #2A2824 0%, #0E0E0D 70%)",
+        fontFamily: "Card",
+        color: BONE,
+      }}
+    >
+      <span style={{ marginTop: 130, fontSize: 30, letterSpacing: 10, color: "rgba(238,232,213,0.55)" }}>
+        LET&apos;S SEE PAUL ALLEN&apos;S CARD.
+      </span>
+
+      {/* frente do cartão */}
+      <div style={{ ...cardStyle, marginTop: 90, transform: "rotate(-3deg)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 24, letterSpacing: 4 }}>
+          <span>NITRATE · DIÁRIO</span>
+          <span>{`@${user.username.toUpperCase()}`}</span>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: 86 }}>
+          <span style={{ fontSize: 50, letterSpacing: 14 }}>{user.name.toUpperCase()}</span>
+          <span style={{ marginTop: 14, fontSize: 26, letterSpacing: 8 }}>CRÍTICO DE CINEMA</span>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: "auto", fontSize: 22, letterSpacing: 5 }}>
+          <span>CRÍTICAS &amp; AQUISIÇÕES</span>
+          <span style={{ marginTop: 8 }}>
+            {[movie.title.toUpperCase(), movie.releaseYear, rating !== null ? `NOTA ${rating.toLocaleString("pt-BR")}/5` : null]
+              .filter(Boolean)
+              .join("  ·  ")}
+          </span>
+        </div>
+      </div>
+
+      {/* verso: a review */}
+      <div style={{ ...cardStyle, marginTop: 70, transform: "rotate(2deg)", justifyContent: "center", alignItems: "center" }}>
+        <span style={{ fontSize: 20, letterSpacing: 6, alignSelf: "center" }}>— A REVIEW —</span>
+        <span style={{ marginTop: 26, maxWidth: CARD_W - 104, fontSize: excerpt.length > 260 ? 25 : 30, lineHeight: 1.45, fontStyle: "italic", textAlign: "center" }}>
+          {excerpt ? `“${excerpt}”` : "Sem review. Só a nota. Impressionante. Muito bom gosto."}
+        </span>
+        <span style={{ marginTop: 26, fontSize: 20, letterSpacing: 6, alignSelf: "flex-end" }}>
+          {`ASSISTIDO EM ${shortDate(review.watchedOn).toUpperCase()}`}
+        </span>
+      </div>
+
+      <span
+        style={{
+          marginTop: "auto",
+          marginBottom: 150,
+          maxWidth: 820,
+          textAlign: "center",
+          fontSize: 34,
+          fontStyle: "italic",
+          lineHeight: 1.4,
+          color: "rgba(238,232,213,0.7)",
+        }}
+      >
+        “Look at that subtle off-white coloring. The tasteful thickness of it. Oh, my God. It even has a watermark.”
+      </span>
+    </div>
+  );
+}
+
+const cardStyle = {
+  width: CARD_W,
+  height: CARD_H,
+  display: "flex",
+  flexDirection: "column" as const,
+  padding: "44px 52px",
+  backgroundColor: BONE,
+  backgroundImage: "linear-gradient(135deg, #F3EEDD 0%, #E7E0CA 100%)",
+  color: CARD_INK,
+  borderRadius: 6,
+  boxShadow: "0 30px 60px rgba(0,0,0,0.65), 0 2px 0 rgba(255,255,255,0.4) inset",
+};

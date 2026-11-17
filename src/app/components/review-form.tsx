@@ -7,6 +7,7 @@ import { createReview, deleteReview, updateReview } from "@/lib/services/review-
 import type { MovieReview } from "@/lib/types/review";
 import type { Movie } from "@/types/movie";
 import { easterEggFor } from "@/lib/easter-eggs";
+import { showQuote } from "@/lib/hooks/use-easter-eggs";
 import { todayIso } from "@/utils/format";
 import { Poster } from "./ui/poster";
 import { RichTextEditor } from "./ui/rich-text-editor";
@@ -122,7 +123,16 @@ export function ReviewForm({ movie, existing, previouslyWatched = false, onSaved
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-5 py-5 border-y border-foreground/10">
         <div className="flex flex-col gap-2">
           <span className="text-xs uppercase tracking-[0.15em] text-brand-slate/60">Nota</span>
-          <StarInput value={rating} onChange={setRating} size={30} />
+          <StarInput
+            value={rating}
+            onChange={(value) => {
+              setRating(value);
+              // easter egg (Whiplash): certas notas ganham uma fala
+              const quote = value !== null ? easterEggFor(movie)?.ratingQuotes?.[value] : undefined;
+              if (quote) showQuote(quote);
+            }}
+            size={30}
+          />
         </div>
 
         <div className="flex flex-col gap-2 items-center">

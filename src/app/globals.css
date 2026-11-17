@@ -115,6 +115,33 @@ dialog.modal::backdrop {
   }
 }
 
+/* easter egg de Matrix: a coluna da colher desce a tela inteira */
+@keyframes spoon-fall {
+  from {
+    transform: translateY(-15vh);
+  }
+  to {
+    transform: translateY(110vh);
+  }
+}
+
+/* easter egg de O Show de Truman: a rachadura se espalha */
+@keyframes crack-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes egg-quote-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+}
+
 @keyframes modal-in {
   from {
     opacity: 0;

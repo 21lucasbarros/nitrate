@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { GearSixIcon, PlusIcon, SignOutIcon } from "@phosphor-icons/react";
 import { useAuth } from "@/lib/auth-context";
-import { useLogoEgg } from "@/lib/easter-eggs";
+import { useLogoEgg } from "@/lib/hooks/use-easter-eggs";
 import { DreamBigLogo } from "./easter-eggs/dream-big-logo";
 import { HeaderSearch } from "./header-search";
 import { NotificationBell } from "./notification-bell";
