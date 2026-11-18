@@ -29,6 +29,21 @@ export interface PersonDetail {
   acted: PersonCredit[];
 }
 
+// Espelha FavoritePersonDTO: ator/atriz ou diretor(a) favorito no perfil
+export interface FavoritePerson {
+  tmdbId: number;
+  name: string;
+  profilePath: string | null;
+}
+
+// Espelha FavoritePeopleDTO: as duas listas, cada uma em ordem
+export interface FavoritePeople {
+  actors: FavoritePerson[];
+  directors: FavoritePerson[];
+}
+
+export type FavoritePeopleKind = keyof FavoritePeople;
+
 const DEPARTMENTS: Record<string, string> = {
   Acting: "Atuação",
   Directing: "Direção",

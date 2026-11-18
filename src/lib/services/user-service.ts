@@ -3,6 +3,7 @@ import type { MovieReview, MovieUserState, Recommendation, WatchlistItem } from 
 import type { Page } from "../types/page";
 import type { AppNotification, ProfileUpdate, SimilarUser, UserProfile, UserSummary } from "../types/user";
 import type { Movie } from "@/types/movie";
+import type { FavoritePeople, FavoritePeopleKind, FavoritePerson } from "@/types/person";
 
 export function getMe(): Promise<UserProfile> {
   return apiFetch<UserProfile>("/users/me");
@@ -70,6 +71,17 @@ export const MAX_FAVORITES = 5;
 /** substitui a lista inteira de favoritos; a ordem do array é a ordem do perfil */
 export function setMyFavorites(movieIds: number[]): Promise<Movie[]> {
   return apiFetch<Movie[]>("/users/me/favorites", { method: "PUT", body: JSON.stringify({ movieIds }) });
+}
+
+export const MAX_FAVORITE_PEOPLE = 5;
+
+export function getFavoritePeople(username: string): Promise<FavoritePeople> {
+  return apiFetch<FavoritePeople>(`/users/${encodeURIComponent(username)}/favorites/people`);
+}
+
+/** substitui a lista inteira (atores ou diretores); a ordem do array é a ordem do perfil */
+export function setMyFavoritePeople(kind: FavoritePeopleKind, tmdbIds: number[]): Promise<FavoritePerson[]> {
+  return apiFetch<FavoritePerson[]>(`/users/me/favorites/${kind}`, { method: "PUT", body: JSON.stringify({ tmdbIds }) });
 }
 
 export function followUser(username: string): Promise<void> {

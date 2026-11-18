@@ -17,6 +17,7 @@ import Header from "@/app/components/header";
 import { Avatar } from "@/app/components/ui/avatar";
 import { MovieGrid } from "@/app/components/movie-grid";
 import { EditFavoritesButton, FavoriteFilms, FavoritesEditor } from "@/app/components/favorite-films";
+import { FavoritePeopleEditor, FavoritePeopleRow, favoritePeopleTitle } from "@/app/components/favorite-people";
 import { FollowButton } from "@/app/components/follow-button";
 import { ListCard, listHref } from "@/app/components/list-card";
 import { ListEditor } from "@/app/components/list-editor";
@@ -32,6 +33,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useFetch } from "@/lib/hooks/use-fetch";
 import {
   getFollowers,
+  getFavoritePeople,
   getFollowing,
   getProfile,
   getSimilarUsers,
@@ -39,6 +41,7 @@ import {
   getUserWatchlist,
 } from "@/lib/services/user-service";
 import { getUserLists } from "@/lib/services/list-service";
+import type { FavoritePeopleKind } from "@/types/person";
 import { monthYear } from "@/utils/format";
 
 const TABS = [
@@ -47,6 +50,7 @@ const TABS = [
   { id: "reviews", label: "Reviews" },
   { id: "watchlist", label: "Watchlist" },
   { id: "listas", label: "Listas" },
+  { id: "favoritos", label: "Favoritos" },
   { id: "rede", label: "Amigos" },
 ] as const;
 
@@ -96,6 +100,7 @@ function Profile() {
   const pathname = usePathname();
   const { status, user: me, refreshUser } = useAuth();
   const [editingFavorites, setEditingFavorites] = useState(false);
+  const [editingPeople, setEditingPeople] = useState<FavoritePeopleKind | null>(null);
   const [creatingList, setCreatingList] = useState(false);
   // modal aberto pelos números "seguindo" / "seguidores" do topo
   const [peopleModal, setPeopleModal] = useState<"following" | "followers" | null>(null);
@@ -114,6 +119,7 @@ function Profile() {
   const following = useFetch(tab === "rede" || peopleModal === "following" ? username : null, getFollowing);
   const followers = useFetch(tab === "rede" || peopleModal === "followers" ? username : null, getFollowers);
   const lists = useFetch(tab === "listas" ? username : null, getUserLists);
+  const favoritePeople = useFetch(tab === "favoritos" ? username : null, getFavoritePeople);
   // gostos parecidos: só na própria aba de amigos
   const similar = useFetch(tab === "rede" && me?.username === username ? username : null, fetchSimilar);
 
@@ -436,6 +442,48 @@ function Profile() {
           </div>
         )}
 
+        {tab === "favoritos" && (
+          <div className="flex flex-col gap-12">
+            <div>
+              <SectionHeading
+                title="Filmes favoritos"
+                action={isMe && user.favorites.length > 0 ? <EditFavoritesButton onClick={() => setEditingFavorites(true)} /> : undefined}
+              />
+              {user.favorites.length > 0 || isMe ? (
+                <FavoriteFilms films={user.favorites} isMe={isMe} onEdit={() => setEditingFavorites(true)} />
+              ) : (
+                <p className="py-6 text-center text-sm text-brand-slate">{user.name} ainda não escolheu filmes favoritos.</p>
+              )}
+            </div>
+            {!favoritePeople.data ? (
+              favoritePeople.error ? (
+                <p className="py-12 text-center text-brand-slate">Não foi possível carregar os favoritos.</p>
+              ) : (
+                <Loading />
+              )
+            ) : (
+              (["actors", "directors"] as const).map((kind) => {
+                const people = favoritePeople.data![kind];
+                return (
+                  <div key={kind}>
+                    <SectionHeading
+                      title={favoritePeopleTitle(kind)}
+                      action={isMe && people.length > 0 ? <EditFavoritesButton onClick={() => setEditingPeople(kind)} /> : undefined}
+                    />
+                    {people.length > 0 || isMe ? (
+                      <FavoritePeopleRow kind={kind} people={people} isMe={isMe} onEdit={() => setEditingPeople(kind)} />
+                    ) : (
+                      <p className="py-6 text-center text-sm text-brand-slate">
+                        {user.name} ainda não escolheu {kind === "actors" ? "atores e atrizes" : "diretores"} favoritos.
+                      </p>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
+
         {tab === "rede" && (
           <div className="flex flex-col gap-12">
             {isMe && similar.data && similar.data.length > 0 && (
@@ -504,6 +552,18 @@ function Profile() {
           open={creatingList}
           onClose={() => setCreatingList(false)}
           onSaved={(list) => router.push(listHref(list))}
+        />
+      )}
+
+      {isMe && favoritePeople.data && (
+        <FavoritePeopleEditor
+          kind={editingPeople}
+          initial={editingPeople ? favoritePeople.data[editingPeople] : []}
+          onClose={() => setEditingPeople(null)}
+          onSaved={(kind, people) => {
+            favoritePeople.setData({ ...favoritePeople.data!, [kind]: people });
+            setEditingPeople(null);
+          }}
         />
       )}
 
