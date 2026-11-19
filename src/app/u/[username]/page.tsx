@@ -10,6 +10,7 @@ import {
   PencilSimpleIcon,
   PlusIcon,
   SparkleIcon,
+  StackIcon,
   XLogoIcon,
 } from "@phosphor-icons/react";
 
@@ -17,9 +18,9 @@ import Header from "@/app/components/header";
 import { Avatar } from "@/app/components/ui/avatar";
 import { MovieGrid } from "@/app/components/movie-grid";
 import { EditFavoritesButton, FavoriteFilms, FavoritesEditor } from "@/app/components/favorite-films";
-import { FavoritePeopleEditor, FavoritePeopleRow, favoritePeopleTitle } from "@/app/components/favorite-people";
+import { FavoritePeopleCompact, FavoritePeopleEditor } from "@/app/components/favorite-people";
 import { FollowButton } from "@/app/components/follow-button";
-import { ListCard, listHref } from "@/app/components/list-card";
+import { ListCard, ListRow, listHref } from "@/app/components/list-card";
 import { ListEditor } from "@/app/components/list-editor";
 import { SimilarUsers } from "@/app/components/similar-users";
 import { WhatToWatchButton } from "@/app/components/what-to-watch";
@@ -50,19 +51,19 @@ const TABS = [
   { id: "reviews", label: "Reviews" },
   { id: "watchlist", label: "Watchlist" },
   { id: "listas", label: "Listas" },
-  { id: "favoritos", label: "Favoritos" },
   { id: "rede", label: "Amigos" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
 
-// links antigos usavam ?tab=filmes para o diário
-const TAB_ALIASES: Record<string, TabId> = { filmes: "diario" };
+// links antigos: ?tab=filmes era o diário; os favoritos tinham aba própria e agora ficam no Perfil
+const TAB_ALIASES: Record<string, TabId> = { filmes: "diario", favoritos: "perfil" };
 
 const FILMS_PER_PAGE = 48; // 6 linhas de 8
 const REVIEWS_PER_PAGE = 10;
-const RECENT_FILMS = 6; // uma linha da grade
+const RECENT_FILMS = 5; // uma linha, alinhada com os 5 favoritos
 const RECENT_REVIEWS = 2;
+const SIDE_LISTS = 3; // listas na coluna lateral do Perfil
 
 // o useFetch compara o argumento por igualdade, então a chave é texto: "usuario|aba|pagina"
 const fetchDiaryPage = (key: string) => {
@@ -118,8 +119,8 @@ function Profile() {
   const recentReviews = useFetch(tab === "perfil" ? username : null, fetchRecentReviews);
   const following = useFetch(tab === "rede" || peopleModal === "following" ? username : null, getFollowing);
   const followers = useFetch(tab === "rede" || peopleModal === "followers" ? username : null, getFollowers);
-  const lists = useFetch(tab === "listas" ? username : null, getUserLists);
-  const favoritePeople = useFetch(tab === "favoritos" ? username : null, getFavoritePeople);
+  const lists = useFetch(tab === "listas" || tab === "perfil" ? username : null, getUserLists);
+  const favoritePeople = useFetch(tab === "perfil" ? username : null, getFavoritePeople);
   // gostos parecidos: só na própria aba de amigos
   const similar = useFetch(tab === "rede" && me?.username === username ? username : null, fetchSimilar);
 
@@ -173,6 +174,13 @@ function Profile() {
     if (tab === "rede" || peopleModal === "followers") followers.reload();
     refreshUser();
   };
+
+  // coluna lateral da aba Perfil: some só para quem visita um perfil sem pessoas favoritas nem listas
+  // (enquanto carrega, fica: assim a coluna principal não encolhe depois de aparecer)
+  const people = favoritePeople.data;
+  const hasPeople = !people || people.actors.length > 0 || people.directors.length > 0;
+  const hasLists = !lists.data || lists.data.length > 0;
+  const showSide = isMe || hasPeople || hasLists;
 
   const counts: Partial<Record<TabId, number>> = {
     diario: user.filmsCount,
@@ -305,39 +313,96 @@ function Profile() {
       <section role="tabpanel" className="pt-8">
         {tab === "perfil" && (
           <div className="flex flex-col gap-12">
-            {(user.favorites.length > 0 || isMe) && (
-              <div>
-                <SectionHeading
-                  title="Filmes favoritos"
-                  action={isMe && user.favorites.length > 0 ? <EditFavoritesButton onClick={() => setEditingFavorites(true)} /> : undefined}
-                />
-                <FavoriteFilms films={user.favorites} isMe={isMe} onEdit={() => setEditingFavorites(true)} />
-              </div>
-            )}
+            <div className={`grid gap-12 ${showSide ? "lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-10" : ""}`}>
+              <div className="flex flex-col gap-12 min-w-0">
+                {(user.favorites.length > 0 || isMe) && (
+                  <div>
+                    <SectionHeading
+                      title="Filmes favoritos"
+                      action={isMe && user.favorites.length > 0 ? <EditFavoritesButton onClick={() => setEditingFavorites(true)} /> : undefined}
+                    />
+                    <FavoriteFilms films={user.favorites} isMe={isMe} onEdit={() => setEditingFavorites(true)} />
+                  </div>
+                )}
 
-            <div>
-              <SectionHeading
-                title="Assistidos recentemente"
-                href={user.filmsCount > RECENT_FILMS ? `${pathname}?tab=diario` : undefined}
-                linkLabel="Diário completo"
-              />
-              {!recentFilms.data ? (
-                <Loading />
-              ) : recentFilms.data.items.length > 0 ? (
-                <MovieGrid
-                  variant="compact"
-                  items={recentFilms.data.items.map((review) => ({
-                    movie: review.movie,
-                    // o pôster abre o registro (nota, review, curtidas e comentários), não a página do filme
-                    href: reviewHref(review),
-                    rating: review.rating,
-                    liked: review.liked,
-                    rewatch: review.rewatch,
-                    reviewHref: review.text ? reviewHref(review) : undefined,
-                  }))}
-                />
-              ) : (
-                <Empty isMe={isMe} me="Você ainda não registrou nenhum filme." other={`${user.name} ainda não registrou nenhum filme.`} />
+                <div>
+                  <SectionHeading
+                    title="Assistidos recentemente"
+                    href={user.filmsCount > RECENT_FILMS ? `${pathname}?tab=diario` : undefined}
+                    linkLabel="Diário completo"
+                  />
+                  {!recentFilms.data ? (
+                    <Loading />
+                  ) : recentFilms.data.items.length > 0 ? (
+                    <MovieGrid
+                      variant="five"
+                      items={recentFilms.data.items.map((review) => ({
+                        movie: review.movie,
+                        // o pôster abre o registro (nota, review, curtidas e comentários), não a página do filme
+                        href: reviewHref(review),
+                        rating: review.rating,
+                        liked: review.liked,
+                        rewatch: review.rewatch,
+                        reviewHref: review.text ? reviewHref(review) : undefined,
+                      }))}
+                    />
+                  ) : (
+                    <Empty isMe={isMe} me="Você ainda não registrou nenhum filme." other={`${user.name} ainda não registrou nenhum filme.`} />
+                  )}
+                </div>
+              </div>
+
+              {showSide && (
+                <aside className="flex flex-col gap-10 min-w-0">
+                  {(["actors", "directors"] as const).map((kind) =>
+                    !people ? (
+                      <PeopleSkeleton key={kind} />
+                    ) : (
+                      (people[kind].length > 0 || isMe) && (
+                        <div key={kind}>
+                          <SectionHeading
+                            title={kind === "actors" ? "Atores favoritos" : "Diretores favoritos"}
+                            action={isMe && people[kind].length > 0 ? <EditFavoritesButton onClick={() => setEditingPeople(kind)} /> : undefined}
+                          />
+                          <FavoritePeopleCompact kind={kind} people={people[kind]} isMe={isMe} onEdit={() => setEditingPeople(kind)} />
+                        </div>
+                      )
+                    ),
+                  )}
+
+                  <div>
+                    <SectionHeading
+                      title="Listas"
+                      count={lists.data && lists.data.length > 0 ? lists.data.length : undefined}
+                      href={lists.data && lists.data.length > SIDE_LISTS ? `${pathname}?tab=listas` : undefined}
+                      linkLabel="Ver todas"
+                    />
+                    {!lists.data ? (
+                      <div aria-hidden="true" className="h-14 rounded-md bg-surface animate-pulse" />
+                    ) : lists.data.length > 0 ? (
+                      <ul className="flex flex-col gap-1 -mt-2">
+                        {lists.data.slice(0, SIDE_LISTS).map((list) => (
+                          <li key={list.id}>
+                            <ListRow list={list} />
+                          </li>
+                        ))}
+                      </ul>
+                    ) : isMe ? (
+                      <button
+                        onClick={() => setCreatingList(true)}
+                        className="w-full flex flex-col items-center gap-2 py-5 rounded-md border border-dashed border-foreground/15 text-sm text-brand-slate hover:border-foreground/30 hover:text-foreground transition-colors"
+                      >
+                        <StackIcon size={24} weight="light" />
+                        Criar sua primeira lista
+                      </button>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2 py-5 text-sm text-brand-slate/70">
+                        <StackIcon size={24} weight="light" />
+                        Nenhuma lista ainda
+                      </div>
+                    )}
+                  </div>
+                </aside>
               )}
             </div>
 
@@ -438,48 +503,6 @@ function Profile() {
                   ? "Você ainda não criou nenhuma lista. Que tal uma maratona ou a filmografia de um diretor?"
                   : `${user.name} ainda não criou nenhuma lista pública.`}
               </p>
-            )}
-          </div>
-        )}
-
-        {tab === "favoritos" && (
-          <div className="flex flex-col gap-12">
-            <div>
-              <SectionHeading
-                title="Filmes favoritos"
-                action={isMe && user.favorites.length > 0 ? <EditFavoritesButton onClick={() => setEditingFavorites(true)} /> : undefined}
-              />
-              {user.favorites.length > 0 || isMe ? (
-                <FavoriteFilms films={user.favorites} isMe={isMe} onEdit={() => setEditingFavorites(true)} />
-              ) : (
-                <p className="py-6 text-center text-sm text-brand-slate">{user.name} ainda não escolheu filmes favoritos.</p>
-              )}
-            </div>
-            {!favoritePeople.data ? (
-              favoritePeople.error ? (
-                <p className="py-12 text-center text-brand-slate">Não foi possível carregar os favoritos.</p>
-              ) : (
-                <Loading />
-              )
-            ) : (
-              (["actors", "directors"] as const).map((kind) => {
-                const people = favoritePeople.data![kind];
-                return (
-                  <div key={kind}>
-                    <SectionHeading
-                      title={favoritePeopleTitle(kind)}
-                      action={isMe && people.length > 0 ? <EditFavoritesButton onClick={() => setEditingPeople(kind)} /> : undefined}
-                    />
-                    {people.length > 0 || isMe ? (
-                      <FavoritePeopleRow kind={kind} people={people} isMe={isMe} onEdit={() => setEditingPeople(kind)} />
-                    ) : (
-                      <p className="py-6 text-center text-sm text-brand-slate">
-                        {user.name} ainda não escolheu {kind === "actors" ? "atores e atrizes" : "diretores"} favoritos.
-                      </p>
-                    )}
-                  </div>
-                );
-              })
             )}
           </div>
         )}
@@ -591,6 +614,19 @@ function Empty({ isMe, me, other }: { isMe: boolean; me: string; other: string }
           Explorar filmes
         </Link>
       )}
+    </div>
+  );
+}
+
+function PeopleSkeleton() {
+  return (
+    <div aria-hidden="true">
+      <div className="h-4 w-32 mb-5 rounded bg-surface animate-pulse" />
+      <div className="flex gap-3">
+        {Array.from({ length: 5 }, (_, i) => (
+          <div key={i} className="w-[calc((100%-3rem)/5)] max-w-20 aspect-square rounded-full bg-surface animate-pulse" />
+        ))}
+      </div>
     </div>
   );
 }

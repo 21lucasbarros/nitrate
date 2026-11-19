@@ -12,27 +12,24 @@ import { IconButton } from "./ui/icon-button";
 import { Modal } from "./ui/modal";
 import { PersonPhoto } from "./ui/person-photo";
 
-const LABELS: Record<FavoritePeopleKind, { title: string; empty: string; search: string; department: string }> = {
+const LABELS: Record<FavoritePeopleKind, { title: string; search: string; department: string }> = {
   actors: {
     title: "Atores e atrizes favoritos",
-    empty: `Escolha seus ${MAX_FAVORITE_PEOPLE} atores e atrizes favoritos`,
     search: "Buscar um ator ou atriz",
     department: "Acting",
   },
   directors: {
     title: "Diretores favoritos",
-    empty: `Escolha seus ${MAX_FAVORITE_PEOPLE} diretores favoritos`,
     search: "Buscar um diretor ou diretora",
     department: "Directing",
   },
 };
 
-export function favoritePeopleTitle(kind: FavoritePeopleKind) {
-  return LABELS[kind].title;
-}
-
-/** Fotos redondas dos favoritos, na ordem escolhida, com o nome embaixo. */
-export function FavoritePeopleRow({ kind, people, isMe, onEdit }: {
+/**
+ * Versão pequena da fileira, para a coluna lateral da aba Perfil: as 5 fotos cabem numa linha
+ * (inclusive no celular), e o nome vai embaixo em letra miúda.
+ */
+export function FavoritePeopleCompact({ kind, people, isMe, onEdit }: {
   kind: FavoritePeopleKind;
   people: FavoritePerson[];
   isMe: boolean;
@@ -42,29 +39,28 @@ export function FavoritePeopleRow({ kind, people, isMe, onEdit }: {
     return isMe ? (
       <button
         onClick={onEdit}
-        className="w-full flex items-center justify-center gap-2 py-8 rounded-md border border-dashed border-foreground/15 text-sm text-brand-slate hover:border-foreground/30 hover:text-foreground transition-colors"
+        className="w-full flex items-center justify-center gap-2 py-5 rounded-md border border-dashed border-foreground/15 text-sm text-brand-slate hover:border-foreground/30 hover:text-foreground transition-colors"
       >
-        <PlusIcon size={16} weight="bold" />
-        {LABELS[kind].empty}
+        <PlusIcon size={14} weight="bold" />
+        {kind === "actors" ? "Escolher atores e atrizes" : "Escolher diretores"}
       </button>
     ) : null;
   }
 
-  // mesma conta dos filmes favoritos: 3 por linha no celular, 5 a partir do sm
-  const item = "w-[calc((100%-1.5rem)/3)] sm:w-[calc((100%-4rem)/5)]";
+  const item = "w-[calc((100%-3rem)/5)] max-w-20";
 
   return (
-    <ol className="flex flex-wrap justify-center gap-3 sm:gap-4">
+    <ol className="flex gap-3">
       {people.map((person) => (
         <li key={person.tmdbId} className={item}>
-          <Link href={`/person/${person.tmdbId}`} className="group flex flex-col items-center gap-2.5 text-center">
+          <Link href={`/person/${person.tmdbId}`} title={person.name} className="group flex flex-col items-center gap-1.5 text-center">
             <PersonPhoto
               name={person.name}
               profilePath={person.profilePath}
-              sizes="(min-width: 640px) 160px, 28vw"
-              className="w-full max-w-40 group-hover:ring-2 group-hover:ring-brand-orange transition-shadow"
+              sizes="80px"
+              className="w-full group-hover:ring-2 group-hover:ring-brand-orange transition-shadow"
             />
-            <span className="text-sm leading-tight text-foreground/85 group-hover:text-foreground line-clamp-2">{person.name}</span>
+            <span className="text-[11px] leading-tight text-brand-slate group-hover:text-foreground line-clamp-2">{person.name}</span>
           </Link>
         </li>
       ))}
@@ -73,9 +69,9 @@ export function FavoritePeopleRow({ kind, people, isMe, onEdit }: {
           <button
             onClick={onEdit}
             aria-label="Adicionar favorito"
-            className="w-full max-w-40 mx-auto aspect-square flex items-center justify-center rounded-full border border-dashed border-foreground/15 text-brand-slate hover:border-foreground/30 hover:text-foreground transition-colors"
+            className="w-full aspect-square flex items-center justify-center rounded-full border border-dashed border-foreground/15 text-brand-slate hover:border-foreground/30 hover:text-foreground transition-colors"
           >
-            <PlusIcon size={20} />
+            <PlusIcon size={16} />
           </button>
         </li>
       )}

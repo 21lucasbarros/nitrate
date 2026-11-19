@@ -19,8 +19,8 @@ export interface MovieGridItem {
 
 interface MovieGridProps {
   items: MovieGridItem[];
-  /** "compact" para faixas na home */
-  variant?: "default" | "compact";
+  /** "compact" para faixas na home; "five" para alinhar com os 5 favoritos do perfil */
+  variant?: "default" | "compact" | "five";
   /** mostra título e ano abaixo do pôster (útil em resultados de busca) */
   showTitles?: boolean;
 }
@@ -29,7 +29,9 @@ export function MovieGrid({ items, variant = "default", showTitles = false }: Mo
   const cols =
     variant === "compact"
       ? "grid-cols-3 sm:grid-cols-4 md:grid-cols-6"
-      : "grid-cols-3 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8";
+      : variant === "five"
+        ? "grid-cols-3 sm:grid-cols-5"
+        : "grid-cols-3 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8";
 
   return (
     <ul className={`grid ${cols} gap-x-3 gap-y-5 sm:gap-x-4`}>
