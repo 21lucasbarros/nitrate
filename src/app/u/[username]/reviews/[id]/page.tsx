@@ -165,7 +165,7 @@ function ReviewView({ review, onChange, onDeleted }: {
           {/* a review */}
           <section className="min-w-0 md:pt-24">
             <Link href={`/u/${user.username}`} className="group flex items-center gap-3 pb-4 border-b border-foreground/10">
-              <Avatar name={user.name} username={user.username} size="sm" />
+              <Avatar name={user.name} username={user.username} avatar={user.avatar} size="sm" />
               <span className="text-sm text-brand-slate">
                 Review de <span className="font-semibold text-foreground group-hover:text-brand-orange transition-colors">{user.name}</span>
               </span>

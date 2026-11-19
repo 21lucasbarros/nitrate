@@ -152,7 +152,7 @@ export function HeaderSearch() {
                 <Group label="Perfis">
                   {userResults.map((user) => (
                     <ResultLink key={user.username} href={`/u/${user.username}`} onClick={close}>
-                      <Avatar name={user.name} username={user.username} size="sm" />
+                      <Avatar name={user.name} username={user.username} avatar={user.avatar} size="sm" />
                       <span className="min-w-0">
                         <span className="block text-sm truncate">{user.name}</span>
                         <span className="block text-xs text-brand-slate truncate">@{user.username}</span>

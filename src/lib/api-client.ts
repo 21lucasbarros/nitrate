@@ -18,7 +18,8 @@ export async function apiFetch<T>(
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     headers: {
-      "Content-Type": "application/json",
+      // FormData (upload) define o próprio Content-Type, com o boundary do multipart
+      ...(!(options?.body instanceof FormData) && { "Content-Type": "application/json" }),
       ...(token && { Authorization: `Bearer ${token}` }),
       ...options?.headers,
     },

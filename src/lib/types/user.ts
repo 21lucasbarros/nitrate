@@ -4,6 +4,7 @@ import type { Movie } from "@/types/movie";
 export interface UserSummary {
   username: string;
   name: string;
+  avatar: string | null; // caminho da foto na API (/users/x/avatar?v=...); null = sem foto
 }
 
 export interface UserProfile extends UserSummary {

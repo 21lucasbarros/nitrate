@@ -195,7 +195,7 @@ function Profile() {
     <>
       <section className="flex flex-col md:flex-row md:items-center gap-6 pb-8">
         <div className="flex items-center gap-5 min-w-0">
-          <Avatar name={user.name} username={user.username} size="lg" />
+          <Avatar name={user.name} username={user.username} avatar={user.avatar} size="lg" />
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-3">
               <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">{user.name}</h1>

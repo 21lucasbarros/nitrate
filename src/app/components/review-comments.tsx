@@ -60,7 +60,7 @@ export function ReviewComments({ review, onCountChange }: { review: MovieReview;
           {comments.data.map((comment) => (
             <li key={comment.id} className="group flex gap-3 py-4">
               <Link href={`/u/${comment.user.username}`} className="shrink-0">
-                <Avatar name={comment.user.name} username={comment.user.username} size="sm" />
+                <Avatar name={comment.user.name} username={comment.user.username} avatar={comment.user.avatar} size="sm" />
               </Link>
               <div className="min-w-0 flex-1">
                 <p className="text-sm">
@@ -89,7 +89,7 @@ export function ReviewComments({ review, onCountChange }: { review: MovieReview;
 
       {status === "authenticated" ? (
         <form onSubmit={send} className="flex gap-3">
-          <Avatar name={me.name} username={me.username} size="sm" />
+          <Avatar name={me.name} username={me.username} avatar={me.avatar} size="sm" />
           <div className="flex-1">
             <textarea
               value={text}

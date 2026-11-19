@@ -12,7 +12,7 @@ export function SimilarUsers({ users }: { users: SimilarUser[] }) {
             href={`/u/${user.username}`}
             className="group flex items-center gap-3 h-full p-3 rounded-md bg-surface hover:bg-surface-strong transition-colors"
           >
-            <Avatar name={user.name} username={user.username} size="md" />
+            <Avatar name={user.name} username={user.username} avatar={user.avatar} size="md" />
             <span className="flex-1 min-w-0">
               <span className="block font-medium truncate group-hover:text-brand-orange transition-colors">{user.name}</span>
               <span className="block text-xs text-brand-slate truncate">

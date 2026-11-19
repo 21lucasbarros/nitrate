@@ -64,7 +64,7 @@ export function ReviewCard({ review, hideMovie = false, hideUser = false, excerp
               href={`/u/${user.username}`}
               className="flex items-center gap-2 font-semibold text-foreground/90 hover:text-brand-orange transition-colors"
             >
-              <Avatar name={user.name} username={user.username} size="sm" />
+              <Avatar name={user.name} username={user.username} avatar={user.avatar} size="sm" />
               {user.name}
             </Link>
           )}

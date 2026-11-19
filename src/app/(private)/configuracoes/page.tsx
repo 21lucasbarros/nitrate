@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeftIcon,
@@ -11,6 +11,7 @@ import {
   EyeIcon,
   EyeSlashIcon,
   InstagramLogoIcon,
+  TrashIcon,
   WarningIcon,
   XLogoIcon,
 } from "@phosphor-icons/react";
@@ -21,7 +22,7 @@ import { Modal } from "@/app/components/ui/modal";
 import { SectionHeading } from "@/app/components/ui/section-heading";
 import { ApiError } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
-import { deleteMyAccount, exportMyData, updateMyProfile } from "@/lib/services/user-service";
+import { deleteMyAccount, exportMyData, removeMyAvatar, updateMyProfile, uploadMyAvatar } from "@/lib/services/user-service";
 import type { UserProfile } from "@/lib/types/user";
 
 const NAME_MAX = 60;
@@ -90,21 +91,7 @@ function ProfileForm({ user }: { user: UserProfile }) {
     <section className="mt-10">
       <SectionHeading title="Perfil" />
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-        {/* a foto ainda é a inicial do nome; o espaço já fica pronto para o upload */}
-        <div className="flex items-center gap-5">
-          <Avatar name={name || user.name} username={user.username} size="lg" />
-          <div>
-            <button
-              type="button"
-              disabled
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-foreground/15 text-sm text-brand-slate disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              <CameraIcon size={16} /> Trocar foto
-            </button>
-            <p className="mt-1.5 text-xs text-brand-slate/70">Em breve você vai poder enviar uma foto.</p>
-          </div>
-        </div>
-
+        <AvatarPicker user={user} previewName={name || user.name} />
         <label className="flex flex-col gap-2">
           <span className={label}>Nome</span>
           <input value={name} onChange={(e) => setName(e.target.value)} maxLength={NAME_MAX} required className={input} />
@@ -154,6 +141,93 @@ function ProfileForm({ user }: { user: UserProfile }) {
         </div>
       </form>
     </section>
+  );
+}
+
+const AVATAR_SIDE = 512; // o backend ainda reduz para 400; aqui é só para o upload ficar leve
+
+/** recorta o centro em quadrado e reduz no navegador, então nem a foto de 12 MP do celular pesa no envio */
+async function squareJpeg(file: File): Promise<Blob> {
+  const bitmap = await createImageBitmap(file); // já respeita a orientação (EXIF) da foto
+  const side = Math.min(bitmap.width, bitmap.height);
+  const target = Math.min(AVATAR_SIDE, side);
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = target;
+  const ctx = canvas.getContext("2d")!;
+  ctx.fillStyle = "#fff"; // PNG transparente: o JPEG não tem canal alfa
+  ctx.fillRect(0, 0, target, target);
+  ctx.drawImage(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, target, target);
+  bitmap.close();
+  return new Promise((resolve, reject) =>
+    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("toBlob"))), "image/jpeg", 0.9),
+  );
+}
+
+/** a foto é salva assim que escolhida, sem esperar o "Salvar perfil" */
+function AvatarPicker({ user, previewName }: { user: UserProfile; previewName: string }) {
+  const { refreshUser } = useAuth();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const run = async (action: () => Promise<unknown>) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await action();
+      refreshUser();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Não foi possível atualizar a foto. Tente outra imagem.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // escolher o mesmo arquivo de novo dispara o change
+    if (file) run(async () => uploadMyAvatar(await squareJpeg(file)));
+  };
+
+  return (
+    <div className="flex items-center gap-5">
+      <span className="relative">
+        <Avatar name={previewName} username={user.username} avatar={user.avatar} size="lg" />
+        {busy && (
+          <span className="absolute inset-0 rounded-full bg-background/60 flex items-center justify-center">
+            <CircleNotchIcon size={22} className="animate-spin" />
+          </span>
+        )}
+      </span>
+      <div>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            disabled={busy}
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-foreground/15 text-sm hover:bg-surface disabled:opacity-60 transition-colors"
+          >
+            <CameraIcon size={16} /> {user.avatar ? "Trocar foto" : "Enviar foto"}
+          </button>
+          {user.avatar && (
+            <button
+              type="button"
+              onClick={() => run(removeMyAvatar)}
+              disabled={busy}
+              className="inline-flex items-center gap-1.5 text-sm text-brand-slate hover:text-brand-crimson disabled:opacity-60 transition-colors"
+            >
+              <TrashIcon size={15} /> Remover
+            </button>
+          )}
+        </div>
+        <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp,image/heic" onChange={handleFile} className="hidden" />
+        {error ? (
+          <p role="alert" className="mt-1.5 text-xs text-brand-crimson">{error}</p>
+        ) : (
+          <p className="mt-1.5 text-xs text-brand-slate/70">JPG ou PNG. A foto é recortada em quadrado.</p>
+        )}
+      </div>
+    </div>
   );
 }
 

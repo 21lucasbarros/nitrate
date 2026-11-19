@@ -68,7 +68,7 @@ export default function Header() {
               <MobileSearchLink />
               <NotificationBell />
               <Link href={`/u/${user.username}`} aria-label="Meu perfil" title={`@${user.username}`} className="rounded-full ring-2 ring-transparent hover:ring-brand-orange/60 transition-shadow">
-                <Avatar name={user.name} username={user.username} size="sm" />
+                <Avatar name={user.name} username={user.username} avatar={user.avatar} size="sm" />
               </Link>
               <Link
                 href="/configuracoes"

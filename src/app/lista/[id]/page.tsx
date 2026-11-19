@@ -76,7 +76,7 @@ function ListView({ list, onChange }: { list: MovieList; onChange: (list: MovieL
         <h1 className="mt-2 text-3xl sm:text-4xl font-semibold tracking-tight">{list.name}</h1>
         <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-brand-slate">
           <Link href={`/u/${list.owner.username}`} className="flex items-center gap-2 text-foreground/85 hover:text-brand-orange">
-            <Avatar name={list.owner.name} username={list.owner.username} size="xs" />
+            <Avatar name={list.owner.name} username={list.owner.username} avatar={list.owner.avatar} size="xs" />
             {list.owner.name}
           </Link>
           <span aria-hidden="true">·</span>

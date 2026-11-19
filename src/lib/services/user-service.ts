@@ -13,6 +13,17 @@ export function updateMyProfile(data: ProfileUpdate): Promise<UserProfile> {
   return apiFetch<UserProfile>("/users/me/profile", { method: "PUT", body: JSON.stringify(data) });
 }
 
+/** a foto vai como multipart; o backend recorta, reduz e devolve o perfil atualizado */
+export function uploadMyAvatar(image: Blob): Promise<UserProfile> {
+  const body = new FormData();
+  body.append("file", image, "avatar.jpg");
+  return apiFetch<UserProfile>("/users/me/avatar", { method: "PUT", body });
+}
+
+export function removeMyAvatar(): Promise<UserProfile> {
+  return apiFetch<UserProfile>("/users/me/avatar", { method: "DELETE" });
+}
+
 /** cópia de tudo o que o Nitrate guarda sobre a pessoa (LGPD) */
 export function exportMyData(): Promise<unknown> {
   return apiFetch<unknown>("/users/me/export");

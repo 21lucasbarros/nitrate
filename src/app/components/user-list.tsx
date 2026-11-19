@@ -22,7 +22,7 @@ export function UserList({ users, empty, columns = 3, onSelect }: {
             onClick={onSelect}
             className="flex items-center gap-3 p-3 rounded-md hover:bg-surface-strong transition-colors"
           >
-            <Avatar name={user.name} username={user.username} size="md" />
+            <Avatar name={user.name} username={user.username} avatar={user.avatar} size="md" />
             <span className="min-w-0">
               <span className="block font-medium truncate">{user.name}</span>
               <span className="block text-sm text-brand-slate truncate">@{user.username}</span>

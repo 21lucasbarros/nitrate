@@ -193,7 +193,7 @@ function FilmView({ film }: { film: Movie }) {
             onClick={() => setSheetOpen(true)}
             className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl bg-surface hover:bg-surface-strong transition-colors text-left"
           >
-            <Avatar name={me.name} username={me.username} size="xs" />
+            <Avatar name={me.name} username={me.username} avatar={me.avatar} size="xs" />
             <span className="flex-1 min-w-0 text-sm truncate">
               {timesWatched > 0 ? "Você registrou este filme" : inWatchlist ? "Está na sua watchlist" : "Registrar, avaliar ou guardar"}
             </span>

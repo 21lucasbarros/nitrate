@@ -280,7 +280,7 @@ function Actor({ user }: { user: UserSummary }) {
 function ActorAvatar({ user }: { user: UserSummary }) {
   return (
     <Link href={`/u/${user.username}`} className="shrink-0 self-start">
-      <Avatar name={user.name} username={user.username} size="sm" />
+      <Avatar name={user.name} username={user.username} avatar={user.avatar} size="sm" />
     </Link>
   );
 }

@@ -21,7 +21,7 @@ export function ActivityPoster({ review }: { review: MovieReview }) {
         />
       </Link>
       <Link href={`/u/${review.user.username}`} className="mt-2.5 flex items-center gap-2 min-w-0 group">
-        <Avatar name={review.user.name} username={review.user.username} size="xs" />
+        <Avatar name={review.user.name} username={review.user.username} avatar={review.user.avatar} size="xs" />
         <span className="text-sm truncate text-foreground/85 group-hover:text-brand-orange">{review.user.name}</span>
       </Link>
       <div className="mt-1 flex items-center gap-1.5 text-brand-slate">

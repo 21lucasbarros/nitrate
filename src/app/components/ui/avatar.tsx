@@ -1,4 +1,6 @@
-// ainda não temos foto de perfil: usamos a inicial do nome numa cor derivada do username
+import { API_BASE_URL } from "@/lib/config";
+
+// sem foto de perfil: a inicial do nome numa cor derivada do username
 const COLORS = [
   "bg-brand-blue",
   "bg-brand-orange",
@@ -17,6 +19,8 @@ function colorFor(username: string): string {
 interface AvatarProps {
   name: string;
   username: string;
+  /** caminho da foto na API (UserSummary.avatar); sem ele, mostra a inicial */
+  avatar?: string | null;
   size?: "xs" | "sm" | "md" | "lg" | "xl";
 }
 
@@ -28,7 +32,21 @@ const SIZES = {
   xl: "w-24 h-24 sm:w-28 sm:h-28 text-4xl sm:text-5xl",
 };
 
-export function Avatar({ name, username, size = "md" }: AvatarProps) {
+export function Avatar({ name, username, avatar, size = "md" }: AvatarProps) {
+  if (avatar) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- a foto já sai do backend recortada e pequena (400px)
+      <img
+        src={`${API_BASE_URL}${avatar}`}
+        alt=""
+        aria-hidden="true"
+        loading="lazy"
+        decoding="async"
+        className={`${SIZES[size]} shrink-0 rounded-full object-cover bg-surface select-none`}
+      />
+    );
+  }
+
   return (
     <span
       aria-hidden="true"
