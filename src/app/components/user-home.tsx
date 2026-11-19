@@ -7,6 +7,7 @@ import { useFetch } from "@/lib/hooks/use-fetch";
 import { getMyFeed, getMyRecommendations, getUserWatchlist } from "@/lib/services/user-service";
 import { getRecentReviews } from "@/lib/services/review-service";
 import { getCatalog } from "@/lib/services/movie-service";
+import { getPopularLists } from "@/lib/services/list-service";
 import { getMyRetrospectiveMonths } from "@/lib/services/retrospective-service";
 import { cachedFetcher } from "@/lib/cache";
 import { currentMonth, monthLabel, shiftMonth } from "@/utils/format";
@@ -14,6 +15,7 @@ import { MovieGrid } from "./movie-grid";
 import { Recommendations } from "./recommendations";
 import { WhatToWatchButton } from "./what-to-watch";
 import { ActivityPoster } from "./activity-poster";
+import { ListCard } from "./list-card";
 import { ReviewCard } from "./review-card";
 import { SectionHeading } from "./ui/section-heading";
 
@@ -29,6 +31,9 @@ const fetchRetroMonths = () => getMyRetrospectiveMonths();
 const DISCOVER_POOL = 30;
 const fetchMovies = () => getCatalog(0, DISCOVER_POOL);
 const fetchRecommendations = () => getMyRecommendations();
+// as listas mais curtidas mudam devagar
+const POPULAR_LISTS = 3;
+const fetchPopularLists = cachedFetcher(() => getPopularLists(POPULAR_LISTS), 5 * 60 * 1000);
 
 export default function UserHome({ user }: { user: UserProfile }) {
   const firstName = user.name.split(" ")[0];
@@ -42,6 +47,7 @@ export default function UserHome({ user }: { user: UserProfile }) {
   // a chave inclui a contagem de filmes: registrar um filme novo refaz as recomendações
   const recommendations = useFetch(`${user.username}:${user.filmsCount}`, fetchRecommendations);
   const retroMonths = useFetch(user.username, fetchRetroMonths);
+  const popularLists = useFetch("popular", fetchPopularLists);
   // o mês que acabou ganha destaque; se ele estiver vazio, mostramos o mês em andamento
   const lastMonth = shiftMonth(currentMonth(), -1);
   const retroMonth = retroMonths.data?.includes(lastMonth)
@@ -150,6 +156,19 @@ export default function UserHome({ user }: { user: UserProfile }) {
               <ReviewCard key={review.id} review={review} excerpt />
             ))}
           </div>
+        </section>
+      )}
+
+      {popularLists.data && popularLists.data.length > 0 && (
+        <section className="mt-12">
+          <SectionHeading title="Listas populares" />
+          <ul className="grid sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-10">
+            {popularLists.data.map((list) => (
+              <li key={list.id}>
+                <ListCard list={list} showOwner />
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 

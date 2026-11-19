@@ -1,13 +1,15 @@
 import Image from "next/image";
 import Link from "next/link";
-import { LockSimpleIcon } from "@phosphor-icons/react";
+import { ChatCircleIcon, HeartIcon, LockSimpleIcon } from "@phosphor-icons/react";
 import type { MovieList } from "@/lib/types/list";
 import { posterUrl } from "@/utils/poster";
+import { Avatar } from "./ui/avatar";
 
 const STACK = 5;
 
-export function listHref(list: { id: number }): string {
-  return `/lista/${list.id}`;
+/** a lista mora no perfil de quem criou: /u/lucas/lista/filmes-do-mesmo-universo */
+export function listHref(list: { slug: string; owner: { username: string } }): string {
+  return `/u/${list.owner.username}/lista/${list.slug}`;
 }
 
 const MINI_STACK = 3;
@@ -75,10 +77,38 @@ export function ListCard({ list, showOwner = false }: { list: MovieList; showOwn
         )}
         {list.name}
       </h3>
-      <p className="mt-0.5 text-sm text-brand-slate">
-        {showOwner && <>{list.owner.name} · </>}
-        {list.filmsCount} {list.filmsCount === 1 ? "filme" : "filmes"}
-      </p>
+      <div className="mt-1 flex items-center gap-x-3 text-sm text-brand-slate">
+        {showOwner && (
+          <span className="flex min-w-0 items-center gap-1.5 text-foreground/80">
+            <Avatar name={list.owner.name} username={list.owner.username} avatar={list.owner.avatar} size="xs" />
+            <span className="truncate">{list.owner.name}</span>
+          </span>
+        )}
+        <span className="shrink-0">
+          {list.filmsCount} {list.filmsCount === 1 ? "filme" : "filmes"}
+        </span>
+        <ListCounts list={list} />
+      </div>
     </Link>
+  );
+}
+
+/** curtidas e comentários, só quando houver */
+function ListCounts({ list }: { list: MovieList }) {
+  return (
+    <>
+      {list.likesCount > 0 && (
+        <span className="flex shrink-0 items-center gap-1" title={`${list.likesCount} ${list.likesCount === 1 ? "curtida" : "curtidas"}`}>
+          <HeartIcon size={13} weight="fill" className="text-brand-orange" />
+          <span className="tabular-nums">{list.likesCount}</span>
+        </span>
+      )}
+      {list.commentsCount > 0 && (
+        <span className="flex shrink-0 items-center gap-1" title={`${list.commentsCount} ${list.commentsCount === 1 ? "comentário" : "comentários"}`}>
+          <ChatCircleIcon size={13} />
+          <span className="tabular-nums">{list.commentsCount}</span>
+        </span>
+      )}
+    </>
   );
 }

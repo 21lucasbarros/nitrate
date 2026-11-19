@@ -50,7 +50,7 @@ import {
   FILM_SORTS,
   type FilmSort,
 } from "@/lib/services/user-service";
-import { getUserLists } from "@/lib/services/list-service";
+import { getSavedLists, getUserLists } from "@/lib/services/list-service";
 import type { FilmEntry, MovieReview } from "@/lib/types/review";
 import type { FavoritePeopleKind } from "@/types/person";
 import { compactDate, monthYear, timeAgo } from "@/utils/format";
@@ -86,6 +86,7 @@ const fetchReviewsPage = (key: string) => {
 };
 const fetchRecentFilms = (username: string) => getUserReviews(username, { page: 0, size: RECENT_FILMS });
 const fetchSimilar = () => getSimilarUsers();
+const fetchSavedLists = () => getSavedLists();
 const fetchRecentReviews = (username: string) =>
   getUserReviews(username, { page: 0, size: RECENT_REVIEWS, withText: true });
 
@@ -136,6 +137,8 @@ function Profile() {
   const following = useFetch(tab === "rede" || peopleModal === "following" ? username : null, getFollowing);
   const followers = useFetch(tab === "rede" || peopleModal === "followers" ? username : null, getFollowers);
   const lists = useFetch(tab === "listas" || tab === "perfil" ? username : null, getUserLists);
+  // listas de outras pessoas que salvei: só no meu perfil
+  const savedLists = useFetch(tab === "listas" && me?.username === username ? username : null, fetchSavedLists);
   const favoritePeople = useFetch(tab === "perfil" ? username : null, getFavoritePeople);
   // gostos parecidos: só na própria aba de amigos
   const similar = useFetch(tab === "rede" && me?.username === username ? username : null, fetchSimilar);
@@ -569,6 +572,19 @@ function Profile() {
                   ? "Você ainda não criou nenhuma lista. Que tal uma maratona ou a filmografia de um diretor?"
                   : `${user.name} ainda não criou nenhuma lista pública.`}
               </p>
+            )}
+
+            {savedLists.data && savedLists.data.length > 0 && (
+              <div className="mt-16">
+                <SectionHeading title="Listas salvas" count={savedLists.data.length} />
+                <ul className="grid sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-10">
+                  {savedLists.data.map((list) => (
+                    <li key={list.id}>
+                      <ListCard list={list} showOwner />
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
           </div>
         )}
