@@ -35,6 +35,14 @@ export function shortDate(isoDate: string): string {
   });
 }
 
+const SHORT_MONTHS = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+
+/** "1 nov" no ano atual, "1 nov 2024" nos outros: cabe numa linha por cima do pôster */
+export function compactDate(isoDate: string): string {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  return `${day} ${SHORT_MONTHS[month - 1]}${year !== new Date().getFullYear() ? ` ${year}` : ""}`;
+}
+
 /** data local de hoje no formato yyyy-mm-dd */
 export function todayIso(): string {
   const now = new Date();

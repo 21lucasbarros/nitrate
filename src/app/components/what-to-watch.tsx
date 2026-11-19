@@ -36,8 +36,17 @@ function candidates(movies: Movie[]): Movie[] {
   return released.length > 0 ? released : movies;
 }
 
-/** "What Should I Watch?": sorteia um filme da própria watchlist */
-export function WhatToWatchButton({ movies, className = "" }: { movies: Movie[]; className?: string }) {
+const BANNER_POSTERS = 3;
+
+/**
+ * "What Should I Watch?": sorteia um filme da própria watchlist.
+ * "link" é o atalho discreto (home); "banner" é o destaque no topo da aba Watchlist.
+ */
+export function WhatToWatchButton({ movies, variant = "link", className = "" }: {
+  movies: Movie[];
+  variant?: "link" | "banner";
+  className?: string;
+}) {
   const [reel, setReel] = useState<Reel | null>(null);
   const pool = candidates(movies);
 
@@ -48,18 +57,74 @@ export function WhatToWatchButton({ movies, className = "" }: { movies: Movie[];
 
   return (
     <>
-      <button
-        type="button"
-        onClick={draw}
-        className={`inline-flex items-center gap-1.5 text-sm text-brand-orange hover:text-foreground transition-colors ${className}`}
-      >
-        <ShuffleIcon size={15} weight="bold" />
-        O que eu assisto?
-      </button>
+      {variant === "banner" ? (
+        <Banner pool={pool} onDraw={draw} className={className} />
+      ) : (
+        <button
+          type="button"
+          onClick={draw}
+          className={`inline-flex items-center gap-1.5 text-sm text-brand-orange hover:text-foreground transition-colors ${className}`}
+        >
+          <ShuffleIcon size={15} weight="bold" />
+          O que eu assisto?
+        </button>
+      )}
       <Modal open={reel !== null} onClose={() => setReel(null)} label="What Should I Watch? Sorteio da watchlist">
         {reel && <Draw key={reel.id} reel={reel} poolSize={pool.length} onRedraw={draw} />}
       </Modal>
     </>
+  );
+}
+
+/** o convite para o sorteio: um leque de pôsteres da watchlist, a pergunta e o botão */
+function Banner({ pool, onDraw, className }: { pool: Movie[]; onDraw: () => void; className: string }) {
+  // os primeiros com pôster, para o leque não ter buracos
+  const fan = pool.filter((m) => m.posterPath).slice(0, BANNER_POSTERS);
+
+  return (
+    <div
+      className={`relative flex flex-col sm:flex-row sm:items-center gap-5 sm:gap-8 overflow-hidden rounded-lg bg-surface px-5 py-5 sm:px-7 ring-1 ring-inset ring-white/5 ${className}`}
+    >
+      {/* brilho laranja por trás do leque */}
+      <div aria-hidden="true" className="pointer-events-none absolute -left-10 top-1/2 -translate-y-1/2 w-60 h-60 rounded-full bg-brand-orange/15 blur-3xl" />
+
+      {fan.length > 0 && (
+        <button type="button" onClick={onDraw} tabIndex={-1} aria-hidden="true" className="group relative hidden sm:flex shrink-0 h-28 w-36 ml-2">
+          {fan.map((movie, i) => {
+            const src = posterUrl(movie.posterPath, "w185");
+            // as cartas abrem um pouco mais quando o mouse passa por cima
+            const rotate = ["-rotate-12 group-hover:-rotate-[18deg]", "rotate-0", "rotate-12 group-hover:rotate-[18deg]"][i];
+            const offset = ["left-0", "left-1/2 -translate-x-1/2", "right-0"][i];
+            return (
+              <div
+                key={movie.id}
+                style={{ zIndex: i === 1 ? 2 : 1 }}
+                className={`absolute top-0 ${offset} h-full aspect-2/3 overflow-hidden rounded-md bg-surface-strong ring-1 ring-white/10 shadow-[0_8px_24px_rgba(0,0,0,0.5)] origin-bottom transition-transform duration-300 ${rotate}`}
+              >
+                {src && <Image src={src} alt="" fill sizes="80px" className="object-cover" />}
+              </div>
+            );
+          })}
+        </button>
+      )}
+
+      <div className="relative flex-1 min-w-0">
+        <span className="text-[11px] font-semibold tracking-[0.2em] uppercase text-brand-orange">What Should I Watch?</span>
+        <h3 className="mt-1 text-lg sm:text-xl font-semibold tracking-tight">Não sabe o que assistir hoje?</h3>
+        <p className="mt-1 text-sm text-brand-slate">
+          Deixa com a gente: sorteamos um entre os {pool.length} {pool.length === 1 ? "filme" : "filmes"} da sua watchlist.
+        </p>
+      </div>
+
+      <button
+        type="button"
+        onClick={onDraw}
+        className="group relative inline-flex items-center justify-center gap-2 shrink-0 px-5 py-3 rounded-md bg-brand-btn text-brand-btn-text font-semibold hover:bg-brand-btn/90 active:scale-[0.98] transition-all"
+      >
+        <ShuffleIcon size={18} weight="bold" className="group-hover:rotate-180 transition-transform duration-500" />
+        Sortear um filme
+      </button>
+    </div>
   );
 }
 

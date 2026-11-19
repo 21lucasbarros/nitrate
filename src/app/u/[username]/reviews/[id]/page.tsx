@@ -243,7 +243,7 @@ function ReviewView({ review, onChange, onDeleted }: {
               <section>
                 <div className="flex items-baseline justify-between pb-2.5 mb-4 border-b border-foreground/10">
                   <h2 className="text-xs uppercase tracking-[0.14em] text-brand-slate">Mais de {firstName}</h2>
-                  <Link href={`/u/${user.username}?tab=diario`} className="text-xs text-brand-slate hover:text-foreground">Diário</Link>
+                  <Link href={`/u/${user.username}?tab=filmes`} className="text-xs text-brand-slate hover:text-foreground">Ver todos</Link>
                 </div>
                 <ul className="grid grid-cols-3 gap-2.5">
                   {others.map((other) => (

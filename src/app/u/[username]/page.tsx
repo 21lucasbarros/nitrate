@@ -4,11 +4,16 @@ import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
+  ArrowsClockwiseIcon,
+  CalendarBlankIcon,
+  CaretDownIcon,
   CircleNotchIcon,
   DownloadSimpleIcon,
+  HeartIcon,
   InstagramLogoIcon,
   PencilSimpleIcon,
   PlusIcon,
+  SortAscendingIcon,
   SparkleIcon,
   StackIcon,
   XLogoIcon,
@@ -29,6 +34,7 @@ import { Modal } from "@/app/components/ui/modal";
 import { SectionHeading } from "@/app/components/ui/section-heading";
 import { ReviewCard, reviewHref } from "@/app/components/review-card";
 import { Pagination } from "@/app/components/ui/pagination";
+import { ViewingPicker } from "@/app/components/viewing-picker";
 import { ApiError } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
 import { useFetch } from "@/lib/hooks/use-fetch";
@@ -38,16 +44,20 @@ import {
   getFollowing,
   getProfile,
   getSimilarUsers,
+  getUserFilms,
   getUserReviews,
   getUserWatchlist,
+  FILM_SORTS,
+  type FilmSort,
 } from "@/lib/services/user-service";
 import { getUserLists } from "@/lib/services/list-service";
+import type { FilmEntry, MovieReview } from "@/lib/types/review";
 import type { FavoritePeopleKind } from "@/types/person";
-import { monthYear } from "@/utils/format";
+import { compactDate, monthYear, timeAgo } from "@/utils/format";
 
 const TABS = [
   { id: "perfil", label: "Perfil" },
-  { id: "diario", label: "Diário" },
+  { id: "filmes", label: "Filmes" },
   { id: "reviews", label: "Reviews" },
   { id: "watchlist", label: "Watchlist" },
   { id: "listas", label: "Listas" },
@@ -56,24 +66,23 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]["id"];
 
-// links antigos: ?tab=filmes era o diário; os favoritos tinham aba própria e agora ficam no Perfil
-const TAB_ALIASES: Record<string, TabId> = { filmes: "diario", favoritos: "perfil" };
+// links antigos: a aba Filmes se chamava Diário; os favoritos tinham aba própria e agora ficam no Perfil
+const TAB_ALIASES: Record<string, TabId> = { diario: "filmes", favoritos: "perfil" };
 
-const FILMS_PER_PAGE = 48; // 6 linhas de 8
+const FILMS_PER_PAGE = 48; // Filmes e Watchlist: 8 linhas de 6 (12 de 4, 16 de 3 no celular)
 const REVIEWS_PER_PAGE = 10;
 const RECENT_FILMS = 5; // uma linha, alinhada com os 5 favoritos
 const RECENT_REVIEWS = 2;
 const SIDE_LISTS = 3; // listas na coluna lateral do Perfil
 
-// o useFetch compara o argumento por igualdade, então a chave é texto: "usuario|aba|pagina"
-const fetchDiaryPage = (key: string) => {
-  const [username, tab, page] = key.split("|");
-  return getUserReviews(
-    username,
-    tab === "reviews"
-      ? { page: Number(page) - 1, size: REVIEWS_PER_PAGE, withText: true }
-      : { page: Number(page) - 1, size: FILMS_PER_PAGE },
-  );
+// o useFetch compara o argumento por igualdade, então a chave é texto: "usuario|ordem|curtidos|pagina"
+const fetchFilmsPage = (key: string) => {
+  const [username, sort, liked, page] = key.split("|");
+  return getUserFilms(username, { page: Number(page) - 1, size: FILMS_PER_PAGE, sort: sort as FilmSort, liked: liked === "1" });
+};
+const fetchReviewsPage = (key: string) => {
+  const [username, page] = key.split("|");
+  return getUserReviews(username, { page: Number(page) - 1, size: REVIEWS_PER_PAGE, withText: true });
 };
 const fetchRecentFilms = (username: string) => getUserReviews(username, { page: 0, size: RECENT_FILMS });
 const fetchSimilar = () => getSimilarUsers();
@@ -103,6 +112,8 @@ function Profile() {
   const [editingFavorites, setEditingFavorites] = useState(false);
   const [editingPeople, setEditingPeople] = useState<FavoritePeopleKind | null>(null);
   const [creatingList, setCreatingList] = useState(false);
+  // aba Filmes: o filme visto mais de uma vez cujo seletor de registros está aberto
+  const [pickingFilm, setPickingFilm] = useState<FilmEntry | null>(null);
   // modal aberto pelos números "seguindo" / "seguidores" do topo
   const [peopleModal, setPeopleModal] = useState<"following" | "followers" | null>(null);
 
@@ -110,10 +121,15 @@ function Profile() {
   const tabParam = TAB_ALIASES[rawTab] ?? rawTab;
   const tab: TabId = TABS.some((t) => t.id === tabParam) ? (tabParam as TabId) : "perfil";
   const page = Math.max(1, Number(searchParams.get("page")) || 1);
+  // aba Filmes: a ordem e o filtro ficam na URL, então dá para compartilhar e voltar
+  const rawSort = searchParams.get("ordem");
+  const sort: FilmSort = FILM_SORTS.some((s) => s.id === rawSort) ? (rawSort as FilmSort) : "lancamento";
+  const likedOnly = searchParams.get("curtidos") === "1";
 
   // espera a sessão carregar: com token, o perfil diz se você segue a pessoa
   const profile = useFetch(status === "loading" ? null : username, getProfile);
-  const diary = useFetch(tab === "diario" || tab === "reviews" ? `${username}|${tab}|${page}` : null, fetchDiaryPage);
+  const films = useFetch(tab === "filmes" ? `${username}|${sort}|${likedOnly ? 1 : 0}|${page}` : null, fetchFilmsPage);
+  const reviewsPage = useFetch(tab === "reviews" ? `${username}|${page}` : null, fetchReviewsPage);
   const watchlist = useFetch(tab === "watchlist" ? username : null, getUserWatchlist);
   const recentFilms = useFetch(tab === "perfil" ? username : null, fetchRecentFilms);
   const recentReviews = useFetch(tab === "perfil" ? username : null, fetchRecentReviews);
@@ -144,16 +160,28 @@ function Profile() {
   const user = profile.data;
   const isMe = me?.username === user.username;
 
-  const navigate = (id: TabId, newPage: number, mode: "push" | "replace") => {
+  const navigate = (
+    id: TabId,
+    newPage: number,
+    mode: "push" | "replace",
+    filters: { sort: FilmSort; liked: boolean } = { sort, liked: likedOnly },
+  ) => {
     const params = new URLSearchParams();
     if (id !== "perfil") params.set("tab", id);
+    if (id === "filmes") {
+      if (filters.sort !== "lancamento") params.set("ordem", filters.sort);
+      if (filters.liked) params.set("curtidos", "1");
+    }
     if (newPage > 1) params.set("page", String(newPage));
     const qs = params.toString();
     router[mode](qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   };
 
-  // trocar de aba volta para a página 1
-  const selectTab = (id: TabId) => navigate(id, 1, "replace");
+  // trocar de aba volta para a página 1 (e a aba Filmes, para a ordem padrão)
+  const selectTab = (id: TabId) => navigate(id, 1, "replace", { sort: "lancamento", liked: false });
+
+  // mudar a ordem ou o filtro também volta para a página 1
+  const setFilmFilters = (filters: { sort: FilmSort; liked: boolean }) => navigate("filmes", 1, "replace", filters);
 
   // push: o "voltar" do navegador volta para a página anterior
   const selectPage = (newPage: number) => {
@@ -183,13 +211,13 @@ function Profile() {
   const showSide = isMe || hasPeople || hasLists;
 
   const counts: Partial<Record<TabId, number>> = {
-    diario: user.filmsCount,
+    filmes: user.filmsCount,
     reviews: user.reviewsCount,
     watchlist: user.watchlistCount,
   };
 
   const stats: { label: string; value: number; onClick: () => void }[] = [
-    { label: user.filmsCount === 1 ? "filme" : "filmes", value: user.filmsCount, onClick: () => selectTab("diario") },
+    { label: user.filmsCount === 1 ? "filme" : "filmes", value: user.filmsCount, onClick: () => selectTab("filmes") },
     { label: user.reviewsCount === 1 ? "review" : "reviews", value: user.reviewsCount, onClick: () => selectTab("reviews") },
     { label: "seguindo", value: user.followingCount, onClick: () => setPeopleModal("following") },
     {
@@ -328,8 +356,8 @@ function Profile() {
                 <div>
                   <SectionHeading
                     title="Assistidos recentemente"
-                    href={user.filmsCount > RECENT_FILMS ? `${pathname}?tab=diario` : undefined}
-                    linkLabel="Diário completo"
+                    href={user.filmsCount > RECENT_FILMS ? `${pathname}?tab=filmes` : undefined}
+                    linkLabel="Ver todos"
                   />
                   {!recentFilms.data ? (
                     <Loading />
@@ -344,6 +372,7 @@ function Profile() {
                         liked: review.liked,
                         rewatch: review.rewatch,
                         reviewHref: review.text ? reviewHref(review) : undefined,
+                        caption: <WatchedCaption review={review} />,
                       }))}
                     />
                   ) : (
@@ -422,38 +451,59 @@ function Profile() {
           </div>
         )}
 
-        {tab === "diario" &&
-          (!diary.data ? (
-            <Loading />
-          ) : diary.data.items.length > 0 ? (
-            <div className={diary.loading ? "opacity-50 transition-opacity" : ""}>
-              <MovieGrid
-                items={diary.data.items.map((review) => ({
-                  movie: review.movie,
-                  href: reviewHref(review),
-                  rating: review.rating,
-                  liked: review.liked,
-                  rewatch: review.rewatch,
-                  reviewHref: review.text ? reviewHref(review) : undefined,
-                }))}
-              />
-              <Pagination page={page} totalPages={diary.data.totalPages} onChange={selectPage} />
-            </div>
-          ) : (
-            <Empty isMe={isMe} me="Você ainda não registrou nenhum filme." other={`${user.name} ainda não registrou nenhum filme.`} />
-          ))}
+        {tab === "filmes" && (
+          <div>
+            <FilmsToolbar
+              total={films.data?.totalItems}
+              sort={sort}
+              likedOnly={likedOnly}
+              onChange={setFilmFilters}
+            />
+            {!films.data ? (
+              <Loading />
+            ) : films.data.items.length > 0 ? (
+              <div className={films.loading ? "opacity-50 transition-opacity" : ""}>
+                <MovieGrid
+                  variant="library"
+                  items={films.data.items.map((film) => {
+                    const { review, viewings } = film;
+                    const several = viewings.length > 1;
+                    return {
+                      movie: review.movie,
+                      // visto mais de uma vez: o clique pergunta qual das vezes abrir
+                      href: reviewHref(review),
+                      onOpen: several ? () => setPickingFilm(film) : undefined,
+                      rating: review.rating,
+                      liked: review.liked,
+                      watchCount: viewings.length,
+                      reviewHref: !several && review.text ? reviewHref(review) : undefined,
+                      caption: several ? `Visto ${viewings.length} vezes` : <WatchedCaption review={review} />,
+                    };
+                  })}
+                />
+                <Pagination page={page} totalPages={films.data.totalPages} onChange={selectPage} />
+              </div>
+            ) : likedOnly ? (
+              <p className="py-12 text-center text-brand-slate">
+                {isMe ? "Você ainda não curtiu nenhum filme." : `${user.name} ainda não curtiu nenhum filme.`}
+              </p>
+            ) : (
+              <Empty isMe={isMe} me="Você ainda não registrou nenhum filme." other={`${user.name} ainda não registrou nenhum filme.`} />
+            )}
+          </div>
+        )}
 
         {tab === "reviews" &&
-          (!diary.data ? (
+          (!reviewsPage.data ? (
             <Loading />
-          ) : diary.data.items.length > 0 ? (
-            <div className={diary.loading ? "opacity-50 transition-opacity" : ""}>
+          ) : reviewsPage.data.items.length > 0 ? (
+            <div className={reviewsPage.loading ? "opacity-50 transition-opacity" : ""}>
               <div className="divide-y divide-foreground/10 -mt-8">
-                {diary.data.items.map((review) => (
+                {reviewsPage.data.items.map((review) => (
                   <ReviewCard key={review.id} review={review} hideUser excerpt />
                 ))}
               </div>
-              <Pagination page={page} totalPages={diary.data.totalPages} onChange={selectPage} />
+              <Pagination page={page} totalPages={reviewsPage.data.totalPages} onChange={selectPage} />
             </div>
           ) : (
             <Empty isMe={isMe} me="Você ainda não escreveu nenhuma review." other={`${user.name} ainda não escreveu nenhuma review.`} />
@@ -464,12 +514,23 @@ function Profile() {
             <Loading />
           ) : watchlist.data && watchlist.data.length > 0 ? (
             <>
-              {isMe && (
-                <div className="-mt-2 mb-6 flex justify-end">
-                  <WhatToWatchButton movies={watchlist.data.map((item) => item.movie)} />
-                </div>
-              )}
-              <MovieGrid items={watchlist.data.map((item) => ({ movie: item.movie }))} />
+              {isMe && <WhatToWatchButton variant="banner" movies={watchlist.data.map((item) => item.movie)} className="mb-8" />}
+              {/* a API devolve a watchlist inteira (o sorteio precisa dela toda): a página é só um recorte */}
+              {(() => {
+                const totalPages = Math.ceil(watchlist.data.length / FILMS_PER_PAGE);
+                const current = Math.min(page, totalPages); // ?page=9 numa watchlist de 3 páginas
+                return (
+                  <>
+                    <MovieGrid
+                      variant="library"
+                      items={watchlist.data
+                        .slice((current - 1) * FILMS_PER_PAGE, current * FILMS_PER_PAGE)
+                        .map((item) => ({ movie: item.movie, caption: `Na lista ${timeAgo(item.addedAt)}` }))}
+                    />
+                    <Pagination page={current} totalPages={totalPages} onChange={selectPage} />
+                  </>
+                );
+              })()}
             </>
           ) : (
             <Empty isMe={isMe} me="Sua watchlist está vazia." other={`A watchlist de ${user.name} está vazia.`} />
@@ -570,6 +631,8 @@ function Profile() {
         </div>
       </Modal>
 
+      <ViewingPicker film={pickingFilm} onClose={() => setPickingFilm(null)} />
+
       {isMe && (
         <ListEditor
           open={creatingList}
@@ -601,6 +664,65 @@ function Profile() {
           }}
         />
       )}
+    </>
+  );
+}
+
+/** barra da aba Filmes: quantos são, a ordem e o filtro de curtidos */
+function FilmsToolbar({ total, sort, likedOnly, onChange }: {
+  total: number | undefined;
+  sort: FilmSort;
+  likedOnly: boolean;
+  onChange: (filters: { sort: FilmSort; liked: boolean }) => void;
+}) {
+  return (
+    <div className="-mt-2 mb-6 flex flex-wrap items-center gap-x-4 gap-y-3">
+      <p className="text-sm text-brand-slate tabular-nums">
+        {total === undefined ? "\u00a0" : `${total} ${total === 1 ? "filme" : "filmes"}${likedOnly ? (total === 1 ? " curtido" : " curtidos") : ""}`}
+      </p>
+      {/* no celular os controles ocupam a linha toda, e o seletor encolhe para caber */}
+      <div className="flex w-full sm:w-auto sm:ml-auto items-center gap-2">
+        <button
+          type="button"
+          onClick={() => onChange({ sort, liked: !likedOnly })}
+          aria-pressed={likedOnly}
+          className={`shrink-0 inline-flex items-center gap-1.5 h-9 px-3 rounded-md border text-sm transition-colors ${likedOnly ? "border-brand-orange/60 bg-brand-orange/10 text-foreground" : "border-foreground/15 text-brand-slate hover:text-foreground hover:border-foreground/30"}`}
+        >
+          <HeartIcon size={14} weight={likedOnly ? "fill" : "regular"} className={likedOnly ? "text-brand-orange" : ""} />
+          Curtidos
+        </button>
+        <label className="relative flex flex-1 sm:flex-none min-w-0 items-center">
+          <span className="sr-only">Ordenar por</span>
+          <SortAscendingIcon size={16} className="pointer-events-none absolute left-3 text-brand-slate" />
+          <select
+            value={sort}
+            onChange={(e) => onChange({ sort: e.target.value as FilmSort, liked: likedOnly })}
+            className="w-full truncate appearance-none h-9 pl-9 pr-9 rounded-md border border-foreground/15 bg-background text-sm text-foreground hover:border-foreground/30 focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue transition-colors cursor-pointer"
+          >
+            {FILM_SORTS.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <CaretDownIcon size={14} className="pointer-events-none absolute right-3 text-brand-slate" />
+        </label>
+      </div>
+    </div>
+  );
+}
+
+/** contexto do painel do pôster: quando assistiu (e se foi reassistido) */
+function WatchedCaption({ review }: { review: MovieReview }) {
+  if (!review.watchedOn) return null;
+  return (
+    <>
+      {review.rewatch ? (
+        <ArrowsClockwiseIcon size={10} weight="bold" className="shrink-0 text-brand-emerald" aria-label="Reassistido" />
+      ) : (
+        <CalendarBlankIcon size={10} className="shrink-0" />
+      )}
+      {compactDate(review.watchedOn)}
     </>
   );
 }

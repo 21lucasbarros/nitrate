@@ -44,7 +44,7 @@ export default function Header() {
           <Link href="/movies" className={navLink}>Filmes</Link>
           {status === "authenticated" ? (
             <>
-              <Link href={`/u/${user.username}?tab=diario`} className={navLink}>Diário</Link>
+              <Link href={`/u/${user.username}?tab=filmes`} className={navLink}>Meus filmes</Link>
               <Link href="/amigos" className={navLink}>Amigos</Link>
             </>
           ) : (

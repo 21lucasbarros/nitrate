@@ -1,5 +1,5 @@
 import { apiFetch } from "../api-client";
-import type { MovieReview, MovieUserState, Recommendation, WatchlistItem } from "../types/review";
+import type { FilmEntry, MovieReview, MovieUserState, Recommendation, WatchlistItem } from "../types/review";
 import type { Page } from "../types/page";
 import type { AppNotification, ProfileUpdate, SimilarUser, UserProfile, UserSummary } from "../types/user";
 import type { Movie } from "@/types/movie";
@@ -66,6 +66,51 @@ export function getUserReviews(
   return apiFetch<Page<MovieReview>>(
     `/users/${encodeURIComponent(username)}/reviews?page=${page}&size=${size}&withText=${withText}`,
   );
+}
+
+/** ordens da aba "Filmes" (espelha UserService.OrdemFilmes) */
+export const FILM_SORTS = [
+  { id: "lancamento", label: "Lançamento: mais novos" },
+  { id: "lancamento-antigos", label: "Lançamento: mais antigos" },
+  { id: "nota", label: "Maior nota" },
+  { id: "nota-menor", label: "Menor nota" },
+  { id: "assistidos", label: "Assistidos recentemente" },
+  { id: "titulo", label: "Título (A–Z)" },
+] as const;
+
+export type FilmSort = (typeof FILM_SORTS)[number]["id"];
+
+/** todos os filmes assistidos, um item por filme (com todas as vezes que a pessoa assistiu) */
+export async function getUserFilms(
+  username: string,
+  { page, size, sort, liked = false }: { page: number; size: number; sort: FilmSort; liked?: boolean },
+): Promise<Page<FilmEntry>> {
+  const data = await apiFetch<Page<FilmEntry | MovieReview>>(
+    `/users/${encodeURIComponent(username)}/films?page=${page}&size=${size}&sort=${sort}&liked=${liked}`,
+  );
+  return { ...data, items: data.items.map(toFilmEntry) };
+}
+
+/**
+ * O site e a API são publicados separadamente: uma API anterior ao FilmDTO devolve só a review
+ * mais recente. Nesse caso o filme vira "assistido uma vez", em vez de a aba quebrar.
+ */
+function toFilmEntry(item: FilmEntry | MovieReview): FilmEntry {
+  if ("viewings" in item && Array.isArray(item.viewings)) return item;
+  const review = item as MovieReview;
+  return {
+    review,
+    viewings: [
+      {
+        id: review.id,
+        watchedOn: review.watchedOn,
+        rating: review.rating,
+        liked: review.liked,
+        rewatch: review.rewatch,
+        hasText: !!review.text,
+      },
+    ],
+  };
 }
 
 export function getUserWatchlist(username: string): Promise<WatchlistItem[]> {

@@ -39,6 +39,21 @@ export interface ReviewComment {
   createdAt: string; // ISO
 }
 
+// Espelha FilmDTO: um filme da aba "Filmes", com todas as vezes que a pessoa assistiu
+export interface FilmViewing {
+  id: number; // id da review
+  watchedOn: string | null; // yyyy-mm-dd
+  rating: number | null;
+  liked: boolean;
+  rewatch: boolean;
+  hasText: boolean;
+}
+
+export interface FilmEntry {
+  review: MovieReview; // o registro mais recente
+  viewings: FilmViewing[]; // do mais recente para o mais antigo (1 = assistiu uma vez)
+}
+
 export interface WatchlistItem {
   movie: Movie;
   addedAt: string;
