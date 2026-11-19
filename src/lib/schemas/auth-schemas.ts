@@ -16,7 +16,7 @@ export const registerSchema = z
     name: z.string().min(2, "Nome muito curto"),
     username: usernameSchema,
     email: z.string().min(1, "Informe seu e-mail").email("E-mail inválido"),
-    password: z.string().min(6, "A senha precisa ter pelo menos 6 caracteres"),
+    password: z.string().min(8, "A senha precisa ter pelo menos 8 caracteres"), // igual ao AuthService
     confirmPassword: z.string().min(1, "Confirme sua senha"),
   })
   .refine((data) => data.password === data.confirmPassword, {

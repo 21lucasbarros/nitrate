@@ -88,10 +88,21 @@ const isLater = (a: string | null, b: string | null) => !!a && (!b || a > b);
 
 export class LetterboxdFormatError extends Error {}
 
+// um export real tem poucos MB; os limites só evitam que um zip malicioso (que se expande para
+// gigabytes) trave a aba de quem o abriu
+const ZIP_MAX_BYTES = 50 * 1024 * 1024;
+const CSV_MAX_BYTES = 50 * 1024 * 1024;
+
 export async function readLetterboxdExport(file: File): Promise<LetterboxdExport> {
+  if (file.size > ZIP_MAX_BYTES) {
+    throw new LetterboxdFormatError("Esse arquivo é grande demais para um export do Letterboxd.");
+  }
   let entries: Record<string, Uint8Array>;
   try {
-    entries = unzipSync(new Uint8Array(await file.arrayBuffer()));
+    // só os CSVs interessam: o resto do zip nem é descompactado
+    entries = unzipSync(new Uint8Array(await file.arrayBuffer()), {
+      filter: (f) => f.name.endsWith(".csv") && f.originalSize <= CSV_MAX_BYTES,
+    });
   } catch {
     throw new LetterboxdFormatError("Não foi possível abrir o arquivo. Envie o .zip exportado pelo Letterboxd.");
   }

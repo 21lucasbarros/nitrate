@@ -145,6 +145,8 @@ function ProfileForm({ user }: { user: UserProfile }) {
   );
 }
 
+const AVATAR_MAX_BYTES = 15 * 1024 * 1024; // fotos de celular passam fácil de 5 MB; o recorte reduz antes do envio
+
 /** a foto é salva assim que enquadrada, sem esperar o "Salvar perfil" */
 function AvatarPicker({ user, previewName }: { user: UserProfile; previewName: string }) {
   const { refreshUser } = useAuth();
@@ -169,10 +171,18 @@ function AvatarPicker({ user, previewName }: { user: UserProfile; previewName: s
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = ""; // escolher o mesmo arquivo de novo dispara o change
-    if (file) {
-      setError(null);
-      setPending(file);
+    if (!file) return;
+    // o servidor confere de novo; aqui é só para não abrir um arquivo enorme no editor
+    if (!file.type.startsWith("image/")) {
+      setError("Escolha uma imagem (JPG ou PNG).");
+      return;
     }
+    if (file.size > AVATAR_MAX_BYTES) {
+      setError("Imagem grande demais. Use uma de até 15 MB.");
+      return;
+    }
+    setError(null);
+    setPending(file);
   };
 
   const handleCropped = (image: Blob) => {

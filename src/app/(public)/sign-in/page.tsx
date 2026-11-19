@@ -30,10 +30,18 @@ import { useUsernameAvailability } from "@/lib/hooks/use-username-availability";
 import { useAuthToken } from "@/lib/hooks/use-auth-token";
 
 // destino após o login, vindo do guard das rotas privadas (?redirect=/algum/caminho).
-// só aceita caminhos internos para não virar um open redirect.
+// só aceita caminhos internos para não virar um open redirect. Checar o prefixo não basta:
+// o navegador lê "/\evil.com" e "/<TAB>/evil.com" como "//evil.com". Por isso a URL é
+// resolvida de verdade e só passa se continuar neste site.
 function getRedirectPath(): string {
   const redirect = new URLSearchParams(window.location.search).get("redirect");
-  if (redirect?.startsWith("/") && !redirect.startsWith("//")) return redirect;
+  if (!redirect?.startsWith("/")) return "/";
+  try {
+    const url = new URL(redirect, window.location.origin);
+    if (url.origin === window.location.origin) return url.pathname + url.search + url.hash;
+  } catch {
+    // URL inválida: cai no padrão
+  }
   return "/";
 }
 
