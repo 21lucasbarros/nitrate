@@ -12,13 +12,14 @@ import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { getCatalog, getTopRatedMovies, getTrendingMovies, searchMovies } from "@/lib/services/movie-service";
 import { Pagination } from "@/app/components/ui/pagination";
 import { cachedFetcher } from "@/lib/cache";
-import { searchPeople } from "@/lib/services/person-service";
+import { getPerson, searchPeople } from "@/lib/services/person-service";
 import { searchUsers } from "@/lib/services/user-service";
 import { UserList } from "@/app/components/user-list";
 import { SectionHeading } from "@/app/components/ui/section-heading";
 import type { Movie, MovieSearchResult } from "@/types/movie";
-import { departmentLabel, type PersonSummary } from "@/types/person";
+import { departmentLabel, type PersonCredit, type PersonDetail, type PersonSummary } from "@/types/person";
 import { movieHref } from "@/utils/movie-link";
+import { matchesQuery } from "@/utils/text";
 
 const CATALOG_PER_PAGE = 48; // 6 linhas de 8
 const fetchCatalog = (page: number) => getCatalog(page - 1, CATALOG_PER_PAGE);
@@ -61,6 +62,9 @@ function Movies({ initialQuery, focusSearch }: { initialQuery: string; focusSear
   const search = useFetch(searchKey, searchMovies);
   const people = useFetch(searchKey, searchPeople);
   const users = useFetch(searchKey, searchUsers);
+  // buscou pelo nome de alguém: mostra também os filmes dessa pessoa
+  const matchedPerson = searchKey ? people.data?.find((p) => matchesQuery(p.name, searchKey)) : undefined;
+  const personDetail = useFetch(matchedPerson?.tmdbId ?? null, getPerson);
   // enquanto o debounce não "alcançou" o que foi digitado, também conta como carregando
   const searchPending = isSearching && (search.loading || debouncedQuery !== query.trim());
 
@@ -101,12 +105,16 @@ function Movies({ initialQuery, focusSearch }: { initialQuery: string; focusSear
           <PeopleResults people={people.data.slice(0, MAX_PEOPLE)} />
         )}
 
+        {isSearching && personDetail.data && <PersonFilms person={personDetail.data} />}
+
         {isSearching ? (
           <SearchResults
             query={query.trim()}
             results={search.data}
             pending={searchPending}
             failed={Boolean(search.error) && !searchPending}
+            othersFound={Boolean(people.data?.length || users.data?.length)}
+            hideWhenEmpty={Boolean(personDetail.data)}
           />
         ) : (
           <>
@@ -152,12 +160,16 @@ function CommunityRow({ title, movies }: { title: string; movies: Movie[] | unde
   );
 }
 
-function SearchResults({ query, results, pending, failed }: {
+function SearchResults({ query, results, pending, failed, othersFound, hideWhenEmpty }: {
   query: string;
   results: MovieSearchResult[] | undefined;
   pending: boolean;
   failed: boolean;
+  othersFound: boolean; // achou pessoas ou perfis: sem filmes não é "nada encontrado"
+  hideWhenEmpty: boolean; // já mostra os filmes da pessoa buscada
 }) {
+  if (hideWhenEmpty && !results?.length) return null;
+
   if (failed) {
     return <p className="text-red-500">Não foi possível buscar agora. Tente novamente em instantes.</p>;
   }
@@ -171,11 +183,13 @@ function SearchResults({ query, results, pending, failed }: {
   }
 
   if (!results || results.length === 0) {
-    return pending ? null : <p className="text-brand-slate/60">Nenhum filme encontrado para “{query}”.</p>;
+    if (pending || othersFound) return null;
+    return <p className="text-brand-slate/60">Nada encontrado para “{query}”.</p>;
   }
 
   return (
     <div className={`transition-opacity ${pending ? "opacity-50" : "opacity-100"}`}>
+      {hideWhenEmpty && <SectionHeading title="Filmes com esse título" />}
       <p className="mb-8 text-sm text-brand-slate/60">
         {results.length} resultado{results.length > 1 ? "s" : ""} para “{query}”
       </p>
@@ -193,6 +207,43 @@ function SearchResults({ query, results, pending, failed }: {
       />
     </div>
   );
+}
+
+/** filmografia da pessoa buscada: o que dirigiu e onde atuou, na ordem que faz sentido para ela */
+function PersonFilms({ person }: { person: PersonDetail }) {
+  // mesmo critério da página da pessoa: o departamento do TMDB nem sempre ajuda
+  const directsFirst =
+    person.department === "Directing" || (person.department !== "Acting" && person.directed.length > 0);
+  const sections = [
+    { title: `Dirigidos por ${person.name}`, credits: person.directed },
+    { title: `Filmes com ${person.name}`, credits: person.acted },
+  ];
+  if (!directsFirst) sections.reverse();
+
+  return (
+    <>
+      {sections
+        .filter((s) => s.credits.length > 0)
+        .map((s) => (
+          <section key={s.title} className="mb-14">
+            <SectionHeading title={s.title} count={s.credits.length} />
+            <MovieGrid showTitles items={s.credits.map(creditItem)} />
+          </section>
+        ))}
+    </>
+  );
+}
+
+function creditItem(credit: PersonCredit) {
+  return {
+    movie: {
+      id: credit.id ?? `tmdb-${credit.tmdbId}`,
+      title: credit.title,
+      posterPath: credit.posterPath,
+      releaseYear: credit.releaseYear,
+    },
+    href: movieHref(credit),
+  };
 }
 
 function PeopleResults({ people }: { people: PersonSummary[] }) {

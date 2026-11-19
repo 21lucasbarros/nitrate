@@ -23,7 +23,7 @@ export function getMovie(id: number): Promise<Movie> {
 
 /** Busca no TMDB (via backend). */
 export function searchMovies(query: string): Promise<MovieSearchResult[]> {
-  return apiFetch<MovieSearchResult[]>(`/movies/search?q=${encodeURIComponent(query)}`);
+  return apiFetch<MovieSearchResult[]>(`/movies/search?q=${encodeURIComponent(query.normalize("NFC"))}`);
 }
 
 /** Devolve o filme local correspondente ao tmdbId, importando do TMDB na primeira vez. */

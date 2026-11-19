@@ -10,8 +10,10 @@ import { useFetch } from "@/lib/hooks/use-fetch";
 import { searchMovies } from "@/lib/services/movie-service";
 import { searchPeople } from "@/lib/services/person-service";
 import { searchUsers } from "@/lib/services/user-service";
+import { departmentLabel } from "@/types/person";
 import { movieHref } from "@/utils/movie-link";
 import { posterUrl } from "@/utils/poster";
+import { matchesQuery } from "@/utils/text";
 import { Avatar } from "./ui/avatar";
 import { PersonPhoto } from "./ui/person-photo";
 
@@ -66,11 +68,33 @@ export function HeaderSearch() {
   }
 
   const typed = query.trim();
-  const pending = typed.length >= MIN_QUERY && (debounced !== typed || movies.loading);
+  const sources = [movies, people, users];
+  const pending = typed.length >= MIN_QUERY && (debounced !== typed || sources.some((s) => s.loading));
   const movieResults = (movies.data ?? []).slice(0, MAX_MOVIES);
   const peopleResults = (people.data ?? []).slice(0, MAX_PEOPLE);
   const userResults = (users.data ?? []).slice(0, MAX_USERS);
-  const nothing = !pending && movies.data && movieResults.length === 0 && peopleResults.length === 0 && userResults.length === 0;
+  const hasResults = movieResults.length > 0 || peopleResults.length > 0 || userResults.length > 0;
+  // cada busca é independente: uma que falhe ou demore não esconde o resultado das outras
+  const nothing = !pending && !hasResults;
+  // buscou pelo nome de alguém (ex.: "Ingrid Guimarães") e nenhum título bate tão bem: pessoas vêm primeiro
+  const peopleFirst =
+    peopleResults.some((p) => matchesQuery(p.name, typed)) && !movieResults.some((m) => matchesQuery(m.title, typed));
+
+  const peopleGroup = peopleResults.length > 0 && (
+    <Group label="Pessoas">
+      {peopleResults.map((person) => (
+        <ResultLink key={person.tmdbId} href={`/person/${person.tmdbId}`} onClick={close}>
+          <PersonPhoto name={person.name} profilePath={person.profilePath} sizes="32px" className="w-8 shrink-0" />
+          <span className="min-w-0">
+            <span className="block text-sm truncate">{person.name}</span>
+            <span className="block text-xs text-brand-slate truncate">
+              {[departmentLabel(person.department), ...person.knownFor].filter(Boolean).join(" · ")}
+            </span>
+          </span>
+        </ResultLink>
+      ))}
+    </Group>
+  );
 
   return (
     <div ref={ref} className="relative">
@@ -103,12 +127,14 @@ export function HeaderSearch() {
         </button>
       </form>
 
-      {typed.length >= MIN_QUERY && (movies.data || nothing) && (
+      {typed.length >= MIN_QUERY && (hasResults || nothing) && (
         <div className="absolute right-0 top-full mt-2 w-[min(380px,calc(100vw-2rem))] max-h-[70vh] overflow-y-auto rounded-md bg-surface ring-1 ring-foreground/10 shadow-2xl shadow-black/60 py-2">
           {nothing ? (
             <p className="px-4 py-3 text-sm text-brand-slate">Nada encontrado para “{typed}”.</p>
           ) : (
             <>
+              {peopleFirst && peopleGroup}
+
               {movieResults.length > 0 && (
                 <Group label="Filmes">
                   {movieResults.map((movie) => {
@@ -132,21 +158,7 @@ export function HeaderSearch() {
                 </Group>
               )}
 
-              {peopleResults.length > 0 && (
-                <Group label="Pessoas">
-                  {peopleResults.map((person) => (
-                    <ResultLink key={person.tmdbId} href={`/person/${person.tmdbId}`} onClick={close}>
-                      <PersonPhoto name={person.name} profilePath={person.profilePath} sizes="32px" className="w-8 shrink-0" />
-                      <span className="min-w-0">
-                        <span className="block text-sm truncate">{person.name}</span>
-                        {person.knownFor.length > 0 && (
-                          <span className="block text-xs text-brand-slate truncate">{person.knownFor.join(" · ")}</span>
-                        )}
-                      </span>
-                    </ResultLink>
-                  ))}
-                </Group>
-              )}
+              {!peopleFirst && peopleGroup}
 
               {userResults.length > 0 && (
                 <Group label="Perfis">

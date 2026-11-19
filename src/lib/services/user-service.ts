@@ -162,5 +162,5 @@ export function getSimilarUsers(): Promise<SimilarUser[]> {
 }
 
 export function searchUsers(query: string): Promise<UserSummary[]> {
-  return apiFetch<UserSummary[]>(`/users/search?q=${encodeURIComponent(query)}`);
+  return apiFetch<UserSummary[]>(`/users/search?q=${encodeURIComponent(query.normalize("NFC"))}`);
 }

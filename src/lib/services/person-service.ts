@@ -2,7 +2,7 @@ import { apiFetch } from "../api-client";
 import type { PersonDetail, PersonSummary } from "@/types/person";
 
 export function searchPeople(query: string): Promise<PersonSummary[]> {
-  return apiFetch<PersonSummary[]>(`/people/search?q=${encodeURIComponent(query)}`);
+  return apiFetch<PersonSummary[]>(`/people/search?q=${encodeURIComponent(query.normalize("NFC"))}`);
 }
 
 export function getPerson(tmdbId: number): Promise<PersonDetail> {
