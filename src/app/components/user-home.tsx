@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ArrowRightIcon, SparkleIcon, UsersThreeIcon } from "@phosphor-icons/react";
 import type { UserProfile } from "@/lib/types/user";
 import { useFetch } from "@/lib/hooks/use-fetch";
-import { getMyFeed, getMyRecommendations, getSimilarUsers, getUserWatchlist } from "@/lib/services/user-service";
+import { getMyFeed, getMyRecommendations, getUserWatchlist } from "@/lib/services/user-service";
 import { getRecentReviews } from "@/lib/services/review-service";
 import { getCatalog } from "@/lib/services/movie-service";
 import { getMyRetrospectiveMonths } from "@/lib/services/retrospective-service";
@@ -12,7 +12,6 @@ import { cachedFetcher } from "@/lib/cache";
 import { currentMonth, monthLabel, shiftMonth } from "@/utils/format";
 import { MovieGrid } from "./movie-grid";
 import { Recommendations } from "./recommendations";
-import { SimilarUsers } from "./similar-users";
 import { WhatToWatchButton } from "./what-to-watch";
 import { ActivityPoster } from "./activity-poster";
 import { ReviewCard } from "./review-card";
@@ -30,7 +29,6 @@ const fetchRetroMonths = () => getMyRetrospectiveMonths();
 const DISCOVER_POOL = 30;
 const fetchMovies = () => getCatalog(0, DISCOVER_POOL);
 const fetchRecommendations = () => getMyRecommendations();
-const fetchSimilar = () => getSimilarUsers();
 
 export default function UserHome({ user }: { user: UserProfile }) {
   const firstName = user.name.split(" ")[0];
@@ -44,8 +42,6 @@ export default function UserHome({ user }: { user: UserProfile }) {
   // a chave inclui a contagem de filmes: registrar um filme novo refaz as recomendações
   const recommendations = useFetch(`${user.username}:${user.filmsCount}`, fetchRecommendations);
   const retroMonths = useFetch(user.username, fetchRetroMonths);
-  // a chave inclui quem você segue e quantos filmes registrou: os dois mudam as sugestões
-  const similar = useFetch(`${user.username}:${user.followingCount}:${user.filmsCount}`, fetchSimilar);
   // o mês que acabou ganha destaque; se ele estiver vazio, mostramos o mês em andamento
   const lastMonth = shiftMonth(currentMonth(), -1);
   const retroMonth = retroMonths.data?.includes(lastMonth)
@@ -96,13 +92,6 @@ export default function UserHome({ user }: { user: UserProfile }) {
           <GridSkeleton />
         )}
       </section>
-
-      {similar.data && similar.data.length > 0 && (
-        <section className="mt-12">
-          <SectionHeading title="Cinéfilos com gosto parecido" href="/amigos?tab=pessoas" linkLabel="Amigos" />
-          <SimilarUsers users={similar.data.slice(0, 4)} />
-        </section>
-      )}
 
       {retroMonth && (
         <Link
