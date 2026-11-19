@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { ArrowsClockwiseIcon, CircleNotchIcon, HeartIcon, TrashIcon, WarningIcon } from "@phosphor-icons/react";
+import { useEffect, useState } from "react";
+import { ArrowsClockwiseIcon, CircleNotchIcon, FloppyDiskIcon, HeartIcon, TrashIcon, WarningIcon } from "@phosphor-icons/react";
 import { ApiError } from "@/lib/api-client";
 import { createReview, deleteReview, updateReview } from "@/lib/services/review-service";
 import type { MovieReview } from "@/lib/types/review";
 import type { Movie } from "@/types/movie";
 import { easterEggFor } from "@/lib/easter-eggs";
 import { showQuote } from "@/lib/hooks/use-easter-eggs";
+import { clearReviewDraft, loadReviewDraft, reviewDraftKey, saveReviewDraft, type ReviewDraft } from "@/lib/review-draft";
 import { todayIso } from "@/utils/format";
 import { Poster } from "./ui/poster";
 import { RichTextEditor } from "./ui/rich-text-editor";
@@ -26,18 +27,57 @@ interface ReviewFormProps {
 }
 
 export function ReviewForm({ movie, existing, previouslyWatched = false, onSaved, onDeleted, onCancel }: ReviewFormProps) {
-  const [rating, setRating] = useState<number | null>(existing?.rating ?? null);
-  const [liked, setLiked] = useState(existing?.liked ?? false);
-  const [watchedOn, setWatchedOn] = useState(existing?.watchedOn ?? todayIso());
-  const [text, setText] = useState(existing?.text ?? "");
-  const [spoiler, setSpoiler] = useState(existing?.spoiler ?? false);
-  const [rewatch, setRewatch] = useState(existing?.rewatch ?? previouslyWatched);
+  // o que o formulário mostraria sem rascunho: a review salva, ou tudo em branco
+  const initial: ReviewDraft = {
+    rating: existing?.rating ?? null,
+    liked: existing?.liked ?? false,
+    watchedOn: existing?.watchedOn ?? todayIso(),
+    text: existing?.text ?? "",
+    spoiler: existing?.spoiler ?? false,
+    rewatch: existing?.rewatch ?? previouslyWatched,
+  };
+  // fechar o modal sem salvar não perde nada: o que foi preenchido volta da próxima vez
+  const draftKey = reviewDraftKey(movie.id, existing?.id);
+  // ler o sessionStorage na renderização é seguro aqui: o formulário só existe dentro de um modal
+  // aberto por clique, então nunca passa pelo SSR (e não há hidratação para divergir)
+  const [restored] = useState(() => loadReviewDraft(draftKey));
+  const start = restored ?? initial;
+  const [showRestored, setShowRestored] = useState(restored !== null);
+
+  const [rating, setRating] = useState<number | null>(start.rating);
+  const [liked, setLiked] = useState(start.liked);
+  const [watchedOn, setWatchedOn] = useState(start.watchedOn);
+  const [text, setText] = useState(start.text);
+  const [spoiler, setSpoiler] = useState(start.spoiler);
+  const [rewatch, setRewatch] = useState(start.rewatch);
   // a segunda review de um filme no Nitrate é sempre reassistido (o backend garante)
   const rewatchLocked = !existing && previouslyWatched;
   const [busy, setBusy] = useState<"save" | "delete" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const hasText = text.trim().length > 0;
+
+  const current: ReviewDraft = { rating, liked, watchedOn, text, spoiler, rewatch };
+  const changed = (Object.keys(current) as (keyof ReviewDraft)[]).some((k) => current[k] !== initial[k]);
+  const currentJson = JSON.stringify(current);
+
+  // guarda a cada mudança; voltar ao estado original apaga o rascunho
+  useEffect(() => {
+    if (busy !== null) return; // salvando/apagando: quem limpa é o fim da operação
+    if (changed) saveReviewDraft(draftKey, JSON.parse(currentJson));
+    else clearReviewDraft(draftKey);
+  }, [draftKey, currentJson, changed, busy]);
+
+  const discardDraft = () => {
+    clearReviewDraft(draftKey);
+    setRating(initial.rating);
+    setLiked(initial.liked);
+    setWatchedOn(initial.watchedOn);
+    setText(initial.text);
+    setSpoiler(initial.spoiler);
+    setRewatch(initial.rewatch);
+    setShowRestored(false);
+  };
 
   // easter egg (Clube da Luta): a primeira letra digitada dispara as regras, uma de cada vez
   const warnings = easterEggFor(movie)?.reviewWarnings ?? [];
@@ -81,6 +121,7 @@ export function ReviewForm({ movie, existing, previouslyWatched = false, onSaved
       const saved = existing
         ? await updateReview(existing.id, data)
         : await createReview({ ...data, movieId: movie.id });
+      clearReviewDraft(draftKey);
       onSaved(saved);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Não foi possível salvar. Tente novamente.");
@@ -94,6 +135,7 @@ export function ReviewForm({ movie, existing, previouslyWatched = false, onSaved
     setError(null);
     try {
       await deleteReview(existing.id);
+      clearReviewDraft(draftKey);
       onDeleted();
     } catch {
       setError("Não foi possível apagar. Tente novamente.");
@@ -118,6 +160,16 @@ export function ReviewForm({ movie, existing, previouslyWatched = false, onSaved
           </h2>
         </div>
       </div>
+
+      {showRestored && (
+        <div className="flex items-center gap-3 -mt-2 px-3.5 py-2.5 rounded-lg bg-brand-blue/10 text-sm text-foreground/85">
+          <FloppyDiskIcon size={16} className="shrink-0 text-brand-blue" />
+          <span className="flex-1">Rascunho recuperado: continuamos de onde você parou.</span>
+          <button type="button" onClick={discardDraft} className="shrink-0 text-brand-slate hover:text-brand-crimson transition-colors">
+            Descartar
+          </button>
+        </div>
+      )}
 
       {/* nota, curtida e data na mesma faixa */}
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-5 py-5 border-y border-foreground/10">

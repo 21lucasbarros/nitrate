@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { clearToken } from "./auth-storage";
+import { clearAllReviewDrafts } from "./review-draft";
 import { useAuthToken } from "./hooks/use-auth-token";
 import { getMe } from "./services/user-service";
 import type { UserProfile } from "./types/user";
@@ -58,7 +59,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value: AuthContextValue = {
     ...state,
     refreshUser: () => setVersion((v) => v + 1),
-    signOut: clearToken,
+    signOut: () => {
+      clearAllReviewDrafts();
+      clearToken();
+    },
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
