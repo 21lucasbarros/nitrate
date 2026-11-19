@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { GearSixIcon, MagnifyingGlassIcon, PlusIcon, SignOutIcon } from "@phosphor-icons/react";
+import { GearSixIcon, MagnifyingGlassIcon, SignOutIcon } from "@phosphor-icons/react";
 import { useAuth } from "@/lib/auth-context";
 import { useLogoEgg } from "@/lib/hooks/use-easter-eggs";
 import { DreamBigLogo } from "./easter-eggs/dream-big-logo";
@@ -56,15 +56,6 @@ export default function Header() {
         <div className="flex gap-3 items-center ml-auto md:ml-0 min-h-9">
           {status === "authenticated" && (
             <>
-              {/* registrar começa pela busca: escolher o filme */}
-              {/* no celular o "Registrar" dá lugar à lupa; registrar começa na página do filme */}
-              <Link
-                href="/movies"
-                className="hidden md:flex items-center gap-1.5 bg-brand-btn text-brand-btn-text px-3 py-1.5 rounded-md text-sm font-semibold hover:bg-brand-btn/90 transition-colors"
-              >
-                <PlusIcon size={14} weight="bold" />
-                Registrar
-              </Link>
               <MobileSearchLink />
               <NotificationBell />
               <Link href={`/u/${user.username}`} aria-label="Meu perfil" title={`@${user.username}`} className="rounded-full ring-2 ring-transparent hover:ring-brand-orange/60 transition-shadow">
