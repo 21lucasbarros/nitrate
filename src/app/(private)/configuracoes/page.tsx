@@ -17,6 +17,7 @@ import {
 } from "@phosphor-icons/react";
 
 import Header from "@/app/components/header";
+import { AvatarCropper } from "@/app/components/avatar-cropper";
 import { Avatar } from "@/app/components/ui/avatar";
 import { Modal } from "@/app/components/ui/modal";
 import { SectionHeading } from "@/app/components/ui/section-heading";
@@ -144,31 +145,13 @@ function ProfileForm({ user }: { user: UserProfile }) {
   );
 }
 
-const AVATAR_SIDE = 512; // o backend ainda reduz para 400; aqui é só para o upload ficar leve
-
-/** recorta o centro em quadrado e reduz no navegador, então nem a foto de 12 MP do celular pesa no envio */
-async function squareJpeg(file: File): Promise<Blob> {
-  const bitmap = await createImageBitmap(file); // já respeita a orientação (EXIF) da foto
-  const side = Math.min(bitmap.width, bitmap.height);
-  const target = Math.min(AVATAR_SIDE, side);
-  const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = target;
-  const ctx = canvas.getContext("2d")!;
-  ctx.fillStyle = "#fff"; // PNG transparente: o JPEG não tem canal alfa
-  ctx.fillRect(0, 0, target, target);
-  ctx.drawImage(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, target, target);
-  bitmap.close();
-  return new Promise((resolve, reject) =>
-    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("toBlob"))), "image/jpeg", 0.9),
-  );
-}
-
-/** a foto é salva assim que escolhida, sem esperar o "Salvar perfil" */
+/** a foto é salva assim que enquadrada, sem esperar o "Salvar perfil" */
 function AvatarPicker({ user, previewName }: { user: UserProfile; previewName: string }) {
   const { refreshUser } = useAuth();
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState<File | null>(null); // foto escolhida, ainda sendo enquadrada
 
   const run = async (action: () => Promise<unknown>) => {
     setBusy(true);
@@ -186,7 +169,20 @@ function AvatarPicker({ user, previewName }: { user: UserProfile; previewName: s
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = ""; // escolher o mesmo arquivo de novo dispara o change
-    if (file) run(async () => uploadMyAvatar(await squareJpeg(file)));
+    if (file) {
+      setError(null);
+      setPending(file);
+    }
+  };
+
+  const handleCropped = (image: Blob) => {
+    setPending(null);
+    run(() => uploadMyAvatar(image));
+  };
+
+  const handleUnreadable = () => {
+    setPending(null);
+    setError("Não foi possível abrir essa imagem. Tente outra.");
   };
 
   return (
@@ -224,9 +220,15 @@ function AvatarPicker({ user, previewName }: { user: UserProfile; previewName: s
         {error ? (
           <p role="alert" className="mt-1.5 text-xs text-brand-crimson">{error}</p>
         ) : (
-          <p className="mt-1.5 text-xs text-brand-slate/70">JPG ou PNG. A foto é recortada em quadrado.</p>
+          <p className="mt-1.5 text-xs text-brand-slate/70">JPG ou PNG. Você escolhe o enquadramento antes de salvar.</p>
         )}
       </div>
+
+      <Modal open={pending !== null} onClose={() => setPending(null)} label="Enquadrar foto">
+        {pending && (
+          <AvatarCropper file={pending} onCancel={() => setPending(null)} onConfirm={handleCropped} onError={handleUnreadable} />
+        )}
+      </Modal>
     </div>
   );
 }
