@@ -12,15 +12,16 @@ import {
 import type { AppNotification } from "@/lib/types/user";
 import { filmHref } from "@/utils/movie-link";
 import { timeAgo } from "@/utils/format";
+import { Avatar } from "./ui/avatar";
 import { Poster } from "./ui/poster";
 import { SideDrawer } from "./ui/side-drawer";
 
-// o radar roda uma vez por dia; conferir a cada poucos minutos já é mais que suficiente
+// o radar roda uma vez por dia e seguidores novos não são urgentes: a cada poucos minutos basta
 const POLL_MS = 5 * 60 * 1000;
 
 const fetchNotifications = () => getMyNotifications();
 
-/** Sino do header: avisos do Radar de Estreias (filmes da watchlist que estrearam), numa gaveta à direita. */
+/** Sino do header: estreias da watchlist (Radar de Estreias) e seguidores novos, numa gaveta à direita. */
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [unread, setUnread] = useState(0);
@@ -74,8 +75,8 @@ export function NotificationBell() {
         label="Notificações"
         title={
           <>
-            <p className="font-semibold">Radar de Estreias</p>
-            <p className="mt-0.5 text-xs text-brand-slate">Avisamos quando um filme da sua watchlist estreia.</p>
+            <p className="font-semibold">Notificações</p>
+            <p className="mt-0.5 text-xs text-brand-slate">Estreias da sua watchlist e quem começou a seguir você.</p>
           </>
         }
       >
@@ -85,8 +86,8 @@ export function NotificationBell() {
           <div className="px-6 py-14 flex flex-col items-center text-center">
             <BellIcon size={36} weight="light" className="text-brand-slate/40" />
             <p className="mt-4 text-sm text-brand-slate leading-relaxed">
-              Nenhum aviso ainda. Adicione filmes que ainda vão estrear à sua watchlist e o Nitrate avisa aqui quando
-              chegarem aos cinemas ou ao streaming.
+              Nenhum aviso ainda. Aqui aparecem os novos seguidores e, se você adicionar à watchlist filmes que ainda
+              vão estrear, o Nitrate avisa quando chegarem aos cinemas ou ao streaming.
             </p>
           </div>
         ) : (
@@ -102,31 +103,61 @@ export function NotificationBell() {
 }
 
 function NotificationItem({ notification: n, onSelect }: { notification: AppNotification; onSelect: () => void }) {
-  const cinema = n.type === "CINEMA";
-  return (
-    <li>
-      <Link
-        href={filmHref(n.movie)}
-        onClick={onSelect}
-        className={`flex gap-3 px-5 py-3.5 hover:bg-surface-strong transition-colors ${n.read ? "" : "bg-brand-orange/5"}`}
-      >
-        <div className="w-10 shrink-0">
-          <Poster title={n.movie.title} posterPath={n.movie.posterPath} size="w185" sizes="40px" />
+  if (n.type === "FOLLOW") {
+    return (
+      <NotificationRow href={`/u/${n.actor.username}`} read={n.read} onSelect={onSelect}>
+        <div className="w-10 shrink-0 flex justify-center">
+          <Avatar name={n.actor.name} username={n.actor.username} avatar={n.actor.avatar} size="md" />
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm leading-snug">
-            <span className="font-medium">{n.movie.title}</span>{" "}
-            {cinema ? "chegou aos cinemas." : "chegou ao streaming."}
+            <span className="font-medium">{n.actor.name}</span> começou a seguir você.
           </p>
-          {n.detail && (
-            <p className="mt-0.5 flex items-center gap-1.5 text-xs text-brand-slate">
-              {cinema ? <FilmReelIcon size={12} /> : <TelevisionIcon size={12} />}
-              {n.detail}
-            </p>
-          )}
+          <p className="mt-0.5 text-xs text-brand-slate truncate">@{n.actor.username}</p>
           <p className="mt-1 text-[11px] text-brand-slate/60">{timeAgo(n.createdAt)}</p>
         </div>
-        {!n.read && <span className="mt-1.5 w-2 h-2 shrink-0 rounded-full bg-brand-orange" aria-label="Nova" />}
+      </NotificationRow>
+    );
+  }
+
+  const cinema = n.type === "CINEMA";
+  return (
+    <NotificationRow href={filmHref(n.movie)} read={n.read} onSelect={onSelect}>
+      <div className="w-10 shrink-0">
+        <Poster title={n.movie.title} posterPath={n.movie.posterPath} size="w185" sizes="40px" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm leading-snug">
+          <span className="font-medium">{n.movie.title}</span>{" "}
+          {cinema ? "chegou aos cinemas." : "chegou ao streaming."}
+        </p>
+        {n.detail && (
+          <p className="mt-0.5 flex items-center gap-1.5 text-xs text-brand-slate">
+            {cinema ? <FilmReelIcon size={12} /> : <TelevisionIcon size={12} />}
+            {n.detail}
+          </p>
+        )}
+        <p className="mt-1 text-[11px] text-brand-slate/60">{timeAgo(n.createdAt)}</p>
+      </div>
+    </NotificationRow>
+  );
+}
+
+function NotificationRow({ href, read, onSelect, children }: {
+  href: string;
+  read: boolean;
+  onSelect: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <li>
+      <Link
+        href={href}
+        onClick={onSelect}
+        className={`flex gap-3 px-5 py-3.5 hover:bg-surface-strong transition-colors ${read ? "" : "bg-brand-orange/5"}`}
+      >
+        {children}
+        {!read && <span className="mt-1.5 w-2 h-2 shrink-0 rounded-full bg-brand-orange" aria-label="Nova" />}
       </Link>
     </li>
   );

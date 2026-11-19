@@ -257,6 +257,11 @@ function Profile() {
             </div>
             <p className="mt-1 text-sm text-brand-slate">
               @{user.username}
+              {user.followsMe && (
+                <span className="ml-2 px-1.5 py-0.5 rounded bg-surface-strong text-[11px] font-medium text-brand-slate align-[1px]">
+                  Segue você
+                </span>
+              )}
               <span aria-hidden="true"> · </span>
               desde {monthYear(user.createdAt)}
             </p>

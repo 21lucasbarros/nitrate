@@ -20,6 +20,7 @@ export interface UserProfile extends UserSummary {
   followingCount: number;
   favorites: Movie[]; // até 5, em ordem
   followedByMe: boolean | null; // null para visitantes e no próprio perfil
+  followsMe: boolean | null; // este perfil segue quem está vendo ("Segue você"); null como acima
 }
 
 // Espelha SimilarUserDTO
@@ -36,12 +37,14 @@ export interface ProfileUpdate {
   instagram: string;
 }
 
-// Espelha NotificationDTO (Radar de Estreias)
-export interface AppNotification {
+// Espelha NotificationDTO: estreias do Radar (com `movie`) ou alguém que começou a seguir (com `actor`)
+interface NotificationBase {
   id: number;
-  type: "CINEMA" | "STREAMING";
   detail: string | null; // data de estreia ou serviços de streaming
   createdAt: string; // ISO
   read: boolean;
-  movie: Movie;
 }
+
+export type AppNotification =
+  | (NotificationBase & { type: "CINEMA" | "STREAMING"; movie: Movie; actor: null })
+  | (NotificationBase & { type: "FOLLOW"; movie: null; actor: UserSummary });
