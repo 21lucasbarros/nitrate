@@ -23,6 +23,9 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# o healthcheck do Coolify roda curl ou wget dentro do container, e a imagem slim não traz nenhum
+RUN apt-get update && apt-get install -y --no-install-recommends wget && rm -rf /var/lib/apt/lists/*
+
 COPY --from=build /app/package.json ./
 COPY --from=build /app/node_modules ./node_modules
 # o usuário node precisa escrever em .next/cache (cache das imagens otimizadas pelo next/image)
