@@ -15,7 +15,8 @@ import {
 import { CONTACT_EMAIL, MIN_AGE, TMDB_NOTICE } from "@/lib/legal";
 
 export const metadata: Metadata = {
-  title: "Termos de Uso · Nitrate",
+  title: "Termos de Uso",
+  alternates: { canonical: "/termos" },
   description: "As regras para usar o Nitrate, publicar reviews e listas e o que fazemos com conteúdo que as viola.",
 };
 

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="14" fill="#141517"/>
+  <!-- o N como uma tira de película: duas hastes com os furos de tração e a diagonal -->
+  <path fill="#ECEDEE" d="M13 15h11l17 22V15h10v34H40L23 27v22H13z"/>
+  <g fill="#141517">
+    <rect x="16.5" y="35" width="4" height="4" rx="1"/>
+    <rect x="16.5" y="42" width="4" height="4" rx="1"/>
+    <rect x="44" y="18" width="4" height="4" rx="1"/>
+    <rect x="44" y="25" width="4" height="4" rx="1"/>
+  </g>
+  <!-- a faísca: o mesmo ponto laranja do logo escrito (o filme de nitrato pegava fogo fácil) -->
+  <circle cx="53" cy="11" r="6" fill="#FF6A1C" stroke="#141517" stroke-width="2.5"/>
+</svg>

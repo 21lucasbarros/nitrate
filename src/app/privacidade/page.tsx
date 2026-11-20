@@ -14,7 +14,8 @@ import {
 import { CONTACT_EMAIL, CONTROLLER_NAME, MIN_AGE } from "@/lib/legal";
 
 export const metadata: Metadata = {
-  title: "Política de Privacidade · Nitrate",
+  title: "Política de Privacidade",
+  alternates: { canonical: "/privacidade" },
   description: "Quais dados o Nitrate guarda, para quê, com quem compartilha e como exercer seus direitos.",
 };
 
