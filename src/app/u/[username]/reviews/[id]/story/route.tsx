@@ -8,6 +8,7 @@ import type { MovieReview } from "@/lib/types/review";
 import { shortDate } from "@/utils/format";
 import { toRating } from "@/utils/rating";
 import { backdropUrl, posterUrl } from "@/utils/poster";
+import { sameUsername } from "@/utils/username";
 
 /**
  * Imagem de um registro do diário no formato dos Stories (1080x1920): um ingresso de cinema
@@ -42,7 +43,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ use
   } catch {
     return new Response("Review não encontrada", { status: 404 });
   }
-  if (review.user.username !== username) {
+  if (!sameUsername(review.user.username, username)) {
     return new Response("Review não encontrada", { status: 404 });
   }
 

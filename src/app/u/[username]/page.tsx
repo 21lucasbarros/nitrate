@@ -54,6 +54,7 @@ import { getSavedLists, getUserLists } from "@/lib/services/list-service";
 import type { FilmEntry, MovieReview } from "@/lib/types/review";
 import type { FavoritePeopleKind } from "@/types/person";
 import { compactDate, monthYear, timeAgo } from "@/utils/format";
+import { sameUsername } from "@/utils/username";
 
 const TABS = [
   { id: "perfil", label: "Perfil" },
@@ -138,10 +139,10 @@ function Profile() {
   const followers = useFetch(tab === "rede" || peopleModal === "followers" ? username : null, getFollowers);
   const lists = useFetch(tab === "listas" || tab === "perfil" ? username : null, getUserLists);
   // listas de outras pessoas que salvei: só no meu perfil
-  const savedLists = useFetch(tab === "listas" && me?.username === username ? username : null, fetchSavedLists);
+  const savedLists = useFetch(tab === "listas" && sameUsername(me?.username, username) ? username : null, fetchSavedLists);
   const favoritePeople = useFetch(tab === "perfil" ? username : null, getFavoritePeople);
   // gostos parecidos: só na própria aba de amigos
-  const similar = useFetch(tab === "rede" && me?.username === username ? username : null, fetchSimilar);
+  const similar = useFetch(tab === "rede" && sameUsername(me?.username, username) ? username : null, fetchSimilar);
 
   if (profile.error instanceof ApiError && profile.error.status === 404) {
     return (

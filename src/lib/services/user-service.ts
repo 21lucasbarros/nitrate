@@ -1,6 +1,7 @@
 import { apiFetch } from "../api-client";
 import type { FilmEntry, MovieReview, MovieUserState, Recommendation, WatchlistItem } from "../types/review";
 import type { Page } from "../types/page";
+import type { AuthResponse } from "../types/auth";
 import type { AppNotification, ProfileUpdate, SimilarUser, UserProfile, UserSummary } from "../types/user";
 import type { Movie } from "@/types/movie";
 import type { FavoritePeople, FavoritePeopleKind, FavoritePerson } from "@/types/person";
@@ -27,6 +28,14 @@ export function removeMyAvatar(): Promise<UserProfile> {
 /** cópia de tudo o que o Nitrate guarda sobre a pessoa (LGPD) */
 export function exportMyData(): Promise<unknown> {
   return apiFetch<unknown>("/users/me/export");
+}
+
+/** troca a senha; o backend derruba as outras sessões e devolve um token novo para esta */
+export function changeMyPassword(currentPassword: string, newPassword: string): Promise<AuthResponse> {
+  return apiFetch<AuthResponse>("/users/me/password", {
+    method: "PUT",
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
 }
 
 /** exclusão definitiva; a senha confirma que é a dona da conta */

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -28,6 +29,7 @@ import { saveToken } from "@/lib/auth-storage";
 import { ApiError } from "@/lib/api-client";
 import { useUsernameAvailability } from "@/lib/hooks/use-username-availability";
 import { useAuthToken } from "@/lib/hooks/use-auth-token";
+import { MIN_AGE } from "@/lib/legal";
 
 // destino após o login, vindo do guard das rotas privadas (?redirect=/algum/caminho).
 // só aceita caminhos internos para não virar um open redirect. Checar o prefixo não basta:
@@ -131,6 +133,7 @@ export default function SignInPage() {
         username: data.username,
         email: data.email,
         password: data.password,
+        acceptedTerms: data.acceptTerms,
       });
       saveToken(response.token);
     } catch (error) {
@@ -248,9 +251,9 @@ export default function SignInPage() {
                     </span>
                   </label>
 
-                  <a href="#" className="text-sm font-medium text-brand-blue hover:text-brand-blue/80 transition-colors">
+                  <Link href="/esqueci-senha" className="text-sm font-medium text-brand-blue hover:text-brand-blue/80 transition-colors">
                     Esqueci minha senha
-                  </a>
+                  </Link>
                 </div>
 
                 <button
@@ -391,6 +394,32 @@ export default function SignInPage() {
                   {registerForm.formState.errors.confirmPassword && (
                     <p className="mt-1.5 text-xs text-red-500">
                       {registerForm.formState.errors.confirmPassword.message}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="flex items-start gap-3 cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 w-4 h-4 shrink-0 rounded border-brand-slate/30 text-brand-blue focus:ring-brand-blue focus:ring-offset-background transition-all bg-transparent checked:bg-brand-blue"
+                      {...registerForm.register("acceptTerms")}
+                    />
+                    <span className="text-sm font-light text-brand-slate/80 group-hover:text-foreground transition-colors">
+                      Tenho {MIN_AGE} anos ou mais e li e aceito os{" "}
+                      <Link href="/termos" target="_blank" className="font-medium text-brand-blue hover:text-brand-blue/80">
+                        Termos de Uso
+                      </Link>{" "}
+                      e a{" "}
+                      <Link href="/privacidade" target="_blank" className="font-medium text-brand-blue hover:text-brand-blue/80">
+                        Política de Privacidade
+                      </Link>
+                      .
+                    </span>
+                  </label>
+                  {registerForm.formState.errors.acceptTerms && (
+                    <p className="mt-1.5 text-xs text-red-500">
+                      {registerForm.formState.errors.acceptTerms.message}
                     </p>
                   )}
                 </div>

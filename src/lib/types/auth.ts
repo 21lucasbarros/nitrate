@@ -4,6 +4,7 @@ export interface RegisterRequest {
   username: string;
   email: string;
   password: string;
+  acceptedTerms: boolean; // idade mínima + Termos e Política de Privacidade
 }
 
 export interface LoginRequest {

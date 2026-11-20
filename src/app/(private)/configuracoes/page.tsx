@@ -4,8 +4,10 @@ import { useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeftIcon,
+  AtIcon,
   CameraIcon,
   CheckIcon,
+  CheckCircleIcon,
   CircleNotchIcon,
   DownloadSimpleIcon,
   EyeIcon,
@@ -13,6 +15,7 @@ import {
   InstagramLogoIcon,
   TrashIcon,
   WarningIcon,
+  XCircleIcon,
   XLogoIcon,
 } from "@phosphor-icons/react";
 
@@ -23,8 +26,19 @@ import { Modal } from "@/app/components/ui/modal";
 import { SectionHeading } from "@/app/components/ui/section-heading";
 import { ApiError } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
-import { deleteMyAccount, exportMyData, removeMyAvatar, updateMyProfile, uploadMyAvatar } from "@/lib/services/user-service";
+import { saveToken } from "@/lib/auth-storage";
+import { useUsernameAvailability } from "@/lib/hooks/use-username-availability";
+import { usernameSchema } from "@/lib/schemas/auth-schemas";
+import {
+  changeMyPassword,
+  deleteMyAccount,
+  exportMyData,
+  removeMyAvatar,
+  updateMyProfile,
+  uploadMyAvatar,
+} from "@/lib/services/user-service";
 import type { UserProfile } from "@/lib/types/user";
+import { sameUsername } from "@/utils/username";
 
 const NAME_MAX = 60;
 const BIO_MAX = 300; // iguais aos limites do backend (AccountService)
@@ -52,7 +66,8 @@ export default function SettingsPage() {
             <h1 className="mt-4 text-3xl font-semibold tracking-tight">Configurações</h1>
 
             {/* key: depois de salvar, o formulário recomeça com os dados novos */}
-            <ProfileForm key={`${user.name}|${user.bio}|${user.twitter}|${user.instagram}`} user={user} />
+            <ProfileForm key={`${user.name}|${user.username}|${user.bio}|${user.twitter}|${user.instagram}`} user={user} />
+            <PasswordSection />
             <DataSection />
             <DeleteAccountSection username={user.username} />
           </>
@@ -65,6 +80,7 @@ export default function SettingsPage() {
 function ProfileForm({ user }: { user: UserProfile }) {
   const { refreshUser } = useAuth();
   const [name, setName] = useState(user.name);
+  const [username, setUsername] = useState(user.username);
   const [bio, setBio] = useState(user.bio ?? "");
   const [twitter, setTwitter] = useState(user.twitter ?? "");
   const [instagram, setInstagram] = useState(user.instagram ?? "");
@@ -72,17 +88,25 @@ function ProfileForm({ user }: { user: UserProfile }) {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const usernameChanged = username !== user.username;
+  // só trocar maiúsculas/minúsculas do próprio @: a API diria "em uso" (por você mesmo)
+  const sameAsMine = sameUsername(username, user.username);
+  const usernameError = usernameChanged ? usernameSchema.safeParse(username).error?.issues[0]?.message : undefined;
+  const usernameStatus = useUsernameAvailability(sameAsMine ? "" : username);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (usernameError || usernameStatus === "taken") return;
     setBusy(true);
     setError(null);
     setSaved(false);
     try {
-      await updateMyProfile({ name, bio, twitter, instagram });
+      await updateMyProfile({ name, username, bio, twitter, instagram });
       setSaved(true);
       refreshUser();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Não foi possível salvar. Tente novamente.");
+      if (err instanceof ApiError && err.status === 409) setError("Esse nome de usuário já está em uso.");
+      else setError(err instanceof ApiError ? err.message : "Não foi possível salvar. Tente novamente.");
     } finally {
       setBusy(false);
     }
@@ -97,6 +121,14 @@ function ProfileForm({ user }: { user: UserProfile }) {
           <span className={label}>Nome</span>
           <input value={name} onChange={(e) => setName(e.target.value)} maxLength={NAME_MAX} required className={input} />
         </label>
+
+        <UsernameInput
+          value={username}
+          onChange={setUsername}
+          error={usernameError}
+          status={sameAsMine ? "idle" : usernameStatus}
+          changed={usernameChanged}
+        />
 
         <label className="flex flex-col gap-2">
           <span className="flex justify-between">
@@ -129,7 +161,7 @@ function ProfileForm({ user }: { user: UserProfile }) {
         <div className="flex items-center gap-4">
           <button
             type="submit"
-            disabled={busy}
+            disabled={busy || !!usernameError || usernameStatus === "taken"}
             className="px-4 py-2 rounded-md bg-brand-btn text-brand-btn-text text-sm font-semibold hover:bg-brand-btn/90 disabled:opacity-60 transition-colors"
           >
             {busy ? "Salvando…" : "Salvar perfil"}
@@ -243,6 +275,48 @@ function AvatarPicker({ user, previewName }: { user: UserProfile; previewName: s
   );
 }
 
+/** o @ do Nitrate: mesmas regras do cadastro, com a disponibilidade conferida enquanto digita */
+function UsernameInput({ value, onChange, error, status, changed }: {
+  value: string;
+  onChange: (value: string) => void;
+  error?: string;
+  status: ReturnType<typeof useUsernameAvailability>;
+  changed: boolean;
+}) {
+  return (
+    <label className="flex flex-col gap-2">
+      <span className={`${label} flex items-center gap-1.5`}><AtIcon size={16} /> Nome de usuário</span>
+      <div className="flex items-center rounded-md border border-foreground/15 focus-within:border-brand-blue focus-within:ring-1 focus-within:ring-brand-blue">
+        <span className="pl-3 text-sm text-brand-slate">@</span>
+        <input
+          value={value}
+          onChange={(e) => onChange(e.target.value.replace(/^@/, ""))}
+          maxLength={20}
+          required
+          autoCapitalize="none"
+          autoComplete="username"
+          spellCheck={false}
+          className="flex-1 min-w-0 pl-1 pr-3 py-2.5 bg-transparent text-sm placeholder:text-brand-slate/50 focus:outline-none"
+        />
+        <span className="pr-3 flex items-center">
+          {status === "checking" && <CircleNotchIcon size={16} className="animate-spin text-brand-slate/50" />}
+          {status === "available" && <CheckCircleIcon size={16} weight="fill" className="text-brand-emerald" />}
+          {status === "taken" && <XCircleIcon size={16} weight="fill" className="text-brand-crimson" />}
+        </span>
+      </div>
+      {error ? (
+        <span className="text-xs text-brand-crimson">{error}</span>
+      ) : status === "taken" ? (
+        <span className="text-xs text-brand-crimson">Esse nome de usuário já está em uso.</span>
+      ) : changed ? (
+        <span className="text-xs text-brand-slate/70">
+          Seu perfil passa a ficar em <span className="font-mono text-foreground/80">/u/{value}</span>. Links antigos para o @ anterior deixam de funcionar.
+        </span>
+      ) : null}
+    </label>
+  );
+}
+
 /** campo do @ de uma rede social; aceita colar o link do perfil (o backend extrai o @) */
 function HandleInput({ label: text, icon, value, onChange, maxLength }: {
   label: string;
@@ -268,6 +342,110 @@ function HandleInput({ label: text, icon, value, onChange, maxLength }: {
         />
       </div>
     </label>
+  );
+}
+
+/** troca a senha sabendo a atual; as outras sessões caem e esta recebe um token novo */
+function PasswordSection() {
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirmation, setConfirmation] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const mismatch = confirmation.length > 0 && next !== confirmation;
+  const tooShort = next.length > 0 && next.length < 8; // igual ao AuthService
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (mismatch || tooShort) return;
+    setBusy(true);
+    setError(null);
+    setDone(false);
+    try {
+      const response = await changeMyPassword(current, next);
+      saveToken(response.token);
+      setCurrent("");
+      setNext("");
+      setConfirmation("");
+      setShowPassword(false);
+      setDone(true);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Não foi possível trocar a senha. Tente novamente.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const field = (text: string, value: string, set: (v: string) => void, autoComplete: string, hint?: string) => (
+    <label className="flex flex-col gap-2">
+      <span className={label}>{text}</span>
+      <input
+        type={showPassword ? "text" : "password"}
+        value={value}
+        onChange={(e) => {
+          setDone(false);
+          set(e.target.value);
+        }}
+        autoComplete={autoComplete}
+        required
+        className={input}
+      />
+      {hint && <span className="text-xs text-brand-crimson">{hint}</span>}
+    </label>
+  );
+
+  return (
+    <section className="mt-14">
+      <SectionHeading
+        title="Senha"
+        action={
+          <button
+            type="button"
+            onClick={() => setShowPassword((v) => !v)}
+            aria-pressed={showPassword}
+            className="inline-flex items-center gap-1.5 text-sm text-brand-slate hover:text-foreground transition-colors"
+          >
+            {showPassword ? <EyeSlashIcon size={16} /> : <EyeIcon size={16} />}
+            {showPassword ? "Ocultar" : "Mostrar"}
+          </button>
+        }
+      />
+      <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+        {field("Senha atual", current, setCurrent, "current-password")}
+        <div className="grid sm:grid-cols-2 gap-6">
+          {field("Nova senha", next, setNext, "new-password", tooShort ? "Use pelo menos 8 caracteres." : undefined)}
+          {field("Confirme a nova senha", confirmation, setConfirmation, "new-password", mismatch ? "As senhas não coincidem." : undefined)}
+        </div>
+        <p className="-mt-2 text-xs text-brand-slate/70">
+          Ao trocar, você continua conectado aqui, mas as sessões em outros aparelhos são encerradas.
+          Esqueceu a atual? <Link href="/esqueci-senha" className="text-brand-blue hover:text-brand-blue/80">Redefina por e-mail</Link>.
+        </p>
+
+        {error && (
+          <p role="alert" className="flex items-center gap-2 text-sm text-brand-crimson">
+            <WarningIcon size={16} /> {error}
+          </p>
+        )}
+
+        <div className="flex items-center gap-4">
+          <button
+            type="submit"
+            disabled={busy || !current || !next || !confirmation || mismatch || tooShort}
+            className="px-4 py-2 rounded-md bg-brand-btn text-brand-btn-text text-sm font-semibold hover:bg-brand-btn/90 disabled:opacity-60 transition-colors"
+          >
+            {busy ? "Salvando…" : "Trocar senha"}
+          </button>
+          {done && (
+            <span className="flex items-center gap-1.5 text-sm text-brand-emerald">
+              <CheckIcon size={16} weight="bold" /> Senha alterada
+            </span>
+          )}
+        </div>
+      </form>
+    </section>
   );
 }
 
@@ -324,7 +502,7 @@ function DeleteAccountSection({ username }: { username: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const confirmed = confirmation.trim().toLowerCase() === username;
+  const confirmed = sameUsername(confirmation.trim(), username);
 
   const close = () => {
     setOpen(false);

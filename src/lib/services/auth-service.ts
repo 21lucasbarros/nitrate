@@ -20,6 +20,21 @@ export function register(data: RegisterRequest): Promise<AuthResponse> {
   });
 }
 
+/** o backend responde 204 com ou sem conta para o e-mail */
+export function requestPasswordReset(email: string): Promise<void> {
+  return apiFetch<void>("/auth/forgot-password", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+export function resetPassword(token: string, password: string): Promise<void> {
+  return apiFetch<void>("/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify({ token, password }),
+  });
+}
+
 export function checkUsernameAvailability(
   username: string
 ): Promise<UsernameAvailability> {

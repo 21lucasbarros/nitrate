@@ -32,6 +32,7 @@ export interface SimilarUser extends UserSummary {
 // Espelha ProfileUpdateDTO
 export interface ProfileUpdate {
   name: string;
+  username: string;
   bio: string;
   twitter: string;
   instagram: string;

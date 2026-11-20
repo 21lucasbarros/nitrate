@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LockSimpleIcon } from "@phosphor-icons/react";
 import { useAuth } from "@/lib/auth-context";
+import { sameUsername } from "@/utils/username";
 
 /**
  * Quem está vendo: o dono do diário, outra pessoa logada, ou ainda carregando.
@@ -20,7 +21,7 @@ export function useOwnerAccess(username: string): "loading" | "owner" | "other" 
   }, [status, router, pathname]);
 
   if (status !== "authenticated") return "loading";
-  return user.username === username ? "owner" : "other";
+  return sameUsername(user.username, username) ? "owner" : "other";
 }
 
 export function PrivateNotice({ username }: { username: string }) {

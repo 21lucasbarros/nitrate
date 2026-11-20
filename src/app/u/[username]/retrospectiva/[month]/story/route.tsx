@@ -4,6 +4,7 @@ import { loadGoogleFont } from "@/lib/og-fonts";
 import type { Retrospective } from "@/lib/types/retrospective";
 import { monthLabel } from "@/utils/format";
 import { posterUrl } from "@/utils/poster";
+import { sameUsername } from "@/utils/username";
 
 /**
  * Imagem da retrospectiva no formato dos Stories (1080x1920), para compartilhar no Instagram.
@@ -37,7 +38,7 @@ export async function GET(
     return new Response("Retrospectiva não encontrada", { status: 404 });
   }
   // o token é de outra pessoa: não gera a imagem da retrospectiva de ninguém além do dono
-  if (retro.username !== username) {
+  if (!sameUsername(retro.username, username)) {
     return new Response("Retrospectiva não encontrada", { status: 404 });
   }
 
