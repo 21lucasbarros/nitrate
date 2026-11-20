@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowRightIcon, SparkleIcon, UsersThreeIcon } from "@phosphor-icons/react";
 import type { UserProfile } from "@/lib/types/user";
+import type { MovieReview } from "@/lib/types/review";
 import { useFetch } from "@/lib/hooks/use-fetch";
 import { getMyFeed, getMyRecommendations, getUserWatchlist } from "@/lib/services/user-service";
 import { getRecentReviews } from "@/lib/services/review-service";
@@ -23,9 +24,14 @@ import { SectionHeading } from "./ui/section-heading";
 const RECENT_LIMIT = 12;
 const RECENT_POSTERS = 6;
 const RECENT_TEXTS = 3;
+// seguindo mais gente que isso, os pôsteres mostram só o registro mais recente de cada pessoa
+// (quem registrou 3 filmes seguidos não ocupa a fileira); com poucas pessoas, mostra tudo
+const ONE_PER_PERSON_ABOVE = 4;
+// o feed vem com folga (máximo da API) para sobrarem 6 pôsteres depois de deixar um por pessoa
+const FEED_LIMIT = 30;
 // a atividade da comunidade (para quem ainda não segue ninguém) não precisa ser buscada a cada visita
 const fetchRecent = cachedFetcher(() => getRecentReviews(RECENT_LIMIT), 5 * 60 * 1000);
-const fetchFeed = () => getMyFeed(RECENT_LIMIT);
+const fetchFeed = () => getMyFeed(FEED_LIMIT);
 const fetchRetroMonths = () => getMyRetrospectiveMonths();
 // "Descubra algo novo": uma página do catálogo basta (antes vinha o acervo inteiro)
 const DISCOVER_POOL = 30;
@@ -59,6 +65,9 @@ export default function UserHome({ user }: { user: UserProfile }) {
   const watchlistIds = new Set(watchlist.data?.map((item) => item.movie.id));
   const discover = (movies.data?.items ?? []).filter((movie) => !watchlistIds.has(movie.id)).slice(0, 12);
   const recentWritten = (activity.data ?? []).filter((r) => r.text && !r.spoiler).slice(0, RECENT_TEXTS);
+  const posters = followsSomeone && user.followingCount > ONE_PER_PERSON_ABOVE
+    ? latestPerPerson(activity.data ?? [])
+    : (activity.data ?? []);
 
   return (
     <main className="pt-28 sm:pt-32 pb-24 px-6 max-w-[1100px] mx-auto w-full">
@@ -87,7 +96,7 @@ export default function UserHome({ user }: { user: UserProfile }) {
         {activity.data ? (
           activity.data.length > 0 ? (
             <ul className="grid grid-cols-3 sm:grid-cols-6 gap-x-3 gap-y-6 sm:gap-x-4">
-              {activity.data.slice(0, RECENT_POSTERS).map((review) => (
+              {posters.slice(0, RECENT_POSTERS).map((review) => (
                 <ActivityPoster key={review.id} review={review} />
               ))}
             </ul>
@@ -178,6 +187,16 @@ export default function UserHome({ user }: { user: UserProfile }) {
       </section>
     </main>
   );
+}
+
+/** o feed já vem do mais recente para o mais antigo: fica o primeiro registro de cada pessoa */
+function latestPerPerson(reviews: MovieReview[]): MovieReview[] {
+  const seen = new Set<string>();
+  return reviews.filter((review) => {
+    if (seen.has(review.user.username)) return false;
+    seen.add(review.user.username);
+    return true;
+  });
 }
 
 /** saudação pela hora do dia */
