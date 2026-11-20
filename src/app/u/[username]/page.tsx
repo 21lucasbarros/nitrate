@@ -21,6 +21,7 @@ import {
 
 import Header from "@/app/components/header";
 import { Avatar } from "@/app/components/ui/avatar";
+import { ProfileBadges } from "@/app/components/badges";
 import { MovieGrid } from "@/app/components/movie-grid";
 import { EditFavoritesButton, FavoriteFilms, FavoritesEditor } from "@/app/components/favorite-films";
 import { FavoritePeopleCompact, FavoritePeopleEditor } from "@/app/components/favorite-people";
@@ -269,6 +270,7 @@ function Profile() {
               <span aria-hidden="true"> · </span>
               desde {monthYear(user.createdAt)}
             </p>
+            {user.badges && <ProfileBadges badges={user.badges} name={user.name} />}
             {user.bio && <p className="mt-3 max-w-xl text-sm leading-relaxed text-foreground/85 whitespace-pre-line">{user.bio}</p>}
             {(user.twitter || user.instagram) && (
               <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1 text-sm">

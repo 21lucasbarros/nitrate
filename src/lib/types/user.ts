@@ -21,6 +21,18 @@ export interface UserProfile extends UserSummary {
   favorites: Movie[]; // até 5, em ordem
   followedByMe: boolean | null; // null para visitantes e no próprio perfil
   followsMe: boolean | null; // este perfil segue quem está vendo ("Segue você"); null como acima
+  // selos concedidos pelo admin, na ordem do catálogo (opcional: uma API anterior aos selos não manda)
+  badges?: Badge[];
+  admin?: boolean | null; // só no próprio perfil (/users/me): pode abrir o painel de admin
+}
+
+// Espelha BadgeDTO
+export interface Badge {
+  type: string; // FUNDADOR, INVESTIDOR... (ícone e cor em components/badges.tsx)
+  label: string;
+  description: string;
+  note: string | null; // nota pessoal do admin
+  awardedAt: string | null; // ISO; null nos itens do catálogo
 }
 
 // Espelha SimilarUserDTO

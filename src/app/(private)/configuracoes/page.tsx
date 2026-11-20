@@ -13,6 +13,7 @@ import {
   EyeIcon,
   EyeSlashIcon,
   InstagramLogoIcon,
+  ShieldStarIcon,
   TrashIcon,
   WarningIcon,
   XCircleIcon,
@@ -64,6 +65,12 @@ export default function SettingsPage() {
               <ArrowLeftIcon size={14} /> Voltar ao perfil
             </Link>
             <h1 className="mt-4 text-3xl font-semibold tracking-tight">Configurações</h1>
+            {/* no celular o atalho do cabeçalho some, então o painel fica acessível por aqui */}
+            {user.admin && (
+              <Link href="/admin" className="mt-3 inline-flex items-center gap-1.5 text-sm text-brand-orange hover:underline underline-offset-4">
+                <ShieldStarIcon size={14} weight="fill" /> Painel de admin
+              </Link>
+            )}
 
             {/* key: depois de salvar, o formulário recomeça com os dados novos */}
             <ProfileForm key={`${user.name}|${user.username}|${user.bio}|${user.twitter}|${user.instagram}`} user={user} />

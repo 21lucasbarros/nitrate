@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { GearSixIcon, MagnifyingGlassIcon, SignOutIcon } from "@phosphor-icons/react";
+import { GearSixIcon, MagnifyingGlassIcon, ShieldStarIcon, SignOutIcon } from "@phosphor-icons/react";
 import { useAuth } from "@/lib/auth-context";
 import { useLogoEgg } from "@/lib/hooks/use-easter-eggs";
 import { DreamBigLogo } from "./easter-eggs/dream-big-logo";
@@ -61,6 +61,16 @@ export default function Header() {
               <Link href={`/u/${user.username}`} aria-label="Meu perfil" title={`@${user.username}`} className="rounded-full ring-2 ring-transparent hover:ring-brand-orange/60 transition-shadow">
                 <Avatar name={user.name} username={user.username} avatar={user.avatar} size="sm" />
               </Link>
+              {user.admin && (
+                <Link
+                  href="/admin"
+                  aria-label="Painel de admin"
+                  title="Painel de admin"
+                  className="hidden sm:block p-2 -mr-2 text-brand-slate/70 hover:text-brand-orange transition-colors"
+                >
+                  <ShieldStarIcon size={18} />
+                </Link>
+              )}
               <Link
                 href="/configuracoes"
                 aria-label="Configurações"
