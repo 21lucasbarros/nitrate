@@ -15,14 +15,14 @@ interface SectionHeadingProps {
 /** Título de seção: texto pequeno com uma linha fina embaixo e um link opcional à direita. */
 export function SectionHeading({ title, href, linkLabel = "Ver tudo", count, action, className = "" }: SectionHeadingProps) {
   return (
-    <div className={`flex items-baseline justify-between gap-4 pb-2.5 mb-5 border-b border-foreground/10 ${className}`}>
-      <h2 className="text-[15px] font-medium text-foreground/90">
+    <div className={`flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 pb-2.5 mb-5 border-b border-foreground/10 ${className}`}>
+      <h2 className="min-w-0 text-[15px] font-medium text-foreground/90">
         {title}
         {count !== undefined && <span className="ml-2 text-sm font-normal text-brand-slate/70">{count}</span>}
       </h2>
       {action ??
         (href && (
-          <Link href={href} className="text-sm text-brand-slate hover:text-foreground transition-colors">
+          <Link href={href} className="whitespace-nowrap text-sm text-brand-slate hover:text-foreground transition-colors">
             {linkLabel}
           </Link>
         ))}

@@ -138,9 +138,9 @@ export default function UserHome({ user }: { user: UserProfile }) {
           title="Sua watchlist"
           count={user.watchlistCount}
           action={
-            <span className="flex items-baseline gap-5">
+            <span className="flex items-baseline gap-4 sm:gap-5">
               {watchlist.data && <WhatToWatchButton movies={watchlist.data.map((item) => item.movie)} />}
-              <Link href={`/u/${user.username}?tab=watchlist`} className="text-sm text-brand-slate hover:text-foreground transition-colors">
+              <Link href={`/u/${user.username}?tab=watchlist`} className="whitespace-nowrap text-sm text-brand-slate hover:text-foreground transition-colors">
                 Ver tudo
               </Link>
             </span>
@@ -171,7 +171,7 @@ export default function UserHome({ user }: { user: UserProfile }) {
       {popularLists.data && popularLists.data.length > 0 && (
         <section className="mt-12">
           <SectionHeading title="Listas populares" />
-          <ul className="grid sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-10">
+          <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-10">
             {popularLists.data.map((list) => (
               <li key={list.id}>
                 <ListCard list={list} showOwner />

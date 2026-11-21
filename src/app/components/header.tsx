@@ -1,31 +1,27 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { GearSixIcon, MagnifyingGlassIcon, ShieldStarIcon, SignOutIcon } from "@phosphor-icons/react";
+import { usePathname } from "next/navigation";
+import { ListIcon, MagnifyingGlassIcon, XIcon } from "@phosphor-icons/react";
 import { useAuth } from "@/lib/auth-context";
 import { useLogoEgg } from "@/lib/hooks/use-easter-eggs";
 import { DreamBigLogo } from "./easter-eggs/dream-big-logo";
 import { HeaderSearch } from "./header-search";
 import { NotificationBell } from "./notification-bell";
-import { Avatar } from "./ui/avatar";
+import { UserMenu } from "./user-menu";
 
 const navLink = "px-3 py-2 text-sm font-medium text-brand-slate hover:text-foreground transition-colors";
 
 export default function Header() {
-  const { status, user, signOut } = useAuth();
-  const router = useRouter();
+  const { status } = useAuth();
+  const pathname = usePathname();
   // easter egg: a página de certos filmes troca a logo
   const logoEgg = useLogoEgg();
 
-  const handleSignOut = () => {
-    signOut();
-    router.push("/");
-  };
-
   return (
     <header className="fixed top-0 w-full z-50 bg-background/85 backdrop-blur-md border-b border-foreground/5">
-      <div className="max-w-[1100px] mx-auto px-6 h-16 flex items-center gap-6">
+      <div className="max-w-[1100px] mx-auto px-4 sm:px-6 h-16 flex items-center gap-4 sm:gap-6">
         <Link
           href="/"
           aria-label="Nitrate"
@@ -40,54 +36,25 @@ export default function Header() {
           )}
         </Link>
 
-        <nav aria-label="Navegação Principal" className="hidden md:flex items-center gap-1 ml-auto">
-          <Link href="/movies" className={navLink}>Filmes</Link>
-          <Link href="/series" className={navLink}>Séries</Link>
+        <nav aria-label="Navegação Principal" className="hidden md:flex items-center gap-1">
+          <NavLink href="/movies" active={isActive(pathname, ["/movies", "/film", "/person"])}>Filmes</NavLink>
+          <NavLink href="/series" active={isActive(pathname, ["/series"])}>Séries</NavLink>
           {status === "authenticated" ? (
-            <>
-              <Link href={`/u/${user.username}?tab=filmes`} className={navLink}>Meus filmes</Link>
-              <Link href="/amigos" className={navLink}>Amigos</Link>
-            </>
+            <NavLink href="/amigos" active={isActive(pathname, ["/amigos"])}>Amigos</NavLink>
           ) : (
-            <Link href="/importar" className={navLink}>Importar</Link>
+            <NavLink href="/importar" active={isActive(pathname, ["/importar"])}>Importar</NavLink>
           )}
-          <HeaderSearch />
         </nav>
 
-        <div className="flex gap-3 items-center ml-auto md:ml-0 min-h-9">
+        <div className="flex gap-2 items-center ml-auto min-h-9">
+          <div className="hidden lg:block">
+            <HeaderSearch />
+          </div>
           {status === "authenticated" && (
             <>
               <MobileSearchLink />
               <NotificationBell />
-              <Link href={`/u/${user.username}`} aria-label="Meu perfil" title={`@${user.username}`} className="rounded-full ring-2 ring-transparent hover:ring-brand-orange/60 transition-shadow">
-                <Avatar name={user.name} username={user.username} avatar={user.avatar} size="sm" />
-              </Link>
-              {user.admin && (
-                <Link
-                  href="/admin"
-                  aria-label="Painel de admin"
-                  title="Painel de admin"
-                  className="hidden sm:block p-2 -mr-2 text-brand-slate/70 hover:text-brand-orange transition-colors"
-                >
-                  <ShieldStarIcon size={18} />
-                </Link>
-              )}
-              <Link
-                href="/configuracoes"
-                aria-label="Configurações"
-                title="Configurações"
-                className="hidden sm:block p-2 -mr-2 text-brand-slate/70 hover:text-foreground transition-colors"
-              >
-                <GearSixIcon size={18} />
-              </Link>
-              <button
-                onClick={handleSignOut}
-                aria-label="Sair"
-                title="Sair"
-                className="p-2 text-brand-slate/70 hover:text-brand-crimson transition-colors"
-              >
-                <SignOutIcon size={18} />
-              </button>
+              <UserMenu />
             </>
           )}
           {status === "loading" && (
@@ -100,12 +67,13 @@ export default function Header() {
           {status === "anonymous" && (
             <>
               <MobileSearchLink />
-              <Link href="/sign-in" className={`hidden sm:block ${navLink}`}>
+              <MobileNav />
+              <Link href="/sign-in" className={`hidden sm:block whitespace-nowrap ${navLink}`}>
                 Entrar
               </Link>
               <Link
                 href="/sign-in"
-                className="bg-brand-btn text-brand-btn-text px-3 py-1.5 rounded-md text-sm font-semibold hover:bg-brand-btn/90 transition-colors"
+                className="whitespace-nowrap bg-brand-btn text-brand-btn-text px-3 py-1.5 rounded-md text-sm font-semibold hover:bg-brand-btn/90 transition-colors"
               >
                 Criar conta
               </Link>
@@ -117,10 +85,88 @@ export default function Header() {
   );
 }
 
-/** lupa do celular (a busca do desktop fica na navegação, que some no celular) */
+function isActive(pathname: string, prefixes: string[]) {
+  return prefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
+
+/** link da navegação: o da seção atual fica claro, com o ponto laranja da logo embaixo */
+function NavLink({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {
+  return (
+    <Link
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className={`relative px-3 py-2 text-sm font-medium transition-colors ${active ? "text-foreground" : "text-brand-slate hover:text-foreground"}`}
+    >
+      {children}
+      {active && <span aria-hidden="true" className="absolute left-1/2 -translate-x-1/2 -bottom-0.5 w-1 h-1 rounded-full bg-brand-orange" />}
+    </Link>
+  );
+}
+
+/** menu do celular para quem não entrou: as seções do header, que somem abaixo do md */
+function MobileNav() {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
+
+  // clicar fora ou Esc fecha
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKeyDown = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
+  const link = (href: string, label: string, prefixes: string[]) => (
+    <Link
+      href={href}
+      onClick={() => setOpen(false)}
+      className={`block mx-1.5 px-2.5 py-2 rounded text-sm hover:bg-surface-strong transition-colors ${isActive(pathname, prefixes) ? "text-foreground" : "text-foreground/80"}`}
+    >
+      {label}
+    </Link>
+  );
+
+  return (
+    <div ref={ref} className="relative md:hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-label={open ? "Fechar menu" : "Abrir menu"}
+        aria-expanded={open}
+        className="p-2 -mx-1 text-brand-slate hover:text-foreground transition-colors"
+      >
+        {open ? <XIcon size={20} /> : <ListIcon size={20} />}
+      </button>
+      {open && (
+        <nav
+          aria-label="Navegação Principal"
+          className="absolute right-0 top-full mt-2 w-48 rounded-md bg-surface ring-1 ring-foreground/10 shadow-2xl shadow-black/60 py-1.5 animate-[modal-in_150ms_ease-out]"
+        >
+          {link("/movies", "Filmes", ["/movies", "/film", "/person"])}
+          {link("/series", "Séries", ["/series"])}
+          {link("/importar", "Importar do Letterboxd", ["/importar"])}
+          <div className="sm:hidden">
+            <div className="my-1.5 border-t border-foreground/5" />
+            {link("/sign-in", "Entrar", ["/sign-in"])}
+          </div>
+        </nav>
+      )}
+    </div>
+  );
+}
+
+/** lupa do celular (a busca do desktop fica no header, que esconde o campo no celular) */
 function MobileSearchLink() {
   return (
-    <Link href="/movies?buscar=1" aria-label="Buscar filmes, pessoas e perfis" className="md:hidden p-2 -mx-1 text-brand-slate hover:text-foreground transition-colors">
+    <Link href="/movies?buscar=1" aria-label="Buscar filmes, pessoas e perfis" className="lg:hidden p-2 -mx-1 text-brand-slate hover:text-foreground transition-colors">
       <MagnifyingGlassIcon size={20} />
     </Link>
   );

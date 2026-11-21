@@ -28,7 +28,7 @@ export function stillUrl(path: string | null | undefined): string | null {
   return tmdbImage(path, "w300");
 }
 
-/** imagem de fundo (cena do filme) no TMDB */
-export function backdropUrl(path: string | null | undefined): string | null {
-  return tmdbImage(path, "w1280");
+/** imagem de fundo (cena do filme) no TMDB; w780 para miniaturas */
+export function backdropUrl(path: string | null | undefined, size: "w780" | "w1280" = "w1280"): string | null {
+  return tmdbImage(path, size);
 }

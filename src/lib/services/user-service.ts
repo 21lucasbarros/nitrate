@@ -2,7 +2,7 @@ import { apiFetch } from "../api-client";
 import type { FilmEntry, MovieReview, MovieUserState, Recommendation, WatchlistItem } from "../types/review";
 import type { Page } from "../types/page";
 import type { AuthResponse } from "../types/auth";
-import type { AppNotification, ProfileUpdate, SimilarUser, UserProfile, UserSummary } from "../types/user";
+import type { AppNotification, MovieBackdrops, ProfileUpdate, SimilarUser, UserProfile, UserSummary } from "../types/user";
 import type { Movie } from "@/types/movie";
 import type { FavoritePeople, FavoritePeopleKind, FavoritePerson } from "@/types/person";
 
@@ -36,6 +36,29 @@ export function changeMyPassword(currentPassword: string, newPassword: string): 
     method: "PUT",
     body: JSON.stringify({ currentPassword, newPassword }),
   });
+}
+
+/** troca o e-mail; o token guarda o e-mail, então o backend devolve um token novo para esta sessão */
+export function changeMyEmail(email: string, password: string): Promise<AuthResponse> {
+  return apiFetch<AuthResponse>("/users/me/email", {
+    method: "PUT",
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+/** as cenas de um filme do TMDB, para escolher o fundo do perfil */
+export function getMovieBackdrops(tmdbId: number): Promise<MovieBackdrops> {
+  return apiFetch<MovieBackdrops>(`/movies/tmdb/${tmdbId}/backdrops`);
+}
+
+/** fundo do topo do perfil: uma das cenas de getMovieBackdrops */
+export function setMyCover(tmdbId: number, path: string): Promise<UserProfile> {
+  return apiFetch<UserProfile>("/users/me/cover", { method: "PUT", body: JSON.stringify({ tmdbId, path }) });
+}
+
+/** volta para a cena do primeiro filme favorito */
+export function removeMyCover(): Promise<UserProfile> {
+  return apiFetch<UserProfile>("/users/me/cover", { method: "DELETE" });
 }
 
 /** exclusão definitiva; a senha confirma que é a dona da conta */

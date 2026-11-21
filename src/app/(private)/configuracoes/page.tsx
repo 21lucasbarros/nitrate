@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowLeftIcon,
@@ -10,8 +11,10 @@ import {
   CheckCircleIcon,
   CircleNotchIcon,
   DownloadSimpleIcon,
+  EnvelopeSimpleIcon,
   EyeIcon,
   EyeSlashIcon,
+  ImageIcon,
   InstagramLogoIcon,
   ShieldStarIcon,
   SparkleIcon,
@@ -23,6 +26,7 @@ import {
 
 import Header from "@/app/components/header";
 import { AvatarCropper } from "@/app/components/avatar-cropper";
+import { CoverPicker } from "@/app/components/cover-picker";
 import { Avatar } from "@/app/components/ui/avatar";
 import { Modal } from "@/app/components/ui/modal";
 import { SectionHeading } from "@/app/components/ui/section-heading";
@@ -32,14 +36,17 @@ import { saveToken } from "@/lib/auth-storage";
 import { useUsernameAvailability } from "@/lib/hooks/use-username-availability";
 import { usernameSchema } from "@/lib/schemas/auth-schemas";
 import {
+  changeMyEmail,
   changeMyPassword,
   deleteMyAccount,
   exportMyData,
   removeMyAvatar,
+  removeMyCover,
   updateMyProfile,
   uploadMyAvatar,
 } from "@/lib/services/user-service";
 import type { UserProfile } from "@/lib/types/user";
+import { backdropUrl } from "@/utils/poster";
 import { sameUsername } from "@/utils/username";
 
 const NAME_MAX = 60;
@@ -55,7 +62,7 @@ export default function SettingsPage() {
   return (
     <div className="min-h-screen bg-background text-foreground font-sans">
       <Header />
-      <main className="pt-28 sm:pt-32 pb-24 px-6 max-w-[720px] mx-auto">
+      <main className="pt-24 sm:pt-32 pb-24 px-4 sm:px-6 max-w-[720px] mx-auto">
         {status !== "authenticated" ? (
           <div className="py-24 flex justify-center text-brand-slate/40">
             <CircleNotchIcon size={28} className="animate-spin" />
@@ -76,6 +83,7 @@ export default function SettingsPage() {
             {/* key: depois de salvar, o formulário recomeça com os dados novos */}
             <ProfileForm key={`${user.name}|${user.username}|${user.bio}|${user.twitter}|${user.instagram}`} user={user} />
             <TasteSection />
+            <EmailSection current={user.email ?? null} />
             <PasswordSection />
             <DataSection />
             <DeleteAccountSection username={user.username} />
@@ -126,6 +134,7 @@ function ProfileForm({ user }: { user: UserProfile }) {
       <SectionHeading title="Perfil" />
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
         <AvatarPicker user={user} previewName={name || user.name} />
+        <CoverSetting user={user} />
         <label className="flex flex-col gap-2">
           <span className={label}>Nome</span>
           <input value={name} onChange={(e) => setName(e.target.value)} maxLength={NAME_MAX} required className={input} />
@@ -284,6 +293,81 @@ function AvatarPicker({ user, previewName }: { user: UserProfile; previewName: s
   );
 }
 
+/** o fundo do topo do perfil: uma cena de filme, salva assim que escolhida (como a foto) */
+function CoverSetting({ user }: { user: UserProfile }) {
+  const { refreshUser } = useAuth();
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const preview = backdropUrl(user.cover?.path, "w780");
+
+  const remove = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await removeMyCover();
+      refreshUser();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Não foi possível remover o fundo. Tente novamente.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-5">
+      <span className="relative w-full sm:w-40 aspect-video shrink-0 overflow-hidden rounded-md bg-surface ring-1 ring-foreground/10">
+        {preview ? (
+          <Image src={preview} alt="" fill sizes="(min-width: 640px) 160px, 100vw" className="object-cover" />
+        ) : (
+          <ImageIcon size={22} className="absolute inset-0 m-auto text-foreground/25" />
+        )}
+      </span>
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            disabled={busy}
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-foreground/15 text-sm hover:bg-surface disabled:opacity-60 transition-colors"
+          >
+            <ImageIcon size={16} /> {user.cover ? "Trocar fundo" : "Escolher fundo"}
+          </button>
+          {user.cover && (
+            <button
+              type="button"
+              onClick={remove}
+              disabled={busy}
+              className="inline-flex items-center gap-1.5 text-sm text-brand-slate hover:text-brand-crimson disabled:opacity-60 transition-colors"
+            >
+              <TrashIcon size={15} /> Remover
+            </button>
+          )}
+        </div>
+        {error ? (
+          <p role="alert" className="mt-1.5 text-xs text-brand-crimson">{error}</p>
+        ) : (
+          <p className="mt-1.5 text-xs text-brand-slate/70">
+            {user.cover
+              ? `Uma cena de ${user.cover.title}${user.cover.year ? ` (${user.cover.year})` : ""}.`
+              : "O fundo do topo do seu perfil. Sem escolher, vale a cena do seu primeiro filme favorito."}
+          </p>
+        )}
+      </div>
+
+      <CoverPicker
+        open={open}
+        onClose={() => setOpen(false)}
+        current={user.cover}
+        onSaved={() => {
+          setOpen(false);
+          refreshUser();
+        }}
+      />
+    </div>
+  );
+}
+
 /** o @ do Nitrate: mesmas regras do cadastro, com a disponibilidade conferida enquanto digita */
 function UsernameInput({ value, onChange, error, status, changed }: {
   value: string;
@@ -354,7 +438,6 @@ function HandleInput({ label: text, icon, value, onChange, maxLength }: {
   );
 }
 
-/** troca a senha sabendo a atual; as outras sessões caem e esta recebe um token novo */
 /** atalho para refazer o questionário de gostos do cadastro */
 function TasteSection() {
   return (
@@ -375,6 +458,128 @@ function TasteSection() {
   );
 }
 
+/** troca o e-mail confirmando com a senha; as outras sessões caem e esta recebe um token novo */
+function EmailSection({ current }: { current: string | null }) {
+  const { refreshUser } = useAuth();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const typed = email.trim().toLowerCase();
+  // o servidor confere de novo; aqui é só para não mandar o óbvio
+  const invalid = typed.length > 0 && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(typed);
+  const same = current !== null && typed === current.toLowerCase();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (invalid || same) return;
+    setBusy(true);
+    setError(null);
+    setDone(false);
+    try {
+      const response = await changeMyEmail(typed, password);
+      saveToken(response.token);
+      setEmail("");
+      setPassword("");
+      setShowPassword(false);
+      setDone(true);
+      refreshUser();
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) setError("Já existe uma conta com esse e-mail.");
+      else setError(err instanceof ApiError ? err.message : "Não foi possível trocar o e-mail. Tente novamente.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="mt-14">
+      <SectionHeading title="E-mail" />
+      {current && (
+        <p className="-mt-1 mb-6 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-brand-slate">
+          <EnvelopeSimpleIcon size={16} className="shrink-0" />
+          E-mail atual: <span className="text-foreground break-all">{current}</span>
+        </p>
+      )}
+      <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+        <div className="grid sm:grid-cols-2 gap-6">
+          <label className="flex flex-col gap-2">
+            <span className={label}>Novo e-mail</span>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => {
+                setDone(false);
+                setEmail(e.target.value);
+              }}
+              autoComplete="email"
+              autoCapitalize="none"
+              spellCheck={false}
+              required
+              className={input}
+            />
+            {invalid && <span className="text-xs text-brand-crimson">Informe um e-mail válido.</span>}
+            {same && <span className="text-xs text-brand-crimson">Esse já é o e-mail da sua conta.</span>}
+          </label>
+          <label className="flex flex-col gap-2">
+            <span className={label}>Sua senha</span>
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => {
+                  setDone(false);
+                  setPassword(e.target.value);
+                }}
+                autoComplete="current-password"
+                required
+                className={`${input} pr-10`}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                aria-pressed={showPassword}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-brand-slate/50 hover:text-foreground focus:outline-none focus-visible:text-brand-blue transition-colors"
+              >
+                {showPassword ? <EyeSlashIcon size={18} /> : <EyeIcon size={18} />}
+              </button>
+            </div>
+          </label>
+        </div>
+        <p className="-mt-2 text-xs text-brand-slate/70">
+          Você passa a entrar com o e-mail novo. O antigo recebe um aviso, e as sessões em outros aparelhos são encerradas.
+        </p>
+
+        {error && (
+          <p role="alert" className="flex items-center gap-2 text-sm text-brand-crimson">
+            <WarningIcon size={16} /> {error}
+          </p>
+        )}
+
+        <div className="flex items-center gap-4">
+          <button
+            type="submit"
+            disabled={busy || !typed || !password || invalid || same}
+            className="px-4 py-2 rounded-md bg-brand-btn text-brand-btn-text text-sm font-semibold hover:bg-brand-btn/90 disabled:opacity-60 transition-colors"
+          >
+            {busy ? "Salvando…" : "Trocar e-mail"}
+          </button>
+          {done && (
+            <span className="flex items-center gap-1.5 text-sm text-brand-emerald">
+              <CheckIcon size={16} weight="bold" /> E-mail alterado
+            </span>
+          )}
+        </div>
+      </form>
+    </section>
+  );
+}
+
+/** troca a senha sabendo a atual; as outras sessões caem e esta recebe um token novo */
 function PasswordSection() {
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");

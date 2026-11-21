@@ -24,6 +24,25 @@ export interface UserProfile extends UserSummary {
   // selos concedidos pelo admin, na ordem do catálogo (opcional: uma API anterior aos selos não manda)
   badges?: Badge[];
   admin?: boolean | null; // só no próprio perfil (/users/me): pode abrir o painel de admin
+  email?: string | null; // só no próprio perfil (/users/me)
+  // fundo escolhido para o topo do perfil; null = a cena do primeiro favorito (opcional: APIs antigas não mandam)
+  cover?: ProfileCover | null;
+}
+
+// Espelha UserProfileDTO.Cover: uma cena de filme do TMDB
+export interface ProfileCover {
+  path: string; // backdrop no TMDB (ex.: "/abc.jpg")
+  tmdbId: number;
+  title: string;
+  year: number | null;
+}
+
+// Espelha MovieBackdropsDTO: as cenas de um filme para escolher o fundo
+export interface MovieBackdrops {
+  tmdbId: number;
+  title: string;
+  year: number | null;
+  backdrops: string[];
 }
 
 // Espelha BadgeDTO

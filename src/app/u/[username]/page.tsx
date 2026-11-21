@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -10,6 +11,7 @@ import {
   CircleNotchIcon,
   DownloadSimpleIcon,
   HeartIcon,
+  ImageIcon,
   InstagramLogoIcon,
   PencilSimpleIcon,
   PlusIcon,
@@ -21,6 +23,7 @@ import {
 
 import Header from "@/app/components/header";
 import { Avatar } from "@/app/components/ui/avatar";
+import { CoverPicker } from "@/app/components/cover-picker";
 import { ProfileBadges } from "@/app/components/badges";
 import { MovieGrid } from "@/app/components/movie-grid";
 import { EditFavoritesButton, FavoriteFilms, FavoritesEditor } from "@/app/components/favorite-films";
@@ -57,7 +60,10 @@ import { seasonLabel, type SeriesReview } from "@/types/series";
 import { seriesHref, seriesReviewHref } from "@/utils/series-link";
 import type { FilmEntry, MovieReview } from "@/lib/types/review";
 import type { FavoritePeopleKind } from "@/types/person";
-import { compactDate, monthYear, timeAgo } from "@/utils/format";
+import { getMovieCredits } from "@/lib/services/movie-service";
+import { compactDate, timeAgo } from "@/utils/format";
+import { filmHref } from "@/utils/movie-link";
+import { backdropUrl } from "@/utils/poster";
 import { sameUsername } from "@/utils/username";
 
 const TABS = [
@@ -99,7 +105,8 @@ const fetchRecentReviews = (username: string) =>
 export default function ProfilePage() {
   // useSearchParams precisa de Suspense para o build estático do Next
   return (
-    <div className="min-h-screen bg-background text-foreground font-sans">
+    // relative + isolate: a cena do filme favorito fica atrás do perfil inteiro, de ponta a ponta
+    <div className="relative isolate min-h-screen bg-background text-foreground font-sans">
       <Header />
       <main className="pt-28 sm:pt-32 pb-24 px-6 max-w-[1100px] mx-auto">
         <Suspense fallback={<Loading />}>
@@ -123,6 +130,7 @@ function Profile() {
   const [pickingFilm, setPickingFilm] = useState<FilmEntry | null>(null);
   // modal aberto pelos números "seguindo" / "seguidores" do topo
   const [peopleModal, setPeopleModal] = useState<"following" | "followers" | null>(null);
+  const [pickingCover, setPickingCover] = useState(false);
 
   const rawTab = searchParams.get("tab") ?? "";
   const tabParam = TAB_ALIASES[rawTab] ?? rawTab;
@@ -148,6 +156,8 @@ function Profile() {
   const favoritePeople = useFetch(tab === "perfil" ? username : null, getFavoritePeople);
   // gostos parecidos: só na própria aba de amigos
   const similar = useFetch(tab === "rede" && sameUsername(me?.username, username) ? username : null, fetchSimilar);
+  // sem fundo escolhido, a cena do primeiro filme favorito vira o fundo do topo do perfil
+  const coverCredits = useFetch(profile.data && !profile.data.cover ? (profile.data.favorites[0]?.id ?? null) : null, getMovieCredits);
 
   if (profile.error instanceof ApiError && profile.error.status === 404) {
     return (
@@ -236,100 +246,130 @@ function Profile() {
     },
   ];
 
+  // de qual filme é a cena: a escolhida (qualquer filme do TMDB) ou a do primeiro favorito
+  const favorite = user.favorites[0];
+  const cover = user.cover
+    ? { src: backdropUrl(user.cover.path), title: user.cover.title, year: user.cover.year, href: `/movies/tmdb/${user.cover.tmdbId}` }
+    : favorite && coverCredits.data?.backdropPath
+      ? { src: backdropUrl(coverCredits.data.backdropPath), title: favorite.title, year: favorite.releaseYear, href: filmHref(favorite) }
+      : null;
+  const hasCover = !!user.cover || !!favorite;
+
   return (
     <>
-      <section className="flex flex-col md:flex-row md:items-center gap-6 pb-8">
-        <div className="flex items-center gap-5 min-w-0">
-          <Avatar name={user.name} username={user.username} avatar={user.avatar} size="lg" />
+      <ProfileCover src={cover?.src ?? null} />
+
+      {/* de qual filme é a cena e, no próprio perfil, o botão de trocar: no canto de cima do fundo */}
+      {(cover || isMe) && (
+        <div className="relative flex items-center justify-end gap-3 -mt-2 sm:-mt-4 mb-2 min-h-8">
+          {cover && (
+            <Link href={cover.href} className="min-w-0 truncate text-[11px] text-foreground/40 hover:text-foreground/75 transition-colors">
+              {cover.title}
+              {cover.year && ` (${cover.year})`}
+            </Link>
+          )}
+          {isMe && (
+            <button
+              type="button"
+              onClick={() => setPickingCover(true)}
+              className="shrink-0 inline-flex items-center gap-1.5 h-8 px-3 rounded-md bg-background/50 backdrop-blur ring-1 ring-foreground/15 text-xs font-medium text-foreground/85 hover:text-foreground hover:bg-background/70 transition-colors"
+            >
+              <ImageIcon size={14} /> {user.cover ? "Trocar fundo" : "Escolher fundo"}
+            </button>
+          )}
+        </div>
+      )}
+
+      <section className={`relative flex flex-col lg:flex-row lg:items-end gap-6 pb-8 sm:pb-10 ${hasCover ? "pt-6 sm:pt-20" : ""}`}>
+        <div className="flex flex-col sm:flex-row sm:items-end gap-5 min-w-0">
+          <div className="shrink-0 w-fit rounded-full ring-4 ring-background shadow-2xl shadow-black/60">
+            <Avatar name={user.name} username={user.username} avatar={user.avatar} size="xl" />
+          </div>
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">{user.name}</h1>
-              {!isMe && status === "authenticated" && user.followedByMe !== null && (
-                <FollowButton username={user.username} following={user.followedByMe} onChange={setFollowing} onSaved={afterFollowSaved} />
-              )}
-              {isMe && (
-                <Link
-                  href="/configuracoes"
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-surface-strong text-xs font-semibold text-foreground hover:bg-foreground/15 transition-colors"
-                >
-                  <PencilSimpleIcon size={12} weight="bold" /> Editar perfil
-                </Link>
-              )}
-              {!isMe && status === "anonymous" && (
-                <Link
-                  href={`/sign-in?redirect=${encodeURIComponent(`/u/${user.username}`)}`}
-                  className="px-3 py-1 rounded-md bg-surface-strong text-xs font-semibold text-foreground hover:bg-brand-orange hover:text-background transition-colors"
-                >
-                  Entre para seguir
-                </Link>
-              )}
-            </div>
-            <p className="mt-1 text-sm text-brand-slate">
-              @{user.username}
+            <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight break-words">{user.name}</h1>
+            <p className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-brand-slate">
+              <span>@{user.username}</span>
               {user.followsMe && (
-                <span className="ml-2 px-1.5 py-0.5 rounded bg-surface-strong text-[11px] font-medium text-brand-slate align-[1px]">
+                <span className="ml-1 px-1.5 py-0.5 rounded bg-surface-strong text-[11px] font-medium text-brand-slate">
                   Segue você
                 </span>
               )}
-              <span aria-hidden="true"> · </span>
-              desde {monthYear(user.createdAt)}
+              {(user.twitter || user.instagram) && (
+                <span className="flex items-center gap-0.5 ml-1">
+                  {/* só o @ vem do banco: o domínio é fixo aqui, então o link nunca aponta para outro site */}
+                  {user.twitter && (
+                    <SocialLink href={`https://x.com/${encodeURIComponent(user.twitter)}`} label={`@${user.twitter} no X`}>
+                      <XLogoIcon size={15} />
+                    </SocialLink>
+                  )}
+                  {user.instagram && (
+                    <SocialLink href={`https://instagram.com/${encodeURIComponent(user.instagram)}`} label={`@${user.instagram} no Instagram`}>
+                      <InstagramLogoIcon size={16} />
+                    </SocialLink>
+                  )}
+                </span>
+              )}
             </p>
             {user.badges && <ProfileBadges badges={user.badges} name={user.name} />}
             {user.bio && <p className="mt-3 max-w-xl text-sm leading-relaxed text-foreground/85 whitespace-pre-line">{user.bio}</p>}
-            {(user.twitter || user.instagram) && (
-              <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1 text-sm">
-                {/* só o @ vem do banco: o domínio é fixo aqui, então o link nunca aponta para outro site */}
-                {user.twitter && (
-                  <a
-                    href={`https://x.com/${encodeURIComponent(user.twitter)}`}
-                    target="_blank"
-                    rel="noopener noreferrer nofollow"
-                    className="inline-flex items-center gap-1.5 text-brand-slate hover:text-foreground"
-                  >
-                    <XLogoIcon size={14} /> @{user.twitter}
-                  </a>
-                )}
-                {user.instagram && (
-                  <a
-                    href={`https://instagram.com/${encodeURIComponent(user.instagram)}`}
-                    target="_blank"
-                    rel="noopener noreferrer nofollow"
-                    className="inline-flex items-center gap-1.5 text-brand-slate hover:text-foreground"
-                  >
-                    <InstagramLogoIcon size={14} /> @{user.instagram}
-                  </a>
-                )}
-              </div>
-            )}
-            {isMe && (
-              <div className="mt-2.5 flex flex-wrap gap-x-5 gap-y-1 text-sm">
-                {/* a retrospectiva é só do dono do diário */}
-                {user.filmsCount > 0 && (
-                  <Link href={`/u/${user.username}/retrospectiva`} className="inline-flex items-center gap-1.5 text-brand-orange hover:underline underline-offset-4">
-                    <SparkleIcon size={14} weight="fill" />
-                    Retrospectiva
-                  </Link>
-                )}
-                <Link href="/importar" className="inline-flex items-center gap-1.5 text-brand-slate hover:text-foreground">
-                  <DownloadSimpleIcon size={14} />
-                  Importar do Letterboxd
-                </Link>
-              </div>
-            )}
           </div>
         </div>
 
-        <dl className="md:ml-auto flex gap-6 sm:gap-8">
-          {stats.map((stat) => (
-            <div key={stat.label}>
-              <button onClick={stat.onClick} className="group flex flex-col-reverse items-center">
-                <dt className="text-xs text-brand-slate group-hover:text-foreground transition-colors">{stat.label}</dt>
-                <dd className="text-xl font-semibold tabular-nums">{stat.value}</dd>
-              </button>
-            </div>
-          ))}
-        </dl>
+        <div className="lg:ml-auto flex flex-col gap-5 lg:items-end shrink-0">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* a retrospectiva é só do dono do diário */}
+            {isMe && user.filmsCount > 0 && (
+              <Link
+                href={`/u/${user.username}/retrospectiva`}
+                className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-md bg-brand-orange/10 ring-1 ring-brand-orange/30 text-sm font-medium text-brand-orange hover:bg-brand-orange/20 transition-colors"
+              >
+                <SparkleIcon size={14} weight="fill" /> Retrospectiva {new Date().getFullYear()}
+              </Link>
+            )}
+            {/* importar só aparece enquanto o diário está vazio: depois fica no menu da conta */}
+            {isMe && user.filmsCount === 0 && (
+              <Link
+                href="/importar"
+                className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-md bg-brand-btn text-brand-btn-text text-sm font-semibold hover:bg-brand-btn/90 transition-colors"
+              >
+                <DownloadSimpleIcon size={14} weight="bold" /> Importar do Letterboxd
+              </Link>
+            )}
+            {isMe && (
+              <Link
+                href="/configuracoes"
+                className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-md bg-surface-strong/80 backdrop-blur ring-1 ring-foreground/10 text-sm font-medium text-foreground hover:bg-foreground/15 transition-colors"
+              >
+                <PencilSimpleIcon size={14} /> Editar perfil
+              </Link>
+            )}
+            {!isMe && status === "authenticated" && user.followedByMe !== null && (
+              <FollowButton username={user.username} following={user.followedByMe} onChange={setFollowing} onSaved={afterFollowSaved} />
+            )}
+            {!isMe && status === "anonymous" && (
+              <Link
+                href={`/sign-in?redirect=${encodeURIComponent(`/u/${user.username}`)}`}
+                className="inline-flex items-center h-9 px-3.5 rounded-md bg-surface-strong text-sm font-medium text-foreground hover:bg-brand-orange hover:text-background transition-colors"
+              >
+                Entre para seguir
+              </Link>
+            )}
+          </div>
+
+          {/* no celular os quatro números dividem a largura; do lg em diante ficam à direita */}
+          <dl className="grid grid-cols-4 sm:flex divide-x divide-foreground/10 py-3 sm:py-0 border-y border-foreground/10 sm:border-0 sm:-ml-5 lg:ml-0 lg:-mr-5">
+            {stats.map((stat) => (
+              <div key={stat.label} className="px-1 sm:px-5 min-w-0">
+                <button onClick={stat.onClick} className="group w-full flex flex-col-reverse items-center">
+                  <dt className="text-[11px] sm:text-xs text-brand-slate group-hover:text-foreground transition-colors truncate max-w-full">{stat.label}</dt>
+                  <dd className="text-xl font-semibold tabular-nums group-hover:text-brand-orange transition-colors">{stat.value}</dd>
+                </button>
+              </div>
+            ))}
+          </dl>
+        </div>
       </section>
+
 
       <div
         id="profile-tabs"
@@ -568,7 +608,7 @@ function Profile() {
             {!lists.data ? (
               <Loading />
             ) : lists.data.length > 0 ? (
-              <ul className="grid sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-10">
+              <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-10">
                 {lists.data.map((list) => (
                   <li key={list.id}>
                     <ListCard list={list} />
@@ -586,7 +626,7 @@ function Profile() {
             {savedLists.data && savedLists.data.length > 0 && (
               <div className="mt-16">
                 <SectionHeading title="Listas salvas" count={savedLists.data.length} />
-                <ul className="grid sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-10">
+                <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-10">
                   {savedLists.data.map((list) => (
                     <li key={list.id}>
                       <ListCard list={list} showOwner />
@@ -664,6 +704,18 @@ function Profile() {
       <ViewingPicker film={pickingFilm} onClose={() => setPickingFilm(null)} />
 
       {isMe && (
+        <CoverPicker
+          open={pickingCover}
+          onClose={() => setPickingCover(false)}
+          current={user.cover}
+          onSaved={(saved) => {
+            profile.setData({ ...user, cover: saved.cover ?? null });
+            setPickingCover(false);
+          }}
+        />
+      )}
+
+      {isMe && (
         <ListEditor
           open={creatingList}
           onClose={() => setCreatingList(false)}
@@ -698,7 +750,40 @@ function Profile() {
   );
 }
 
-/** barra da aba Filmes: quantos são, a ordem e o filtro de curtidos */
+// granulado de película, o mesmo do hero da landing
+const GRAIN =
+  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")";
+
+/** fundo do topo do perfil: a cena do filme favorito desbotando para o fundo, com granulado e luz de projetor */
+function ProfileCover({ src }: { src: string | null }) {
+  return (
+    <div aria-hidden="true" className="pointer-events-none absolute -z-10 inset-x-0 top-0 h-[340px] sm:h-[440px] overflow-hidden">
+      {src && <Image src={src} alt="" fill priority sizes="100vw" className="object-cover object-[center_30%] opacity-40" />}
+      {/* sem filme favorito: só a luz do projetor */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_60%_at_50%_0%,rgb(255_122_51/0.10),transparent)]" />
+      <div className="absolute inset-0 bg-linear-to-t from-background via-background/70 to-background/20" />
+      <div className="absolute inset-0 bg-linear-to-r from-background/80 via-transparent to-background/80" />
+      <div className="absolute inset-0 opacity-[0.07] mix-blend-overlay" style={{ backgroundImage: GRAIN }} />
+    </div>
+  );
+}
+
+function SocialLink({ href, label, children }: { href: string; label: string; children: React.ReactNode }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer nofollow"
+      aria-label={label}
+      title={label}
+      className="p-1 rounded text-brand-slate hover:text-foreground hover:bg-foreground/5 transition-colors"
+    >
+      {children}
+    </a>
+  );
+}
+
+/** barra da aba Filmes: a ordem e o filtro de curtidos (o total já aparece na aba) */
 function FilmsToolbar({ total, sort, likedOnly, onChange }: {
   total: number | undefined;
   sort: FilmSort;
@@ -707,9 +792,12 @@ function FilmsToolbar({ total, sort, likedOnly, onChange }: {
 }) {
   return (
     <div className="-mt-2 mb-6 flex flex-wrap items-center gap-x-4 gap-y-3">
-      <p className="text-sm text-brand-slate tabular-nums">
-        {total === undefined ? "\u00a0" : `${total} ${total === 1 ? "filme" : "filmes"}${likedOnly ? (total === 1 ? " curtido" : " curtidos") : ""}`}
-      </p>
+      {/* o total geral já está na aba: aqui só o de curtidos, que muda com o filtro */}
+      {likedOnly && total !== undefined && (
+        <p className="text-sm text-brand-slate tabular-nums">
+          {total} {total === 1 ? "filme curtido" : "filmes curtidos"}
+        </p>
+      )}
       {/* no celular os controles ocupam a linha toda, e o seletor encolhe para caber */}
       <div className="flex w-full sm:w-auto sm:ml-auto items-center gap-2">
         <button

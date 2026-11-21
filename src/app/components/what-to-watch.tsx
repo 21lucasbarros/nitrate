@@ -63,7 +63,7 @@ export function WhatToWatchButton({ movies, variant = "link", className = "" }: 
         <button
           type="button"
           onClick={draw}
-          className={`inline-flex items-center gap-1.5 text-sm text-brand-orange hover:text-foreground transition-colors ${className}`}
+          className={`inline-flex items-center gap-1.5 whitespace-nowrap text-sm text-brand-orange hover:text-foreground transition-colors ${className}`}
         >
           <ShuffleIcon size={15} weight="bold" />
           O que eu assisto?

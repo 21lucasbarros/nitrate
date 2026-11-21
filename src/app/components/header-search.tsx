@@ -54,15 +54,32 @@ export function HeaderSearch() {
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [open]);
 
+  // ⌘K / Ctrl+K (ou "/" fora de um campo de texto) abre a busca de qualquer página
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const typing = target?.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target?.tagName ?? "");
+      if (((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") || (e.key === "/" && !typing)) {
+        e.preventDefault();
+        setOpen(true);
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   if (!open) {
     return (
       <button
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Buscar filmes, pessoas e perfis"
-        className="px-3 py-2 text-brand-slate hover:text-foreground transition-colors"
+        aria-keyshortcuts="Meta+K Control+K"
+        className="flex items-center gap-2 w-56 lg:w-64 h-9 px-3 rounded-md bg-surface/60 ring-1 ring-foreground/10 text-sm text-brand-slate/80 hover:text-foreground hover:ring-foreground/20 transition-colors"
       >
-        <MagnifyingGlassIcon size={18} className="my-0.5" />
+        <MagnifyingGlassIcon size={16} className="shrink-0" />
+        <span className="flex-1 text-left truncate">Buscar filmes, pessoas…</span>
+        <kbd className="shrink-0 font-sans text-[11px] px-1.5 py-0.5 rounded bg-foreground/5 ring-1 ring-foreground/10 text-brand-slate/70">⌘K</kbd>
       </button>
     );
   }
@@ -106,7 +123,7 @@ export function HeaderSearch() {
           router.push(`/movies?q=${encodeURIComponent(typed)}`);
           close();
         }}
-        className="flex items-center gap-2 w-64 lg:w-72 h-9 px-3 rounded-md bg-surface ring-1 ring-foreground/10 focus-within:ring-foreground/25"
+        className="flex items-center gap-2 w-56 lg:w-64 h-9 px-3 rounded-md bg-surface ring-1 ring-foreground/10 focus-within:ring-foreground/25"
       >
         {pending ? (
           <CircleNotchIcon size={16} className="shrink-0 text-brand-slate animate-spin" />
