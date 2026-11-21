@@ -821,10 +821,10 @@ function ProfileSeries({ username, name, isMe }: { username: string; name: strin
             variant="library"
             items={watched.map((review) => ({
               movie: { id: review.series.id, title: review.series.name, posterPath: review.series.posterPath, releaseYear: review.series.firstAirYear },
-              href: seriesHref(review.series),
+              // como na aba Filmes: o pôster abre o registro mais recente da pessoa
+              href: seriesReviewHref(review),
               rating: review.rating,
               liked: review.liked,
-              reviewHref: review.text ? seriesReviewHref(review) : undefined,
               caption: `${seasonLabel(review.seasonNumber)} · ${compactDate(review.watchedOn)}`,
             }))}
           />

@@ -51,10 +51,10 @@ export function ShareSeriesStoryModal({ review, open, onClose }: { review: Serie
         <ShareBody
           url={`/u/${review.user.username}/series/${review.id}/story`}
           fileName={`nitrate-${review.series.slug ?? review.series.id}${review.seasonNumber !== null ? `-t${review.seasonNumber}` : ""}.png`}
-          eyebrow="Seu ingresso"
+          eyebrow="Sua maratona"
           title="Mostre o que você maratonou."
-          description="Pôster, sua nota, a temporada e quando você terminou, num ingresso do Nitrate. "
-          loadingLabel="Imprimindo o ingresso…"
+          description="A série numa TV de tubo, com sua nota, a temporada e quando você terminou. "
+          loadingLabel="Ligando a TV…"
         />
       )}
     </Modal>

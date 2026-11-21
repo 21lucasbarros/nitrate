@@ -45,14 +45,15 @@ function StarIcon({ size, color }: { size: number; color: string }) {
   );
 }
 
-export function Stars({ rating, size }: { rating: number; size: number }) {
+/** `emptyColor`: a estrela vazia (escura no papel do ingresso; clara sobre fundo escuro) */
+export function Stars({ rating, size, emptyColor = "rgba(22,23,26,0.14)" }: { rating: number; size: number; emptyColor?: string }) {
   return (
     <div style={{ display: "flex", gap: 6 }}>
       {Array.from({ length: 5 }, (_, i) => {
         const fill = Math.min(1, Math.max(0, rating - i)); // 1, 0.5 ou 0
         return (
           <div key={i} style={{ display: "flex", position: "relative", width: size, height: size }}>
-            <StarIcon size={size} color="rgba(22,23,26,0.14)" />
+            <StarIcon size={size} color={emptyColor} />
             {fill > 0 && (
               <div style={{ display: "flex", position: "absolute", top: 0, left: 0, width: size * fill, height: size, overflow: "hidden" }}>
                 <StarIcon size={size} color={ORANGE} />
