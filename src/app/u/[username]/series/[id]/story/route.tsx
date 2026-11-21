@@ -5,6 +5,7 @@ import {
   Heart,
   NIGHT,
   ORANGE,
+  RatingNumber,
   STORY_HEIGHT as HEIGHT,
   STORY_WIDTH as WIDTH,
   Stars,
@@ -115,9 +116,9 @@ function Story({ review, details }: { review: SeriesReview; details: SeriesDetai
           {review.rating !== null ? (
             <div style={{ display: "flex", alignItems: "center" }}>
               <Stars rating={toRating(review.rating)} size={60} emptyColor={FAINT} />
-              <span style={{ marginLeft: 24, fontFamily: "Serif", fontWeight: 600, fontSize: 68, lineHeight: 1 }}>
-                {review.rating.toLocaleString("pt-BR", { minimumFractionDigits: 1 })}
-              </span>
+              <div style={{ display: "flex", marginLeft: 24 }}>
+                <RatingNumber value={review.rating} size={68} color={CREAM} muted={SOFT} />
+              </div>
             </div>
           ) : (
             <span style={{ fontFamily: "Serif", fontStyle: "italic", fontSize: 48, color: SOFT }}>assistida, sem nota</span>

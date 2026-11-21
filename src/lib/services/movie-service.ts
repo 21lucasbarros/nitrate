@@ -1,5 +1,7 @@
 import { apiFetch } from "../api-client";
 import type { Page } from "../types/page";
+import type { MovieBackdrops } from "../types/user";
+import { getMovieBackdrops } from "./user-service";
 import type { Movie, MovieSearchResult } from "@/types/movie";
 
 /** o catálogo em páginas (page começa em 0), na ordem em que os filmes entraram no Nitrate */
@@ -24,6 +26,16 @@ export function getMovie(id: number): Promise<Movie> {
 /** Busca no TMDB (via backend). */
 export function searchMovies(query: string): Promise<MovieSearchResult[]> {
   return apiFetch<MovieSearchResult[]>(`/movies/search?q=${encodeURIComponent(query.normalize("NFC"))}`);
+}
+
+/**
+ * As cenas de um filme do Nitrate no TMDB. O backend não expõe o tmdbId do filme, então ele vem
+ * da busca pelo título, que devolve o id local dos filmes já importados.
+ */
+export async function getMovieScenes(movie: Pick<Movie, "id" | "title">): Promise<MovieBackdrops> {
+  const match = (await searchMovies(movie.title)).find((result) => result.id === movie.id);
+  if (!match) throw new Error("Filme não encontrado no TMDB");
+  return getMovieBackdrops(match.tmdbId);
 }
 
 /** Devolve o filme local correspondente ao tmdbId, importando do TMDB na primeira vez. */

@@ -66,6 +66,18 @@ export function Stars({ rating, size, emptyColor = "rgba(22,23,26,0.14)" }: { ra
   );
 }
 
+/** a nota em número ("4,5"), na sans do logo e bem fechada, com o "/5" pequeno ao lado */
+export function RatingNumber({ value, size, color, muted }: { value: number; size: number; color: string; muted: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "flex-end", color, lineHeight: 1 }}>
+      <span style={{ fontFamily: "Geist", fontWeight: 600, fontSize: size, letterSpacing: -size * 0.06 }}>
+        {value.toLocaleString("pt-BR", { minimumFractionDigits: 1 })}
+      </span>
+      <span style={{ marginLeft: size * 0.1, marginBottom: size * 0.1, fontFamily: "Mono", fontSize: Math.round(size * 0.3), color: muted }}>/5</span>
+    </div>
+  );
+}
+
 export function Heart({ size }: { size: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24">

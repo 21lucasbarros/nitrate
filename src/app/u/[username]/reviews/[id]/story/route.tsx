@@ -3,7 +3,7 @@ import { apiFetch } from "@/lib/api-client";
 import { easterEggFor } from "@/lib/easter-eggs";
 import { loadGoogleFont } from "@/lib/og-fonts";
 import { stripMarkup } from "@/utils/review-markup";
-import type { MovieCredits } from "@/lib/services/movie-service";
+import { getMovieScenes, type MovieCredits } from "@/lib/services/movie-service";
 import type { MovieReview } from "@/lib/types/review";
 import { shortDate } from "@/utils/format";
 import { toRating } from "@/utils/rating";
@@ -17,6 +17,7 @@ import {
   NIGHT,
   ORANGE,
   PAPER,
+  RatingNumber,
   STORY_HEIGHT as HEIGHT,
   STORY_WIDTH as WIDTH,
   Stars,
@@ -32,9 +33,12 @@ import { sameUsername } from "@/utils/username";
  * Imagem de um registro do diário no formato dos Stories (1080x1920): um ingresso de cinema
  * com o pôster, a nota e a data da sessão, sobre uma cena do filme. O texto da review fica de fora.
  * GET /u/{username}/reviews/{id}/story — a review é pública, então não precisa de token.
+ *
+ * ?fundo=/abc.jpg troca a cena de fundo por outra cena do mesmo filme (caminho de imagem do TMDB);
+ * ?estilo=cena deixa a cena em tela cheia, com a nota embaixo, no lugar do ingresso.
  */
 
-export async function GET(_request: Request, { params }: { params: Promise<{ username: string; id: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ username: string; id: string }> }) {
   const { username, id } = await params;
   const reviewId = Number(id);
   if (!Number.isInteger(reviewId) || reviewId <= 0) {
@@ -72,9 +76,25 @@ export async function GET(_request: Request, { params }: { params: Promise<{ use
     });
   }
 
-  const fonts = await loadTicketFonts();
+  const search = new URL(request.url).searchParams;
+  const chosen = search.get("fundo");
+  // a cena escolhida só vale se for do próprio filme da review; senão fica a padrão
+  const ownScene =
+    chosen !== null &&
+    (await getMovieScenes(review.movie)
+      .then((scenes) => scenes.backdrops.includes(chosen))
+      .catch(() => false));
+  const backdropPath = ownScene ? chosen : (credits?.backdropPath ?? null);
 
-  return new ImageResponse(<Ticket review={review} credits={credits} />, {
+  const fonts = await loadTicketFonts();
+  const story =
+    search.get("estilo") === "cena" ? (
+      <SceneStory review={review} credits={credits} backdrop={backdropUrl(backdropPath, "original")} />
+    ) : (
+      <Ticket review={review} credits={credits} backdrop={backdropUrl(backdropPath)} />
+    );
+
+  return new ImageResponse(story, {
     width: WIDTH,
     height: HEIGHT,
     fonts,
@@ -82,9 +102,15 @@ export async function GET(_request: Request, { params }: { params: Promise<{ use
   });
 }
 
-function Ticket({ review, credits }: { review: MovieReview; credits: MovieCredits | null }) {
+interface StoryProps {
+  review: MovieReview;
+  credits: MovieCredits | null;
+  /** URL da cena de fundo (a escolhida ou a padrão do filme) */
+  backdrop: string | null;
+}
+
+function Ticket({ review, credits, backdrop }: StoryProps) {
   const { movie, user } = review;
-  const backdrop = backdropUrl(credits?.backdropPath);
   const poster = posterUrl(movie.posterPath, "w500");
   const director = credits?.directors[0]?.name ?? movie.director;
   const titleSize = movie.title.length > 34 ? 52 : movie.title.length > 20 ? 62 : 76;
@@ -175,9 +201,9 @@ function Ticket({ review, credits }: { review: MovieReview; credits: MovieCredit
                 {review.rating !== null ? (
                   <div style={{ display: "flex", alignItems: "center", marginTop: 14 }}>
                     <Stars rating={toRating(review.rating)} size={58} />
-                    <span style={{ marginLeft: 22, fontFamily: "Serif", fontWeight: 600, fontSize: 64, lineHeight: 1 }}>
-                      {review.rating.toLocaleString("pt-BR", { minimumFractionDigits: 1 })}
-                    </span>
+                    <div style={{ display: "flex", marginLeft: 22 }}>
+                      <RatingNumber value={review.rating} size={64} color={INK} muted={INK_SOFT} />
+                    </div>
                   </div>
                 ) : (
                   <span style={{ marginTop: 14, fontFamily: "Serif", fontStyle: "italic", fontSize: 48 }}>assistido, sem nota</span>
@@ -212,6 +238,93 @@ function Ticket({ review, credits }: { review: MovieReview; credits: MovieCredit
         >
           {credits?.tagline ? `“${credits.tagline}”` : "NITRATE · SEU DIÁRIO DE CINEMA"}
         </span>
+      </div>
+    </div>
+  );
+}
+
+/** a cena em tela cheia, quase sem escurecer, e a nota em destaque na parte de baixo */
+function SceneStory({ review, credits, backdrop }: StoryProps) {
+  const { movie, user } = review;
+  const poster = posterUrl(movie.posterPath, "w342");
+  const director = credits?.directors[0]?.name ?? movie.director;
+  const titleSize = movie.title.length > 34 ? 50 : movie.title.length > 20 ? 58 : 68;
+
+  return (
+    <div style={{ width: WIDTH, height: HEIGHT, display: "flex", position: "relative", backgroundColor: NIGHT, fontFamily: "Geist" }}>
+      {backdrop && (
+        // eslint-disable-next-line @next/next/no-img-element -- o next/og não usa next/image
+        <img src={backdrop} alt="" width={WIDTH} height={HEIGHT} style={{ position: "absolute", top: 0, left: 0, width: WIDTH, height: HEIGHT, objectFit: "cover" }} />
+      )}
+      {/* só o topo e a parte de baixo escurecem, para o texto ler; o meio é da cena */}
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: WIDTH,
+          height: HEIGHT,
+          display: "flex",
+          backgroundImage: backdrop
+            ? "linear-gradient(180deg, rgba(13,14,16,0.7) 0%, rgba(13,14,16,0) 16%, rgba(13,14,16,0) 42%, rgba(13,14,16,0.82) 64%, rgba(13,14,16,0.97) 100%)"
+            : "radial-gradient(ellipse 80% 50% at 50% 30%, rgba(255,106,28,0.22), rgba(13,14,16,0) 70%)",
+        }}
+      />
+
+      <div style={{ position: "relative", display: "flex", flexDirection: "column", width: WIDTH, height: HEIGHT, padding: "84px 100px 210px" }}>
+        {/* cabeçalho */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", color: CREAM }}>
+          <div style={{ display: "flex", alignItems: "center", fontSize: 40, fontWeight: 600, letterSpacing: -1 }}>
+            NITRATE
+            <div style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: ORANGE, marginLeft: 6, marginTop: 10 }} />
+          </div>
+          <span style={{ fontFamily: "Mono", fontSize: 24, letterSpacing: 6, color: "rgba(249,249,248,0.7)" }}>DIÁRIO DE SESSÕES</span>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", marginTop: "auto", color: CREAM }}>
+          {/* pôster e título */}
+          <div style={{ display: "flex", alignItems: "flex-end" }}>
+            {poster && (
+              // eslint-disable-next-line @next/next/no-img-element -- o next/og não usa next/image
+              <img
+                src={poster}
+                alt=""
+                width={200}
+                height={300}
+                style={{ width: 200, height: 300, objectFit: "cover", borderRadius: 12, boxShadow: "0 24px 60px rgba(0,0,0,0.55)" }}
+              />
+            )}
+            <div style={{ display: "flex", flexDirection: "column", flex: 1, marginLeft: poster ? 40 : 0 }}>
+              <span style={{ fontFamily: "Serif", fontWeight: 600, fontSize: titleSize, lineHeight: 1.05, letterSpacing: -1.5 }}>{movie.title}</span>
+              <span style={{ marginTop: 16, fontFamily: "Mono", fontSize: 24, letterSpacing: 3, color: "rgba(249,249,248,0.65)" }}>
+                {[movie.releaseYear, director && `DIR. ${director.toUpperCase()}`].filter(Boolean).join("  ·  ")}
+              </span>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", height: 2, marginTop: 52, backgroundColor: "rgba(249,249,248,0.18)" }} />
+
+          {/* a nota */}
+          <span style={{ marginTop: 44, fontFamily: "Mono", fontSize: 22, letterSpacing: 4, color: "rgba(249,249,248,0.65)" }}>MINHA NOTA</span>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 16 }}>
+            {review.rating !== null ? (
+              <div style={{ display: "flex", alignItems: "center" }}>
+                <Stars rating={toRating(review.rating)} size={76} emptyColor="rgba(249,249,248,0.22)" />
+                <div style={{ display: "flex", marginLeft: 28 }}>
+                  <RatingNumber value={review.rating} size={104} color={CREAM} muted="rgba(249,249,248,0.6)" />
+                </div>
+              </div>
+            ) : (
+              <span style={{ fontFamily: "Serif", fontStyle: "italic", fontSize: 56 }}>assistido, sem nota</span>
+            )}
+            {review.liked && <Heart size={84} />}
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 44, fontFamily: "Mono", fontSize: 24, letterSpacing: 2 }}>
+            <span>{`SESSÃO  ${shortDate(review.watchedOn).toUpperCase()}${review.rewatch ? "  ·  REPRISE" : ""}`}</span>
+            <span style={{ color: ORANGE }}>{`@${user.username}`}</span>
+          </div>
+        </div>
       </div>
     </div>
   );
