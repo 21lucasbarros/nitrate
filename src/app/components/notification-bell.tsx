@@ -11,6 +11,7 @@ import {
 } from "@/lib/services/user-service";
 import type { AppNotification } from "@/lib/types/user";
 import { filmHref } from "@/utils/movie-link";
+import { seriesHref } from "@/utils/series-link";
 import { timeAgo } from "@/utils/format";
 import { Avatar } from "./ui/avatar";
 import { Poster } from "./ui/poster";
@@ -86,8 +87,9 @@ export function NotificationBell() {
           <div className="px-6 py-14 flex flex-col items-center text-center">
             <BellIcon size={36} weight="light" className="text-brand-slate/40" />
             <p className="mt-4 text-sm text-brand-slate leading-relaxed">
-              Nenhum aviso ainda. Aqui aparecem os novos seguidores e, se você adicionar à watchlist filmes que ainda
-              vão estrear, o Nitrate avisa quando chegarem aos cinemas ou ao streaming.
+              Nenhum aviso ainda. Aqui aparecem os novos seguidores e, se você adicionar à watchlist filmes ou séries que
+              ainda vão estrear, o Nitrate avisa quando chegarem aos cinemas, ao streaming ou forem ao ar, e também
+              quando uma série que você acompanha ganhar temporada nova.
             </p>
           </div>
         ) : (
@@ -114,6 +116,29 @@ function NotificationItem({ notification: n, onSelect }: { notification: AppNoti
             <span className="font-medium">{n.actor.name}</span> começou a seguir você.
           </p>
           <p className="mt-0.5 text-xs text-brand-slate truncate">@{n.actor.username}</p>
+          <p className="mt-1 text-[11px] text-brand-slate/60">{timeAgo(n.createdAt)}</p>
+        </div>
+      </NotificationRow>
+    );
+  }
+
+  if (n.type === "SERIES_PREMIERE" || n.type === "SERIES_SEASON") {
+    return (
+      <NotificationRow href={seriesHref(n.series)} read={n.read} onSelect={onSelect}>
+        <div className="w-10 shrink-0">
+          <Poster title={n.series.name} posterPath={n.series.posterPath} size="w185" sizes="40px" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm leading-snug">
+            <span className="font-medium">{n.series.name}</span>{" "}
+            {n.type === "SERIES_SEASON" ? `ganhou a ${n.seasonNumber}ª temporada.` : "estreou."}
+          </p>
+          {n.detail && (
+            <p className="mt-0.5 flex items-center gap-1.5 text-xs text-brand-slate">
+              <TelevisionIcon size={12} />
+              {n.detail}
+            </p>
+          )}
           <p className="mt-1 text-[11px] text-brand-slate/60">{timeAgo(n.createdAt)}</p>
         </div>
       </NotificationRow>

@@ -81,9 +81,9 @@ export default function Features() {
                 </h4>
               </div>
               <p className="text-brand-slate/70 leading-relaxed font-light text-lg">
-                Nunca mais perca um lançamento. Adicione filmes em produção à
-                sua watchlist e o Nitrate avisará você automaticamente assim que
-                eles chegarem aos cinemas ou às plataformas de streaming.
+                Nunca mais perca um lançamento. Adicione filmes e séries em
+                produção à sua watchlist e o Nitrate avisará você automaticamente
+                assim que eles chegarem aos cinemas, ao streaming ou estrearem.
               </p>
             </div>
 

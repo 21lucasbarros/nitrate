@@ -1,4 +1,5 @@
 import type { Movie } from "@/types/movie";
+import type { Series } from "@/types/series";
 
 // Espelha UserSummaryDTO e UserProfileDTO do backend
 export interface UserSummary {
@@ -69,7 +70,7 @@ export interface ProfileUpdate {
   instagram: string;
 }
 
-// Espelha NotificationDTO: estreias do Radar (com `movie`) ou alguém que começou a seguir (com `actor`)
+// Espelha NotificationDTO: estreias do Radar (com `movie` ou `series`) ou alguém que começou a seguir (com `actor`)
 interface NotificationBase {
   id: number;
   detail: string | null; // data de estreia ou serviços de streaming
@@ -78,5 +79,7 @@ interface NotificationBase {
 }
 
 export type AppNotification =
-  | (NotificationBase & { type: "CINEMA" | "STREAMING"; movie: Movie; actor: null })
-  | (NotificationBase & { type: "FOLLOW"; movie: null; actor: UserSummary });
+  | (NotificationBase & { type: "CINEMA" | "STREAMING"; movie: Movie; series: null; seasonNumber: null; actor: null })
+  | (NotificationBase & { type: "SERIES_PREMIERE"; movie: null; series: Series; seasonNumber: null; actor: null })
+  | (NotificationBase & { type: "SERIES_SEASON"; movie: null; series: Series; seasonNumber: number; actor: null })
+  | (NotificationBase & { type: "FOLLOW"; movie: null; series: null; seasonNumber: null; actor: UserSummary });
