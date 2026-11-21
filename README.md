@@ -1,36 +1,43 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Nitrate
 
-## Getting Started
+O seu diário de cinema: registre os filmes e séries que assistiu, dê notas, escreva reviews, monte listas, traga seu histórico do Letterboxd e descubra o que assistir com quem tem o mesmo gosto. Todo mês, o Nitrate monta uma retrospectiva pronta para compartilhar.
 
-First, run the development server:
+No ar em [nitrate.com.br](https://nitrate.com.br).
+
+Este repositório é o front-end. O back-end (Java 21 e Spring Boot) fica em [nitrate-backend](https://github.com/21lucasbarros/nitrate-backend) e o app para iOS e Android em [nitrate-mobile](https://github.com/21lucasbarros/nitrate-mobile).
+
+## Tecnologias
+
+- Next.js (App Router) e React, com o React Compiler
+- TypeScript
+- Tailwind CSS
+- Motion
+- React Hook Form e Zod
+- Dados de filmes e séries da API do TMDB, pelo back-end
+
+## Rodando
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
+bun install
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+O site abre em [http://localhost:3000](http://localhost:3000). Ele precisa do back-end rodando; configure o endereço num `.env.local`:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Variável               | Uso                                                                  |
+| ---------------------- | -------------------------------------------------------------------- |
+| `NEXT_PUBLIC_API_URL`  | URL do back-end, ex.: `http://localhost:8080`                        |
+| `NEXT_PUBLIC_SITE_URL` | opcional, endereço público do site (SEO e links); padrão `https://nitrate.com.br` |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Deploy
 
-## Learn More
+O site roda numa VPS da Hostinger, num container Docker gerenciado pelo [Coolify](https://coolify.io), na mesma VPS da API ([api.nitrate.com.br](https://api.nitrate.com.br/health)).
 
-To learn more about Next.js, take a look at the following resources:
+O `Dockerfile` instala as dependências com o Bun, roda o `next build` no Node e serve com `next start` na porta `3000`. As variáveis `NEXT_PUBLIC_*` são gravadas no JavaScript durante o build, então `NEXT_PUBLIC_API_URL` entra como argumento do build: mudar o valor exige um build novo.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Para testar a imagem localmente:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+docker build --build-arg NEXT_PUBLIC_API_URL=http://localhost:8080 -t nitrate .
+docker run -p 3000:3000 nitrate
+```
