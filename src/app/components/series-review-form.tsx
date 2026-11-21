@@ -6,6 +6,7 @@ import { ApiError } from "@/lib/api-client";
 import { createSeriesReview, deleteSeriesReview, updateSeriesReview } from "@/lib/services/series-service";
 import { seasonLabel, type SeasonSummary, type Series, type SeriesReview } from "@/types/series";
 import { todayIso } from "@/utils/format";
+import { DeleteConfirmBar } from "./ui/delete-confirm-bar";
 import { Poster } from "./ui/poster";
 import { RichTextEditor } from "./ui/rich-text-editor";
 import { StarInput } from "./ui/star-input";
@@ -34,6 +35,7 @@ export function SeriesReviewForm({ series, seasons, existing, initialSeason = nu
   const [spoiler, setSpoiler] = useState(existing?.spoiler ?? false);
   const [busy, setBusy] = useState<"save" | "delete" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const hasText = text.trim().length > 0;
 
@@ -60,7 +62,7 @@ export function SeriesReviewForm({ series, seasons, existing, initialSeason = nu
   };
 
   const handleDelete = async () => {
-    if (!existing || !window.confirm("Apagar este registro da série?")) return;
+    if (!existing) return;
     setBusy("delete");
     setError(null);
     try {
@@ -167,36 +169,45 @@ export function SeriesReviewForm({ series, seasons, existing, initialSeason = nu
         <div className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 text-sm">{error}</div>
       )}
 
-      <div className="flex flex-wrap items-center gap-3">
-        {existing && (
-          <button
-            type="button"
-            onClick={handleDelete}
-            disabled={busy !== null}
-            className="flex items-center gap-2 px-2 py-3 text-sm font-medium text-brand-crimson/70 hover:text-brand-crimson transition-colors"
-          >
-            {busy === "delete" ? <CircleNotchIcon size={18} className="animate-spin" /> : <TrashIcon size={18} />}
-            Apagar
-          </button>
-        )}
-        <div className="ml-auto flex items-center gap-3">
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={busy !== null}
-            className="px-5 py-3 rounded-full font-medium text-brand-slate/70 hover:text-foreground transition-colors"
-          >
-            Cancelar
-          </button>
-          <button
-            type="submit"
-            disabled={busy !== null}
-            className="flex items-center justify-center gap-2 min-w-32 bg-brand-btn text-brand-btn-text px-6 py-3 rounded-full font-semibold hover:bg-brand-btn/90 transition-colors disabled:opacity-70"
-          >
-            {busy === "save" ? <CircleNotchIcon size={20} className="animate-spin" /> : existing ? "Salvar" : "Registrar"}
-          </button>
+      {confirmingDelete ? (
+        <DeleteConfirmBar
+          title="Apagar este registro da série?"
+          busy={busy === "delete"}
+          onKeep={() => setConfirmingDelete(false)}
+          onConfirm={handleDelete}
+        />
+      ) : (
+        <div className="flex flex-wrap items-center gap-3">
+          {existing && (
+            <button
+              type="button"
+              onClick={() => setConfirmingDelete(true)}
+              disabled={busy !== null}
+              className="flex items-center gap-2 px-2 py-3 text-sm font-medium text-brand-crimson/70 hover:text-brand-crimson transition-colors"
+            >
+              <TrashIcon size={18} />
+              Apagar
+            </button>
+          )}
+          <div className="ml-auto flex items-center gap-3">
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={busy !== null}
+              className="px-5 py-3 rounded-full font-medium text-brand-slate/70 hover:text-foreground transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={busy !== null}
+              className="flex items-center justify-center gap-2 min-w-32 bg-brand-btn text-brand-btn-text px-6 py-3 rounded-full font-semibold hover:bg-brand-btn/90 transition-colors disabled:opacity-70"
+            >
+              {busy === "save" ? <CircleNotchIcon size={20} className="animate-spin" /> : existing ? "Salvar" : "Registrar"}
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </form>
   );
 }
