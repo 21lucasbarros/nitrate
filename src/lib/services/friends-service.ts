@@ -5,7 +5,7 @@ import type { UserSummary } from "../types/user";
 import type { Movie } from "@/types/movie";
 
 // Espelha ActivityDTO e ActivityPageDTO
-export type ActivityType = "REVIEW" | "WATCHLIST" | "LIST" | "REVIEW_LIKE" | "COMMENT" | "FOLLOW";
+export type ActivityType = "REVIEW" | "WATCHLIST" | "LIST" | "REVIEW_LIKE" | "COMMENT" | "FOLLOW" | "LIST_ENTRY";
 
 export interface Activity {
   type: ActivityType;
@@ -13,8 +13,8 @@ export interface Activity {
   at: string; // ISO
   user: UserSummary; // quem fez a ação
   review: MovieReview | null; // REVIEW, REVIEW_LIKE e COMMENT
-  movie: Movie | null; // WATCHLIST
-  list: MovieList | null; // LIST
+  movie: Movie | null; // WATCHLIST e LIST_ENTRY
+  list: MovieList | null; // LIST e LIST_ENTRY (a lista em que o filme entrou; só na atividade de um filme)
   comment: string | null; // COMMENT (prévia)
   target: UserSummary | null; // FOLLOW
   likesCount: number | null; // REVIEW com texto

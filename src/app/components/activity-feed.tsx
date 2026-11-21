@@ -172,6 +172,15 @@ function CompactEntry({ item }: { item: Activity }) {
             <span className="text-brand-slate/70"> · {item.list!.filmsCount} {item.list!.filmsCount === 1 ? "filme" : "filmes"}</span>
           </>
         );
+      case "LIST_ENTRY":
+        return (
+          <>
+            adicionou{" "}
+            <Link href={filmHref(item.movie!)} className="text-foreground hover:text-brand-orange">{item.movie!.title}</Link>{" "}
+            à lista{" "}
+            <Link href={listHref(item.list!)} className="text-foreground hover:text-brand-orange">{item.list!.name}</Link>
+          </>
+        );
       case "REVIEW_LIKE": {
         const r = item.review!;
         return (

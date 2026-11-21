@@ -6,10 +6,10 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
   ArrowRightIcon,
-  ArrowsClockwiseIcon,
   BookmarkSimpleIcon,
   CheckIcon,
   CircleNotchIcon,
+  ClockCounterClockwiseIcon,
   DotsThreeIcon,
   EyeIcon,
   HeartIcon,
@@ -24,7 +24,7 @@ import { Poster } from "@/app/components/ui/poster";
 import { PersonPhoto } from "@/app/components/ui/person-photo";
 import { RatingMeterInput } from "@/app/components/ui/rating-meter";
 import { SectionHeading } from "@/app/components/ui/section-heading";
-import { ReviewCard, reviewHref } from "@/app/components/review-card";
+import { ReviewCard } from "@/app/components/review-card";
 import { Avatar } from "@/app/components/ui/avatar";
 import { BottomSheet } from "@/app/components/ui/bottom-sheet";
 import { SlowHint } from "@/app/components/ui/slow-hint";
@@ -53,7 +53,7 @@ import { getMovieState } from "@/lib/services/user-service";
 import { addToWatchlist, removeFromWatchlist } from "@/lib/services/watchlist-service";
 import type { MovieReview, ReviewRequest } from "@/lib/types/review";
 import type { Movie } from "@/types/movie";
-import { shortDate, todayIso } from "@/utils/format";
+import { todayIso } from "@/utils/format";
 import { backdropUrl } from "@/utils/poster";
 import { toRating } from "@/utils/rating";
 import type { MovieStats } from "@/lib/services/movie-service";
@@ -212,7 +212,7 @@ function FilmView({ film }: { film: Movie }) {
       </MobileFilmHeader>
 
       {/* imagem de fundo: uma cena do filme, desbotando para o fundo da página */}
-      <div className="hidden md:block relative h-[420px] lg:h-[520px] -mb-[260px] lg:-mb-[320px]">
+      <div className="hidden md:block relative h-[460px] lg:h-[580px] -mb-[260px] lg:-mb-[340px]">
         {backdrop && (
           <Image
             src={backdrop}
@@ -223,15 +223,17 @@ function FilmView({ film }: { film: Movie }) {
             className="object-cover object-[center_25%]"
           />
         )}
-        {/* desbota para o fundo embaixo e nas laterais, como uma tela de cinema */}
-        <div className="absolute inset-0 bg-linear-to-t from-background via-background/30 to-transparent" />
+        {/* desbota para o fundo embaixo e nas laterais, como uma tela de cinema; escurece mais onde entra o texto */}
+        <div className="absolute inset-0 bg-linear-to-t from-background from-15% via-background/75 via-55% to-background/10" />
         <div className="absolute inset-0 bg-linear-to-r from-background via-transparent to-background opacity-80" />
       </div>
 
       <div className={`relative max-w-[1180px] mx-auto px-6 pb-24 ${backdrop ? "" : "md:pt-32"}`}>
-        <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] lg:grid-cols-[230px_1fr_260px] gap-8 lg:gap-10">
-          {/* pôster */}
-          <aside className="hidden md:block">{posterWithEgg}</aside>
+        <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] lg:grid-cols-[230px_1fr_280px] gap-8 lg:gap-10">
+          {/* pôster: alinhado ao topo do título e acompanhando a rolagem */}
+          <aside className="hidden md:block md:pt-10 lg:pt-16">
+            <div className="sticky top-24">{posterWithEgg}</div>
+          </aside>
 
           {/* título, sinopse, elenco, ficha */}
           <section className="min-w-0 md:pt-10 lg:pt-16">
@@ -245,13 +247,16 @@ function FilmView({ film }: { film: Movie }) {
                 </span>
               ))}
             </p>
-            <h1 className="mt-3 font-serif text-4xl sm:text-5xl font-semibold leading-[1.05] tracking-tight">{film.title}</h1>
-            {credits.data?.tagline && (
-              <p className="mt-4 font-serif text-lg italic text-brand-slate">“{credits.data.tagline}”</p>
-            )}
+            <h1 className="mt-3 font-serif text-4xl lg:text-[56px] font-semibold leading-[1.02] tracking-tight text-balance [text-shadow:0_2px_24px_rgb(0_0_0/0.45)]">
+              {film.title}
+            </h1>
+            <FilmHighlights film={film} directors={directors} stats={stats.data} />
 
+            {credits.data?.tagline && (
+              <p className="mt-7 font-serif text-lg italic text-foreground/60 max-w-2xl">“{credits.data.tagline}”</p>
+            )}
             {film.overview && (
-              <p className="mt-6 text-base leading-[1.75] text-foreground/80 max-w-2xl">{film.overview}</p>
+              <p className={`${credits.data?.tagline ? "mt-3" : "mt-7"} text-base leading-[1.75] text-foreground/80 max-w-2xl`}>{film.overview}</p>
             )}
             </div>
 
@@ -317,14 +322,6 @@ function FilmView({ film }: { film: Movie }) {
           }
         >
           {actionPanel(true)}
-          {myReview && (
-            <Link
-              href={reviewHref(myReview)}
-              className="flex items-center justify-between px-5 py-4 border-t border-foreground/5 text-sm text-brand-slate hover:text-foreground"
-            >
-              Ver sua review <ArrowRightIcon size={14} />
-            </Link>
-          )}
           <ShareFilmRow film={film} />
         </BottomSheet>
       )}
@@ -405,12 +402,47 @@ function ActionPanel(props: {
     }
   };
 
-  const toggle = (active: boolean, activeColor: string) =>
-    `flex items-center gap-3 w-full px-4 py-2.5 text-sm text-left transition-colors hover:bg-surface-strong disabled:opacity-50 ${active ? activeColor : "text-brand-slate"}`;
-
   return (
-    <div className="rounded-md bg-surface overflow-hidden">
-      <div className="p-5">
+    <div className="rounded-lg bg-surface overflow-hidden ring-1 ring-foreground/5 shadow-xl shadow-black/30">
+      {/* atalhos: ícone em cima, rótulo embaixo; colorido quando ativo */}
+      <div className={`grid ${props.watchlistPills ? "grid-cols-3" : "grid-cols-4"} gap-1 p-2`}>
+        <ActionToggle
+          icon={EyeIcon}
+          label={watched ? "Assistido" : "Assisti"}
+          active={watched}
+          activeClass="text-brand-emerald"
+          onClick={props.onLog}
+        />
+        <ActionToggle
+          icon={HeartIcon}
+          label={liked ? "Curti" : "Curtir"}
+          active={liked}
+          activeClass="text-brand-orange"
+          onClick={() => (review ? quickSave({ liked: !liked }) : props.onLog())}
+          disabled={busy}
+          pressed={liked}
+        />
+        {!props.watchlistPills && (
+          <ActionToggle
+            icon={BookmarkSimpleIcon}
+            label="Watchlist"
+            active={props.inWatchlist}
+            activeClass="text-brand-blue"
+            onClick={props.onToggleWatchlist}
+            disabled={props.watchlistBusy}
+            pressed={props.inWatchlist}
+          />
+        )}
+        <ActionToggle icon={ListPlusIcon} label="Lista" active={false} activeClass="" onClick={() => setAddingToList(true)} />
+      </div>
+      {props.watchlistPills && (
+        <div className="border-t border-foreground/5">
+          <MatrixPills inWatchlist={props.inWatchlist} busy={props.watchlistBusy} onToggle={props.onToggleWatchlist} />
+        </div>
+      )}
+      <AddToListModal open={addingToList} movie={props.film} onClose={() => setAddingToList(false)} />
+
+      <div className="border-t border-foreground/5 p-5">
         <span className="text-xs uppercase tracking-[0.14em] text-brand-slate">Sua nota</span>
         <div className="mt-3">
           <RatingMeterInput
@@ -423,65 +455,123 @@ function ActionPanel(props: {
             disabled={busy}
           />
         </div>
-        {review?.watchedOn && (
-          <p className="mt-4 flex items-center gap-1.5 text-xs text-brand-slate">
-            {props.timesWatched > 1 && <ArrowsClockwiseIcon size={12} weight="bold" className="text-brand-emerald" />}
-            {props.timesWatched > 1 ? `${props.timesWatched} sessões · última em ` : "Assistido em "}
-            {shortDate(review.watchedOn)}
-          </p>
-        )}
       </div>
 
-      <div className="border-t border-foreground/5 py-1">
-        <button onClick={props.onLog} className={toggle(watched, "text-brand-emerald")}>
-          <EyeIcon size={18} weight={watched ? "fill" : "regular"} />
-          {watched ? "Já assisti" : "Marcar como assistido"}
-        </button>
-        <button
-          onClick={() => (review ? quickSave({ liked: !liked }) : props.onLog())}
-          disabled={busy}
-          aria-pressed={liked}
-          className={toggle(liked, "text-brand-orange")}
-        >
-          <HeartIcon size={18} weight={liked ? "fill" : "regular"} />
-          {liked ? "Curti" : "Curtir"}
-        </button>
-        {props.watchlistPills ? (
-          <MatrixPills inWatchlist={props.inWatchlist} busy={props.watchlistBusy} onToggle={props.onToggleWatchlist} />
-        ) : (
-          <button
-            onClick={props.onToggleWatchlist}
-            disabled={props.watchlistBusy}
-            aria-pressed={props.inWatchlist}
-            className={toggle(props.inWatchlist, "text-brand-blue")}
-          >
-            <BookmarkSimpleIcon size={18} weight={props.inWatchlist ? "fill" : "regular"} />
-            {props.inWatchlist ? "Na watchlist" : "Quero assistir"}
-          </button>
-        )}
-        <button onClick={() => setAddingToList(true)} className={toggle(false, "")}>
-          <ListPlusIcon size={18} />
-          Adicionar à lista
-        </button>
-      </div>
-      <AddToListModal open={addingToList} movie={props.film} onClose={() => setAddingToList(false)} />
-
-      <div className="border-t border-foreground/5 p-3 flex gap-2">
+      <div className="px-5 pb-5 flex gap-2">
         <button
           onClick={props.onLog}
-          className="flex-1 py-2 rounded-md bg-brand-btn text-brand-btn-text text-sm font-semibold hover:bg-brand-btn/90 transition-colors"
+          className="flex-1 py-2.5 rounded-md bg-brand-btn text-brand-btn-text text-sm font-semibold hover:bg-brand-btn/90 transition-colors"
         >
-          {watched ? "Nova sessão" : "Escrever review"}
+          {watched ? "Registrar nova sessão" : "Escrever review"}
         </button>
         {props.onEdit && (
           <button
             onClick={props.onEdit}
-            className="px-3 py-2 rounded-md text-sm text-brand-slate hover:text-foreground hover:bg-surface-strong transition-colors"
+            title="Editar a última review"
+            className="px-3.5 py-2.5 rounded-md ring-1 ring-foreground/10 text-sm text-brand-slate hover:text-foreground hover:ring-foreground/25 transition-colors"
           >
             Editar
           </button>
         )}
       </div>
+
+      <Link
+        href={`/film/${props.film.slug}/atividade`}
+        className="group flex items-center justify-between gap-3 px-5 py-3.5 border-t border-foreground/5 text-sm text-brand-slate hover:text-foreground hover:bg-surface-strong transition-colors"
+      >
+        <span className="flex items-center gap-2.5">
+          <ClockCounterClockwiseIcon size={16} />
+          Ver minha atividade
+        </span>
+        <span className="flex items-center gap-2 text-xs text-brand-slate/70">
+          {props.timesWatched > 0 && `${props.timesWatched} ${props.timesWatched === 1 ? "sessão" : "sessões"}`}
+          <ArrowRightIcon size={13} className="transition-transform group-hover:translate-x-0.5" />
+        </span>
+      </Link>
+    </div>
+  );
+}
+
+/** botão quadrado da grade de atalhos do painel */
+function ActionToggle({ icon: Icon, label, active, activeClass, onClick, disabled, pressed }: {
+  icon: typeof EyeIcon;
+  label: string;
+  active: boolean;
+  activeClass: string;
+  onClick: () => void;
+  disabled?: boolean;
+  pressed?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-pressed={pressed}
+      className={`flex flex-col items-center gap-1.5 py-3 rounded-md text-[11px] font-medium transition-colors hover:bg-surface-strong disabled:opacity-50 ${
+        active ? activeClass : "text-brand-slate hover:text-foreground"
+      }`}
+    >
+      <Icon size={22} weight={active ? "fill" : "regular"} />
+      {label}
+    </button>
+  );
+}
+
+/** faixa logo abaixo do título: quem dirigiu e as notas, para ver de cara sem rolar */
+function FilmHighlights({ film, directors, stats }: { film: Movie; directors: CreditPerson[]; stats: MovieStats | undefined }) {
+  const items: React.ReactNode[] = [];
+
+  if (directors.length > 0 || film.director) {
+    items.push(
+      <span key="director">
+        <span className="text-brand-slate">Direção </span>
+        {directors.length > 0
+          ? directors.map((d, i) => (
+              <span key={d.tmdbId}>
+                {i > 0 && ", "}
+                <Link href={`/person/${d.tmdbId}`} className="font-medium text-foreground hover:text-brand-orange transition-colors">{d.name}</Link>
+              </span>
+            ))
+          : <span className="font-medium text-foreground">{film.director}</span>}
+      </span>,
+    );
+  }
+  if (stats?.averageRating != null) {
+    items.push(
+      <span key="nitrate" className="flex items-center gap-1.5" title={`${stats.ratingsCount} ${stats.ratingsCount === 1 ? "nota" : "notas"} no Nitrate`}>
+        <StarIcon size={14} weight="fill" className="text-brand-orange" />
+        <span className="font-semibold tabular-nums text-foreground">{formatScore(stats.averageRating)}</span>
+        <span className="text-brand-slate">no Nitrate</span>
+      </span>,
+    );
+  }
+  if (stats && stats.watchedCount > 0) {
+    items.push(
+      <span key="watched" className="flex items-center gap-1.5 text-brand-slate">
+        <EyeIcon size={14} />
+        <span className="tabular-nums">{stats.watchedCount}</span> {stats.watchedCount === 1 ? "assistiu" : "assistiram"}
+      </span>,
+    );
+  }
+  if (film.rating !== null) {
+    items.push(
+      <span key="tmdb" className="text-brand-slate">
+        TMDB <span className="font-medium tabular-nums text-foreground/90">{film.rating.toFixed(1)}</span>
+      </span>,
+    );
+  }
+
+  if (items.length === 0) return null;
+
+  return (
+    <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+      {items.map((item, i) => (
+        <span key={i} className="flex items-center gap-5">
+          {i > 0 && <span aria-hidden="true" className="h-3.5 w-px bg-foreground/15" />}
+          {item}
+        </span>
+      ))}
     </div>
   );
 }

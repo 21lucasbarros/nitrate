@@ -5,6 +5,7 @@ import type { AuthResponse } from "../types/auth";
 import type { AppNotification, MovieBackdrops, ProfileUpdate, SimilarUser, UserProfile, UserSummary } from "../types/user";
 import type { Movie } from "@/types/movie";
 import type { FavoritePeople, FavoritePeopleKind, FavoritePerson } from "@/types/person";
+import type { Activity } from "./friends-service";
 
 export function getMe(): Promise<UserProfile> {
   return apiFetch<UserProfile>("/users/me");
@@ -84,6 +85,11 @@ export function getMyRecommendations(): Promise<Recommendation[]> {
 
 export function getMovieState(movieId: number): Promise<MovieUserState> {
   return apiFetch<MovieUserState>(`/users/me/movies/${movieId}`);
+}
+
+/** tudo o que eu fiz com o filme (registros, watchlist, listas, curtidas e comentários), do mais recente ao mais antigo */
+export function getMyMovieActivity(movieId: number): Promise<Activity[]> {
+  return apiFetch<Activity[]>(`/users/me/movies/${movieId}/activity`);
 }
 
 export function getProfile(username: string): Promise<UserProfile> {
