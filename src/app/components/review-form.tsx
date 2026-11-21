@@ -1,15 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowsClockwiseIcon, CircleNotchIcon, FloppyDiskIcon, HeartIcon, TrashIcon, WarningIcon } from "@phosphor-icons/react";
+import { ArrowsClockwiseIcon, CalendarBlankIcon, CircleNotchIcon, FloppyDiskIcon, HeartIcon, TrashIcon, WarningIcon } from "@phosphor-icons/react";
 import { ApiError } from "@/lib/api-client";
 import { createReview, deleteReview, updateReview } from "@/lib/services/review-service";
 import type { MovieReview } from "@/lib/types/review";
-import type { Movie } from "@/types/movie";
+import { canRate, type Movie } from "@/types/movie";
 import { easterEggFor } from "@/lib/easter-eggs";
 import { showQuote } from "@/lib/hooks/use-easter-eggs";
 import { clearReviewDraft, loadReviewDraft, reviewDraftKey, saveReviewDraft, type ReviewDraft } from "@/lib/review-draft";
-import { todayIso } from "@/utils/format";
+import { shortDate, todayIso } from "@/utils/format";
 import { Poster } from "./ui/poster";
 import { RichTextEditor } from "./ui/rich-text-editor";
 import { StarInput } from "./ui/star-input";
@@ -27,9 +27,11 @@ interface ReviewFormProps {
 }
 
 export function ReviewForm({ movie, existing, previouslyWatched = false, onSaved, onDeleted, onCancel }: ReviewFormProps) {
+  // antes da estreia a review pode ter texto e curtida, mas não nota
+  const rateable = canRate(movie);
   // o que o formulário mostraria sem rascunho: a review salva, ou tudo em branco
   const initial: ReviewDraft = {
-    rating: existing?.rating ?? null,
+    rating: rateable ? existing?.rating ?? null : null,
     liked: existing?.liked ?? false,
     watchedOn: existing?.watchedOn ?? todayIso(),
     text: existing?.text ?? "",
@@ -41,7 +43,7 @@ export function ReviewForm({ movie, existing, previouslyWatched = false, onSaved
   // ler o sessionStorage na renderização é seguro aqui: o formulário só existe dentro de um modal
   // aberto por clique, então nunca passa pelo SSR (e não há hidratação para divergir)
   const [restored] = useState(() => loadReviewDraft(draftKey));
-  const start = restored ?? initial;
+  const start = restored ? { ...restored, rating: rateable ? restored.rating : null } : initial;
   const [showRestored, setShowRestored] = useState(restored !== null);
 
   const [rating, setRating] = useState<number | null>(start.rating);
@@ -175,16 +177,23 @@ export function ReviewForm({ movie, existing, previouslyWatched = false, onSaved
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-5 py-5 border-y border-foreground/10">
         <div className="flex flex-col gap-2">
           <span className="text-xs uppercase tracking-[0.15em] text-brand-slate/60">Nota</span>
-          <StarInput
-            value={rating}
-            onChange={(value) => {
-              setRating(value);
-              // easter egg (Whiplash): certas notas ganham uma fala
-              const quote = value !== null ? easterEggFor(movie)?.ratingQuotes?.[value] : undefined;
-              if (quote) showQuote(quote);
-            }}
-            size={30}
-          />
+          {rateable ? (
+            <StarInput
+              value={rating}
+              onChange={(value) => {
+                setRating(value);
+                // easter egg (Whiplash): certas notas ganham uma fala
+                const quote = value !== null ? easterEggFor(movie)?.ratingQuotes?.[value] : undefined;
+                if (quote) showQuote(quote);
+              }}
+              size={30}
+            />
+          ) : (
+            <span className="flex items-center gap-2 min-h-[38px] text-sm text-brand-slate/80">
+              <CalendarBlankIcon size={18} className="shrink-0" />
+              {movie.releaseDate ? `Liberada na estreia, em ${shortDate(movie.releaseDate)}` : "Liberada quando o filme estrear"}
+            </span>
+          )}
         </div>
 
         <div className="flex flex-col gap-2 items-center">

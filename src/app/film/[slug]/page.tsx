@@ -52,8 +52,8 @@ import { createReview, getMovieReviews, updateReview } from "@/lib/services/revi
 import { getMovieState } from "@/lib/services/user-service";
 import { addToWatchlist, removeFromWatchlist } from "@/lib/services/watchlist-service";
 import type { MovieReview, ReviewRequest } from "@/lib/types/review";
-import type { Movie } from "@/types/movie";
-import { todayIso } from "@/utils/format";
+import { canRate, type Movie } from "@/types/movie";
+import { shortDate, todayIso } from "@/utils/format";
 import { backdropUrl } from "@/utils/poster";
 import { toRating } from "@/utils/rating";
 import type { MovieStats } from "@/lib/services/movie-service";
@@ -446,15 +446,24 @@ function ActionPanel(props: {
       <div className="border-t border-foreground/5 p-5">
         <span className="text-xs uppercase tracking-[0.14em] text-brand-slate">Sua nota</span>
         <div className="mt-3">
-          <RatingMeterInput
-            value={review?.rating ?? null}
-            onChange={(rating) => {
-              quickSave({ rating });
-              const quote = rating !== null ? props.ratingQuotes?.[rating] : undefined;
-              if (quote) showQuote(quote);
-            }}
-            disabled={busy}
-          />
+          {canRate(props.film) ? (
+            <RatingMeterInput
+              value={review?.rating ?? null}
+              onChange={(rating) => {
+                quickSave({ rating });
+                const quote = rating !== null ? props.ratingQuotes?.[rating] : undefined;
+                if (quote) showQuote(quote);
+              }}
+              disabled={busy}
+            />
+          ) : (
+            // antes da estreia: dá para registrar e curtir, a nota só depois
+            <p className="text-sm text-brand-slate">
+              {props.film.releaseDate
+                ? `Liberada na estreia, em ${shortDate(props.film.releaseDate)}.`
+                : "Liberada quando o filme estrear."}
+            </p>
+          )}
         </div>
       </div>
 
