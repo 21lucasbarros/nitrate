@@ -166,7 +166,7 @@ function MobileNav() {
 /** lupa do celular (a busca do desktop fica no header, que esconde o campo no celular) */
 function MobileSearchLink() {
   return (
-    <Link href="/movies?buscar=1" aria-label="Buscar filmes, pessoas e perfis" className="lg:hidden p-2 -mx-1 text-brand-slate hover:text-foreground transition-colors">
+    <Link href="/movies?buscar=1" aria-label="Buscar filmes, séries, pessoas e perfis" className="lg:hidden p-2 -mx-1 text-brand-slate hover:text-foreground transition-colors">
       <MagnifyingGlassIcon size={20} />
     </Link>
   );

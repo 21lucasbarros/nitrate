@@ -14,11 +14,14 @@ import { Pagination } from "@/app/components/ui/pagination";
 import { cachedFetcher } from "@/lib/cache";
 import { getPerson, searchPeople } from "@/lib/services/person-service";
 import { searchUsers } from "@/lib/services/user-service";
+import { searchSeries } from "@/lib/services/series-service";
 import { UserList } from "@/app/components/user-list";
 import { SectionHeading } from "@/app/components/ui/section-heading";
 import type { Movie, MovieSearchResult } from "@/types/movie";
+import type { SeriesSearchResult } from "@/types/series";
 import { departmentLabel, type PersonCredit, type PersonDetail, type PersonSummary } from "@/types/person";
 import { movieHref } from "@/utils/movie-link";
+import { seriesHref } from "@/utils/series-link";
 import { matchesQuery } from "@/utils/text";
 import { personHref } from "@/utils/person-link";
 
@@ -31,6 +34,7 @@ const COMMUNITY_ROW = 6;
 
 const MIN_QUERY = 2;
 const MAX_PEOPLE = 6;
+const MAX_SERIES = 6;
 const SEARCH_DEBOUNCE_MS = 400;
 
 export default function MoviesPage() {
@@ -63,9 +67,16 @@ function Movies({ initialQuery, focusSearch }: { initialQuery: string; focusSear
   const search = useFetch(searchKey, searchMovies);
   const people = useFetch(searchKey, searchPeople);
   const users = useFetch(searchKey, searchUsers);
+  const series = useFetch(searchKey, searchSeries);
   // buscou pelo nome de alguém: mostra também os filmes dessa pessoa
   const matchedPerson = searchKey ? people.data?.find((p) => matchesQuery(p.name, searchKey)) : undefined;
   const personDetail = useFetch(matchedPerson?.tmdbId ?? null, getPerson);
+  const seriesResults = (series.data ?? []).slice(0, MAX_SERIES);
+  // buscou uma série (ex.: "Blade Runner 2099") e nenhum filme bate tão bem: séries antes dos filmes
+  const seriesOnTop =
+    Boolean(searchKey) &&
+    seriesResults.some((s) => matchesQuery(s.name, searchKey!)) &&
+    !search.data?.some((m) => matchesQuery(m.title, searchKey!));
   // enquanto o debounce não "alcançou" o que foi digitado, também conta como carregando
   const searchPending = isSearching && (search.loading || debouncedQuery !== query.trim());
 
@@ -88,8 +99,8 @@ function Movies({ initialQuery, focusSearch }: { initialQuery: string; focusSear
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Buscar filmes, pessoas e perfis"
-              aria-label="Buscar filmes, pessoas e perfis"
+              placeholder="Buscar filmes, séries, pessoas e perfis"
+              aria-label="Buscar filmes, séries, pessoas e perfis"
               className="w-full pl-11 pr-4 py-3 bg-surface border border-transparent rounded-md text-sm placeholder:text-brand-slate/60 focus:outline-none focus:border-foreground/20"
             />
           </div>
@@ -109,14 +120,18 @@ function Movies({ initialQuery, focusSearch }: { initialQuery: string; focusSear
         {isSearching && personDetail.data && <PersonFilms person={personDetail.data} />}
 
         {isSearching ? (
-          <SearchResults
-            query={query.trim()}
-            results={search.data}
-            pending={searchPending}
-            failed={Boolean(search.error) && !searchPending}
-            othersFound={Boolean(people.data?.length || users.data?.length)}
-            hideWhenEmpty={Boolean(personDetail.data)}
-          />
+          <>
+            {seriesOnTop && <SeriesResults series={seriesResults} />}
+            <SearchResults
+              query={query.trim()}
+              results={search.data}
+              pending={searchPending}
+              failed={Boolean(search.error) && !searchPending}
+              othersFound={Boolean(people.data?.length || users.data?.length || seriesResults.length)}
+              hideWhenEmpty={Boolean(personDetail.data)}
+            />
+            {!seriesOnTop && <SeriesResults series={seriesResults} />}
+          </>
         ) : (
           <>
             <CommunityRow title="Em alta na comunidade" movies={trending.data} />
@@ -207,6 +222,22 @@ function SearchResults({ query, results, pending, failed, othersFound, hideWhenE
         }))}
       />
     </div>
+  );
+}
+
+function SeriesResults({ series }: { series: SeriesSearchResult[] }) {
+  if (series.length === 0) return null;
+  return (
+    <section className="my-14 first:mt-0">
+      <SectionHeading title="Séries" />
+      <MovieGrid
+        showTitles
+        items={series.map((s) => ({
+          movie: { id: s.id ?? `tmdb-${s.tmdbId}`, title: s.name, posterPath: s.posterPath, releaseYear: s.firstAirYear },
+          href: seriesHref(s),
+        }))}
+      />
+    </section>
   );
 }
 

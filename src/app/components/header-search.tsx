@@ -4,14 +4,16 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CircleNotchIcon, FilmSlateIcon, MagnifyingGlassIcon, XIcon } from "@phosphor-icons/react";
+import { CircleNotchIcon, FilmSlateIcon, MagnifyingGlassIcon, TelevisionIcon, XIcon } from "@phosphor-icons/react";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { useFetch } from "@/lib/hooks/use-fetch";
 import { searchMovies } from "@/lib/services/movie-service";
 import { searchPeople } from "@/lib/services/person-service";
+import { searchSeries } from "@/lib/services/series-service";
 import { searchUsers } from "@/lib/services/user-service";
 import { departmentLabel } from "@/types/person";
 import { movieHref } from "@/utils/movie-link";
+import { seriesHref } from "@/utils/series-link";
 import { posterUrl } from "@/utils/poster";
 import { matchesQuery } from "@/utils/text";
 import { Avatar } from "./ui/avatar";
@@ -21,10 +23,11 @@ import { personHref } from "@/utils/person-link";
 const MIN_QUERY = 2;
 const DEBOUNCE_MS = 300;
 const MAX_MOVIES = 5;
+const MAX_SERIES = 3;
 const MAX_PEOPLE = 3;
 const MAX_USERS = 3;
 
-/** Lupa do header: abre um campo de busca com sugestões; Enter leva para a busca completa em /movies. */
+/** Lupa do header: abre um campo de busca com sugestões (filmes, séries, pessoas e perfis); Enter leva para a busca completa em /movies. */
 export function HeaderSearch() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -34,6 +37,7 @@ export function HeaderSearch() {
   const debounced = useDebouncedValue(query.trim(), DEBOUNCE_MS);
   const key = open && debounced.length >= MIN_QUERY ? debounced : null;
   const movies = useFetch(key, searchMovies);
+  const series = useFetch(key, searchSeries);
   const people = useFetch(key, searchPeople);
   const users = useFetch(key, searchUsers);
 
@@ -74,29 +78,35 @@ export function HeaderSearch() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        aria-label="Buscar filmes, pessoas e perfis"
+        aria-label="Buscar filmes, séries, pessoas e perfis"
         aria-keyshortcuts="Meta+K Control+K"
         className="flex items-center gap-2 w-56 lg:w-64 h-9 px-3 rounded-md bg-surface/60 ring-1 ring-foreground/10 text-sm text-brand-slate/80 hover:text-foreground hover:ring-foreground/20 transition-colors"
       >
         <MagnifyingGlassIcon size={16} className="shrink-0" />
-        <span className="flex-1 text-left truncate">Buscar filmes, pessoas…</span>
+        <span className="flex-1 text-left truncate">Buscar filmes, séries…</span>
         <kbd className="shrink-0 font-sans text-[11px] px-1.5 py-0.5 rounded bg-foreground/5 ring-1 ring-foreground/10 text-brand-slate/70">⌘K</kbd>
       </button>
     );
   }
 
   const typed = query.trim();
-  const sources = [movies, people, users];
+  const sources = [movies, series, people, users];
   const pending = typed.length >= MIN_QUERY && (debounced !== typed || sources.some((s) => s.loading));
   const movieResults = (movies.data ?? []).slice(0, MAX_MOVIES);
+  const seriesResults = (series.data ?? []).slice(0, MAX_SERIES);
   const peopleResults = (people.data ?? []).slice(0, MAX_PEOPLE);
   const userResults = (users.data ?? []).slice(0, MAX_USERS);
-  const hasResults = movieResults.length > 0 || peopleResults.length > 0 || userResults.length > 0;
+  const hasResults =
+    movieResults.length > 0 || seriesResults.length > 0 || peopleResults.length > 0 || userResults.length > 0;
   // cada busca é independente: uma que falhe ou demore não esconde o resultado das outras
   const nothing = !pending && !hasResults;
   // buscou pelo nome de alguém (ex.: "Ingrid Guimarães") e nenhum título bate tão bem: pessoas vêm primeiro
-  const peopleFirst =
-    peopleResults.some((p) => matchesQuery(p.name, typed)) && !movieResults.some((m) => matchesQuery(m.title, typed));
+  const titleMatches =
+    movieResults.some((m) => matchesQuery(m.title, typed)) || seriesResults.some((s) => matchesQuery(s.name, typed));
+  const peopleFirst = peopleResults.some((p) => matchesQuery(p.name, typed)) && !titleMatches;
+  // o mesmo entre títulos: buscou uma série (ex.: "Blade Runner 2099") e nenhum filme bate tão bem
+  const seriesFirst =
+    seriesResults.some((s) => matchesQuery(s.name, typed)) && !movieResults.some((m) => matchesQuery(m.title, typed));
 
   const peopleGroup = peopleResults.length > 0 && (
     <Group label="Pessoas">
@@ -108,6 +118,34 @@ export function HeaderSearch() {
             <span className="block text-xs text-brand-slate truncate">
               {[departmentLabel(person.department), ...person.knownFor].filter(Boolean).join(" · ")}
             </span>
+          </span>
+        </ResultLink>
+      ))}
+    </Group>
+  );
+
+  const moviesGroup = movieResults.length > 0 && (
+    <Group label="Filmes">
+      {movieResults.map((movie) => (
+        <ResultLink key={movie.tmdbId} href={movieHref(movie)} onClick={close}>
+          <ResultPoster posterPath={movie.posterPath} icon={<FilmSlateIcon size={14} />} />
+          <span className="min-w-0">
+            <span className="block text-sm truncate">{movie.title}</span>
+            {movie.releaseYear && <span className="block text-xs text-brand-slate">{movie.releaseYear}</span>}
+          </span>
+        </ResultLink>
+      ))}
+    </Group>
+  );
+
+  const seriesGroup = seriesResults.length > 0 && (
+    <Group label="Séries">
+      {seriesResults.map((s) => (
+        <ResultLink key={s.tmdbId} href={seriesHref(s)} onClick={close}>
+          <ResultPoster posterPath={s.posterPath} icon={<TelevisionIcon size={14} />} />
+          <span className="min-w-0">
+            <span className="block text-sm truncate">{s.name}</span>
+            <span className="block text-xs text-brand-slate">{s.firstAirYear ? `Série · ${s.firstAirYear}` : "Série"}</span>
           </span>
         </ResultLink>
       ))}
@@ -136,8 +174,8 @@ export function HeaderSearch() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => e.key === "Escape" && close()}
-          placeholder="Filmes, pessoas e perfis"
-          aria-label="Buscar filmes, pessoas e perfis"
+          placeholder="Filmes, séries, pessoas e perfis"
+          aria-label="Buscar filmes, séries, pessoas e perfis"
           className="flex-1 min-w-0 bg-transparent text-sm placeholder:text-brand-slate/60 focus:outline-none"
         />
         <button type="button" onClick={close} aria-label="Fechar busca" className="shrink-0 text-brand-slate hover:text-foreground">
@@ -153,28 +191,8 @@ export function HeaderSearch() {
             <>
               {peopleFirst && peopleGroup}
 
-              {movieResults.length > 0 && (
-                <Group label="Filmes">
-                  {movieResults.map((movie) => {
-                    const poster = posterUrl(movie.posterPath, "w185");
-                    return (
-                      <ResultLink key={movie.tmdbId} href={movieHref(movie)} onClick={close}>
-                        <span className="relative w-8 h-12 shrink-0 overflow-hidden rounded-sm bg-foreground/5">
-                          {poster ? (
-                            <Image src={poster} alt="" fill sizes="32px" className="object-cover" />
-                          ) : (
-                            <FilmSlateIcon size={14} className="absolute inset-0 m-auto text-foreground/25" />
-                          )}
-                        </span>
-                        <span className="min-w-0">
-                          <span className="block text-sm truncate">{movie.title}</span>
-                          {movie.releaseYear && <span className="block text-xs text-brand-slate">{movie.releaseYear}</span>}
-                        </span>
-                      </ResultLink>
-                    );
-                  })}
-                </Group>
-              )}
+              {seriesFirst ? seriesGroup : moviesGroup}
+              {seriesFirst ? moviesGroup : seriesGroup}
 
               {!peopleFirst && peopleGroup}
 
@@ -224,5 +242,18 @@ function ResultLink({ href, onClick, children }: { href: string; onClick: () => 
         {children}
       </Link>
     </li>
+  );
+}
+
+function ResultPoster({ posterPath, icon }: { posterPath: string | null; icon: React.ReactNode }) {
+  const poster = posterUrl(posterPath, "w185");
+  return (
+    <span className="relative w-8 h-12 shrink-0 overflow-hidden rounded-sm bg-foreground/5">
+      {poster ? (
+        <Image src={poster} alt="" fill sizes="32px" className="object-cover" />
+      ) : (
+        <span className="absolute inset-0 flex items-center justify-center text-foreground/25">{icon}</span>
+      )}
+    </span>
   );
 }
