@@ -25,6 +25,7 @@ import Header from "@/app/components/header";
 import { Avatar } from "@/app/components/ui/avatar";
 import { CoverPicker } from "@/app/components/cover-picker";
 import { ProfileBadges } from "@/app/components/badges";
+import { ProfileAchievements } from "@/app/components/profile-achievements";
 import { MovieGrid } from "@/app/components/movie-grid";
 import { EditFavoritesButton, FavoriteFilms, FavoritesEditor } from "@/app/components/favorite-films";
 import { FavoritePeopleCompact, FavoritePeopleEditor } from "@/app/components/favorite-people";
@@ -73,6 +74,7 @@ const TABS = [
   { id: "watchlist", label: "Watchlist" },
   { id: "series", label: "Séries" },
   { id: "listas", label: "Listas" },
+  { id: "conquistas", label: "Conquistas" },
   { id: "rede", label: "Amigos" },
 ] as const;
 
@@ -592,6 +594,8 @@ function Profile() {
           ))}
 
         {tab === "series" && <ProfileSeries username={user.username} name={user.name} isMe={isMe} />}
+
+        {tab === "conquistas" && <ProfileAchievements username={user.username} name={user.name} isMe={isMe} />}
 
         {tab === "listas" && (
           <div>

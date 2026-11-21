@@ -11,6 +11,7 @@ import { departmentLabel, type FavoritePeopleKind, type FavoritePerson, type Per
 import { IconButton } from "./ui/icon-button";
 import { Modal } from "./ui/modal";
 import { PersonPhoto } from "./ui/person-photo";
+import { personHref } from "@/utils/person-link";
 
 const LABELS: Record<FavoritePeopleKind, { title: string; search: string; department: string }> = {
   actors: {
@@ -53,7 +54,7 @@ export function FavoritePeopleCompact({ kind, people, isMe, onEdit }: {
     <ol className="flex gap-3">
       {people.map((person) => (
         <li key={person.tmdbId} className={item}>
-          <Link href={`/person/${person.tmdbId}`} title={person.name} className="group flex flex-col items-center gap-1.5 text-center">
+          <Link href={personHref(person)} title={person.name} className="group flex flex-col items-center gap-1.5 text-center">
             <PersonPhoto
               name={person.name}
               profilePath={person.profilePath}
@@ -131,7 +132,7 @@ function Editor({ kind, initial, onClose, onSaved }: {
     setPicks((current) =>
       current.some((p) => p.tmdbId === person.tmdbId)
         ? current
-        : [...current, { tmdbId: person.tmdbId, name: person.name, profilePath: person.profilePath }],
+        : [...current, { tmdbId: person.tmdbId, name: person.name, profilePath: person.profilePath, slug: person.slug }],
     );
     setQuery("");
   };

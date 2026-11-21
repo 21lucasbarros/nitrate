@@ -20,6 +20,7 @@ import type { Movie, MovieSearchResult } from "@/types/movie";
 import { departmentLabel, type PersonCredit, type PersonDetail, type PersonSummary } from "@/types/person";
 import { movieHref } from "@/utils/movie-link";
 import { matchesQuery } from "@/utils/text";
+import { personHref } from "@/utils/person-link";
 
 const CATALOG_PER_PAGE = 48; // 6 linhas de 8
 const fetchCatalog = (page: number) => getCatalog(page - 1, CATALOG_PER_PAGE);
@@ -253,7 +254,7 @@ function PeopleResults({ people }: { people: PersonSummary[] }) {
       <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-x-5 gap-y-8">
         {people.map((person) => (
           <li key={person.tmdbId}>
-            <Link href={`/person/${person.tmdbId}`} className="group flex flex-col items-center text-center">
+            <Link href={personHref(person)} className="group flex flex-col items-center text-center">
               <PersonPhoto
                 name={person.name}
                 profilePath={person.profilePath}

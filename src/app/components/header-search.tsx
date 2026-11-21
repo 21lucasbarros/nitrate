@@ -16,6 +16,7 @@ import { posterUrl } from "@/utils/poster";
 import { matchesQuery } from "@/utils/text";
 import { Avatar } from "./ui/avatar";
 import { PersonPhoto } from "./ui/person-photo";
+import { personHref } from "@/utils/person-link";
 
 const MIN_QUERY = 2;
 const DEBOUNCE_MS = 300;
@@ -100,7 +101,7 @@ export function HeaderSearch() {
   const peopleGroup = peopleResults.length > 0 && (
     <Group label="Pessoas">
       {peopleResults.map((person) => (
-        <ResultLink key={person.tmdbId} href={`/person/${person.tmdbId}`} onClick={close}>
+        <ResultLink key={person.tmdbId} href={personHref(person)} onClick={close}>
           <PersonPhoto name={person.name} profilePath={person.profilePath} sizes="32px" className="w-8 shrink-0" />
           <span className="min-w-0">
             <span className="block text-sm truncate">{person.name}</span>

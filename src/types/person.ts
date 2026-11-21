@@ -2,6 +2,7 @@
 export interface PersonSummary {
   tmdbId: number;
   name: string;
+  slug: string | null; // endereço da pessoa ("ben-stiller"); nulo, o link usa o id
   profilePath: string | null;
   department: string | null; // "Acting" | "Directing" | ...
   knownFor: string[];
@@ -25,6 +26,7 @@ export interface PersonCredit {
 export interface PersonDetail {
   tmdbId: number;
   name: string;
+  slug: string | null; // nulo se o nome não tem versão em letras latinas
   profilePath: string | null;
   department: string | null;
   biography: string | null;
@@ -39,6 +41,24 @@ export interface FavoritePerson {
   tmdbId: number;
   name: string;
   profilePath: string | null;
+  slug: string | null;
+}
+
+// Espelha PersonProgressDTO: quanto da filmografia (já lançada) de uma pessoa você viu
+export interface PersonProgress {
+  watched: number;
+  total: number;
+  achievement: Achievement | null; // filmografia completa
+}
+
+// Espelha AchievementDTO: conquista do perfil
+export interface Achievement {
+  id: number;
+  type: "FILMOGRAFIA_COMPLETA";
+  person: { tmdbId: number; name: string; profilePath: string | null; slug: string | null };
+  films: number; // quantos filmes eram quando foi conquistada
+  hidden: boolean; // só a dona recebe as ocultas
+  achievedAt: string;
 }
 
 // Espelha FavoritePeopleDTO: as duas listas, cada uma em ordem

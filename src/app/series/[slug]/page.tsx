@@ -56,6 +56,7 @@ import { shortDate } from "@/utils/format";
 import { backdropUrl, stillUrl } from "@/utils/poster";
 import { toRating } from "@/utils/rating";
 import { seriesReviewHref } from "@/utils/series-link";
+import { personHref } from "@/utils/person-link";
 
 const CAST_PREVIEW = 8;
 
@@ -476,7 +477,7 @@ function CastList({ cast: castOrNull }: { cast: SeriesPerson[] | undefined }) {
           : visible.map((person) => (
               <li key={person.tmdbId}>
                 <Link
-                  href={`/person/${person.tmdbId}`}
+                  href={personHref(person)}
                   className="group flex items-center gap-3 -mx-2 px-2 py-2 rounded-md hover:bg-surface transition-colors"
                 >
                   <PersonPhoto name={person.name} profilePath={person.profilePath} sizes="44px" className="w-11 shrink-0" />
@@ -511,7 +512,7 @@ function FactSheet({ series, details }: { series: Series; details: SeriesDetails
       value: details.creators.map((c, i) => (
         <span key={c.tmdbId}>
           {i > 0 && ", "}
-          <Link href={`/person/${c.tmdbId}`} className="hover:text-brand-orange transition-colors">{c.name}</Link>
+          <Link href={personHref(c)} className="hover:text-brand-orange transition-colors">{c.name}</Link>
         </span>
       )),
     });

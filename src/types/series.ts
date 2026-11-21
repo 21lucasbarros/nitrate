@@ -36,6 +36,7 @@ export interface SeriesPerson {
   role: string | null; // personagem(ns), no elenco
   profilePath: string | null;
   episodes: number | null; // em quantos episódios aparece
+  slug: string | null; // endereço da pessoa; nulo, o link usa o id
 }
 
 export interface SeasonSummary {

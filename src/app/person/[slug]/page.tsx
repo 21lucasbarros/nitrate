@@ -3,28 +3,32 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { CircleNotchIcon, StarIcon } from "@phosphor-icons/react";
+import { CircleNotchIcon, StarIcon, TrophyIcon } from "@phosphor-icons/react";
 
 import Header from "@/app/components/header";
 import { MovieGrid } from "@/app/components/movie-grid";
 import { PersonPhoto } from "@/app/components/ui/person-photo";
 import { formatScore } from "@/app/components/ui/rating-meter";
 import { ApiError } from "@/lib/api-client";
+import { useAuth } from "@/lib/auth-context";
 import { useFetch } from "@/lib/hooks/use-fetch";
-import { getPerson } from "@/lib/services/person-service";
-import { departmentLabel, type PersonCredit, type PersonDetail } from "@/types/person";
+import { getPerson, getPersonProgress } from "@/lib/services/person-service";
+import { departmentLabel, type PersonCredit, type PersonDetail, type PersonProgress } from "@/types/person";
 import { shortDate } from "@/utils/format";
 import { movieHref } from "@/utils/movie-link";
 
 const BIO_PREVIEW = 420;
 
 export default function PersonPage() {
-  const params = useParams<{ tmdbId: string }>();
-  const tmdbId = Number(params.tmdbId);
-  const validId = Number.isInteger(tmdbId) && tmdbId > 0 ? tmdbId : null;
-  const person = useFetch(validId, getPerson);
+  // slug ("ben-stiller") ou, nos links antigos, o id do TMDB (o layout redireciona para o slug)
+  const params = useParams<{ slug: string }>();
+  const ref = /^[a-z0-9-]{1,100}$/i.test(params.slug) ? params.slug : null;
+  const person = useFetch(ref, getPerson);
+  const { status } = useAuth();
+  // quanto da filmografia eu já vi: só com sessão
+  const progress = useFetch(status === "authenticated" && person.data ? person.data.tmdbId : null, getPersonProgress);
 
-  const notFound = validId === null || (person.error instanceof ApiError && person.error.status === 404);
+  const notFound = ref === null || (person.error instanceof ApiError && person.error.status === 404);
 
   return (
     <div className="min-h-screen bg-background text-foreground font-sans">
@@ -40,14 +44,15 @@ export default function PersonPage() {
             {person.error ? "Não foi possível carregar esta pessoa." : <CircleNotchIcon size={32} className="animate-spin" />}
           </div>
         ) : (
-          <PersonView person={person.data} />
+          <PersonView person={person.data} progress={progress.data ?? null} />
         )}
       </main>
     </div>
   );
 }
 
-function PersonView({ person }: { person: PersonDetail }) {
+function PersonView({ person, progress }: { person: PersonDetail; progress: PersonProgress | null }) {
+  const { user: me } = useAuth();
   const [bioExpanded, setBioExpanded] = useState(false);
 
   // quem dirigiu vê primeiro o que dirigiu; atores, onde atuaram.
@@ -63,6 +68,9 @@ function PersonView({ person }: { person: PersonDetail }) {
   const bio = person.biography?.trim() ?? "";
   const longBio = bio.length > BIO_PREVIEW;
   const stats = careerStats(person);
+  // o progresso entra no lugar do período em atividade, entre os filmes e a média
+  const watchedStat = progress && progress.total > 0 ? progressStat(progress, me?.username ?? null) : null;
+  if (watchedStat) stats.splice(stats.length > 0 ? 1 : 0, 0, watchedStat);
 
   return (
     <>
@@ -90,15 +98,26 @@ function PersonView({ person }: { person: PersonDetail }) {
           )}
           {stats.length > 0 && (
             <dl className="mt-6 flex flex-wrap gap-x-8 gap-y-4">
-              {stats.map((stat) => (
-                <div key={stat.label}>
-                  <dd className="text-2xl font-semibold tracking-tight tabular-nums inline-flex items-center gap-1.5">
-                    {stat.icon}
-                    {stat.value}
-                  </dd>
-                  <dt className="mt-0.5 text-[11px] uppercase tracking-wider text-brand-slate/60">{stat.label}</dt>
-                </div>
-              ))}
+              {stats.map((stat) => {
+                const content = (
+                  <>
+                    <dd className="text-2xl font-semibold tracking-tight tabular-nums inline-flex items-center gap-1.5">
+                      {stat.icon}
+                      {stat.value}
+                    </dd>
+                    <dt className="mt-0.5 text-[11px] uppercase tracking-wider text-brand-slate/60">{stat.label}</dt>
+                  </>
+                );
+                return stat.href ? (
+                  <Link key={stat.label} href={stat.href} title={stat.title} className="block hover:[&_dd]:text-brand-orange [&_dd]:transition-colors">
+                    {content}
+                  </Link>
+                ) : (
+                  <div key={stat.label} title={stat.title}>
+                    {content}
+                  </div>
+                );
+              })}
             </dl>
           )}
           {bio && (
@@ -132,22 +151,23 @@ function age(birthday: string): number {
   return now.getFullYear() - year - (hadBirthday ? 0 : 1);
 }
 
-/** números da carreira no topo: filmes, período em atividade e a média dos filmes no Nitrate */
-function careerStats(person: PersonDetail) {
+interface Stat {
+  label: string;
+  value: React.ReactNode;
+  icon?: React.ReactNode;
+  href?: string;
+  title?: string;
+}
+
+/** números da carreira no topo: filmes e a média dos filmes no Nitrate */
+function careerStats(person: PersonDetail): Stat[] {
   const unique = new Map<number, PersonCredit>();
   for (const credit of [...person.directed, ...person.acted]) unique.set(credit.tmdbId, credit);
   const credits = [...unique.values()];
-  const currentYear = new Date().getFullYear();
-  const years = credits.map((c) => c.releaseYear).filter((y): y is number => y !== null && y <= currentYear);
   const rated = credits.filter((c) => c.nitrateRating !== null);
 
-  const stats: { label: string; value: React.ReactNode; icon?: React.ReactNode }[] = [];
+  const stats: Stat[] = [];
   if (credits.length > 0) stats.push({ label: credits.length === 1 ? "filme" : "filmes", value: credits.length });
-  if (years.length > 0) {
-    const first = Math.min(...years);
-    const last = Math.max(...years);
-    stats.push({ label: "em atividade", value: first === last ? first : `${first}–${last}` });
-  }
   if (rated.length > 0) {
     // média ponderada pelo número de pessoas que avaliaram cada filme
     const votes = rated.reduce((sum, c) => sum + c.nitrateRatings, 0);
@@ -159,6 +179,50 @@ function careerStats(person: PersonDetail) {
     });
   }
   return stats;
+}
+
+/**
+ * Quanto da filmografia você já viu. Só conta o que já foi lançado; arredonda para baixo,
+ * para os 100% aparecerem só quando faltar nada. Completa e virou conquista: leva à aba do perfil.
+ */
+function progressStat(progress: PersonProgress, username: string | null): Stat {
+  const { watched, total, achievement } = progress;
+  const percent = Math.floor((watched / total) * 100);
+  const complete = watched >= total;
+  return {
+    label: complete ? "filmografia completa" : `você viu ${watched} de ${total}`,
+    value: `${percent}%`,
+    icon: complete ? (
+      <TrophyIcon size={20} weight="fill" className="text-brand-orange" />
+    ) : (
+      <ProgressRing value={watched / total} />
+    ),
+    href: achievement && username ? `/u/${username}?tab=conquistas` : undefined,
+    title: complete
+      ? `Você viu todos os ${total} filmes já lançados`
+      : `Você viu ${watched} dos ${total} filmes já lançados`,
+  };
+}
+
+function ProgressRing({ value }: { value: number }) {
+  const radius = 7;
+  const circumference = 2 * Math.PI * radius;
+  return (
+    <svg width={18} height={18} viewBox="0 0 18 18" aria-hidden="true" className="-rotate-90">
+      <circle cx={9} cy={9} r={radius} fill="none" strokeWidth={2.5} className="stroke-foreground/15" />
+      <circle
+        cx={9}
+        cy={9}
+        r={radius}
+        fill="none"
+        strokeWidth={2.5}
+        strokeLinecap="round"
+        strokeDasharray={circumference}
+        strokeDashoffset={circumference * (1 - value)}
+        className="stroke-brand-orange"
+      />
+    </svg>
+  );
 }
 
 const round1 = (value: number) => Math.round(value * 10) / 10;

@@ -57,6 +57,7 @@ import { todayIso } from "@/utils/format";
 import { backdropUrl } from "@/utils/poster";
 import { toRating } from "@/utils/rating";
 import type { MovieStats } from "@/lib/services/movie-service";
+import { personHref } from "@/utils/person-link";
 
 const CAST_PREVIEW = 8;
 
@@ -530,7 +531,7 @@ function FilmHighlights({ film, directors, stats }: { film: Movie; directors: Cr
           ? directors.map((d, i) => (
               <span key={d.tmdbId}>
                 {i > 0 && ", "}
-                <Link href={`/person/${d.tmdbId}`} className="font-medium text-foreground hover:text-brand-orange transition-colors">{d.name}</Link>
+                <Link href={personHref(d)} className="font-medium text-foreground hover:text-brand-orange transition-colors">{d.name}</Link>
               </span>
             ))
           : <span className="font-medium text-foreground">{film.director}</span>}
@@ -599,7 +600,7 @@ function CastList({ cast: castOrNull }: { cast: CreditPerson[] | undefined }) {
           : visible.map((person) => (
               <li key={`${person.tmdbId}-${person.role}`}>
                 <Link
-                  href={`/person/${person.tmdbId}`}
+                  href={personHref(person)}
                   className="group flex items-center gap-3 -mx-2 px-2 py-2 rounded-md hover:bg-surface transition-colors"
                 >
                   <PersonPhoto name={person.name} profilePath={person.profilePath} sizes="44px" className="w-11 shrink-0" />
@@ -634,7 +635,7 @@ function FactSheet({ film, directors }: { film: Movie; directors: CreditPerson[]
         ? directors.map((d, i) => (
             <span key={d.tmdbId}>
               {i > 0 && ", "}
-              <Link href={`/person/${d.tmdbId}`} className="hover:text-brand-orange transition-colors">{d.name}</Link>
+              <Link href={personHref(d)} className="hover:text-brand-orange transition-colors">{d.name}</Link>
             </span>
           ))
         : film.director,
@@ -706,7 +707,7 @@ function MobileFilmHeader({ film, backdrop, directors, tagline, poster, stats, m
             {[film.releaseYear, director || film.director ? "Direção" : null].filter(Boolean).join(" · ")}
           </p>
           {director ? (
-            <Link href={`/person/${director.tmdbId}`} className="mt-0.5 block font-semibold text-foreground/90">
+            <Link href={personHref(director)} className="mt-0.5 block font-semibold text-foreground/90">
               {director.name}
             </Link>
           ) : (

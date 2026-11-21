@@ -52,6 +52,7 @@ export interface CreditPerson {
   name: string;
   role: string | null; // personagem (elenco)
   profilePath: string | null;
+  slug: string | null; // endereço da pessoa; nulo, o link usa o id
 }
 
 export interface MovieCredits {

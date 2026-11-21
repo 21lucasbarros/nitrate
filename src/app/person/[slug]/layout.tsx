@@ -1,19 +1,22 @@
 import type { Metadata } from "next";
+import { permanentRedirect } from "next/navigation";
 import { OPEN_GRAPH_BASE, SITE_URL } from "@/lib/brand";
 import { describe, fetchForMetadata } from "@/lib/seo";
 import type { PersonDetail } from "@/types/person";
 import { profileUrl } from "@/utils/poster";
+import { personHref } from "@/utils/person-link";
 import { JsonLd } from "@/app/components/json-ld";
 
-type Props = { params: Promise<{ tmdbId: string }> };
+// slug ("ben-stiller") ou, nos links antigos, o id do TMDB
+type Props = { params: Promise<{ slug: string }> };
 
-function getPerson(tmdbId: string) {
-  return /^\d+$/.test(tmdbId) ? fetchForMetadata<PersonDetail>(`/people/${tmdbId}`) : Promise.resolve(null);
+function getPerson(ref: string) {
+  return /^[a-z0-9-]{1,100}$/i.test(ref) ? fetchForMetadata<PersonDetail>(`/people/${ref}`) : Promise.resolve(null);
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { tmdbId } = await params;
-  const person = await getPerson(tmdbId);
+  const { slug } = await params;
+  const person = await getPerson(slug);
   if (!person) return { title: "Pessoa não encontrada", robots: { index: false } };
 
   const known = [...person.directed, ...person.acted].slice(0, 3).map((credit) => credit.title);
@@ -21,7 +24,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     describe(person.biography) ??
     `Filmes de ${person.name}${known.length > 0 ? `, como ${known.join(", ")}` : ""}, no Nitrate.`;
   const photo = profileUrl(person.profilePath, "h632");
-  const path = `/person/${person.tmdbId}`;
+  const path = personHref(person);
 
   return {
     title: person.name,
@@ -40,7 +43,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function PersonLayout({ children, params }: Props & { children: React.ReactNode }) {
-  const person = await getPerson((await params).tmdbId);
+  const { slug } = await params;
+  const person = await getPerson(slug);
+  // /person/7399 e /person/Ben-Stiller viram /person/ben-stiller
+  if (person?.slug && person.slug !== slug) permanentRedirect(personHref(person));
   return (
     <>
       {person && (
@@ -49,7 +55,7 @@ export default async function PersonLayout({ children, params }: Props & { child
             "@context": "https://schema.org",
             "@type": "Person",
             name: person.name,
-            url: `${SITE_URL}/person/${person.tmdbId}`,
+            url: `${SITE_URL}${personHref(person)}`,
             image: profileUrl(person.profilePath, "h632") ?? undefined,
             description: describe(person.biography, 300),
             birthDate: person.birthday ?? undefined,
