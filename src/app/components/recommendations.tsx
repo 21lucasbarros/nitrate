@@ -30,12 +30,19 @@ export function Recommendations({ items, loading }: RecommendationsProps) {
 
   if (!items || items.length === 0) {
     return (
-      <div className="flex items-center gap-4 rounded-md bg-surface px-6 py-6 text-brand-slate">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4 rounded-md bg-surface px-6 py-6 text-brand-slate">
         <SparkleIcon size={28} weight="light" className="shrink-0 text-brand-orange" />
         <p className="text-sm sm:text-base">
-          Registre e curta alguns filmes. O Nitrate liga diretores, elenco, franquias e gêneros
-          para descobrir o que você vai gostar em seguida.
+          Registre e curta alguns filmes, ou conte o que você curte. O Nitrate liga diretores, elenco,
+          franquias e gêneros para descobrir o que você vai gostar em seguida.
         </p>
+        {/* quem pulou o questionário depois do cadastro pode responder por aqui */}
+        <Link
+          href="/comecar"
+          className="sm:ml-auto shrink-0 self-start sm:self-center px-4 py-2 rounded-md bg-brand-btn text-brand-btn-text text-sm font-semibold hover:bg-brand-btn/90 transition-colors"
+        >
+          Contar meus gostos
+        </Link>
       </div>
     );
   }

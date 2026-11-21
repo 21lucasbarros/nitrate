@@ -14,6 +14,7 @@ import {
   EyeSlashIcon,
   InstagramLogoIcon,
   ShieldStarIcon,
+  SparkleIcon,
   TrashIcon,
   WarningIcon,
   XCircleIcon,
@@ -74,6 +75,7 @@ export default function SettingsPage() {
 
             {/* key: depois de salvar, o formulário recomeça com os dados novos */}
             <ProfileForm key={`${user.name}|${user.username}|${user.bio}|${user.twitter}|${user.instagram}`} user={user} />
+            <TasteSection />
             <PasswordSection />
             <DataSection />
             <DeleteAccountSection username={user.username} />
@@ -353,6 +355,26 @@ function HandleInput({ label: text, icon, value, onChange, maxLength }: {
 }
 
 /** troca a senha sabendo a atual; as outras sessões caem e esta recebe um token novo */
+/** atalho para refazer o questionário de gostos do cadastro */
+function TasteSection() {
+  return (
+    <section className="mt-14">
+      <SectionHeading title="Seus gostos" />
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+        <p className="text-sm text-brand-slate">
+          O que você curte guia as recomendações enquanto o seu diário ainda é pequeno. Mudou de ideia? Responda de novo.
+        </p>
+        <Link
+          href="/comecar?depois=/configuracoes"
+          className="sm:ml-auto shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-surface-strong text-sm font-semibold text-foreground hover:bg-foreground/15 transition-colors"
+        >
+          <SparkleIcon size={14} weight="fill" className="text-brand-orange" /> Refazer o questionário
+        </Link>
+      </div>
+    </section>
+  );
+}
+
 function PasswordSection() {
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");

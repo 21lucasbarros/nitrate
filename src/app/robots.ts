@@ -7,7 +7,7 @@ export default function robots(): MetadataRoute.Robots {
       userAgent: "*",
       allow: "/",
       // páginas da conta e de senha: não têm conteúdo para a busca
-      disallow: ["/configuracoes", "/importar", "/amigos", "/esqueci-senha", "/redefinir-senha", "/admin"],
+      disallow: ["/configuracoes", "/importar", "/amigos", "/esqueci-senha", "/redefinir-senha", "/admin", "/comecar"],
     },
     sitemap: `${SITE_URL}/sitemap.xml`,
     host: SITE_URL,

@@ -30,21 +30,14 @@ import { ApiError } from "@/lib/api-client";
 import { useUsernameAvailability } from "@/lib/hooks/use-username-availability";
 import { useAuthToken } from "@/lib/hooks/use-auth-token";
 import { MIN_AGE } from "@/lib/legal";
+import { safeInternalPath } from "@/utils/redirect";
+
+const JUST_REGISTERED_KEY = "nitrate:just-registered";
 
 // destino após o login, vindo do guard das rotas privadas (?redirect=/algum/caminho).
-// só aceita caminhos internos para não virar um open redirect. Checar o prefixo não basta:
-// o navegador lê "/\evil.com" e "/<TAB>/evil.com" como "//evil.com". Por isso a URL é
-// resolvida de verdade e só passa se continuar neste site.
+// só aceita caminhos internos para não virar um open redirect (ver safeInternalPath)
 function getRedirectPath(): string {
-  const redirect = new URLSearchParams(window.location.search).get("redirect");
-  if (!redirect?.startsWith("/")) return "/";
-  try {
-    const url = new URL(redirect, window.location.origin);
-    if (url.origin === window.location.origin) return url.pathname + url.search + url.hash;
-  } catch {
-    // URL inválida: cai no padrão
-  }
-  return "/";
+  return safeInternalPath(new URLSearchParams(window.location.search).get("redirect"));
 }
 
 export default function SignInPage() {
@@ -69,7 +62,14 @@ export default function SignInPage() {
   // quem já está logado não precisa ver o formulário (também cobre o redirect após o login)
   const token = useAuthToken();
   useEffect(() => {
-    if (token) router.replace(getRedirectPath());
+    if (!token) return;
+    const destination = getRedirectPath();
+    // conta recém-criada: antes do destino, passa pelo questionário de gostos (que dá para pular)
+    const justRegistered = sessionStorage.getItem(JUST_REGISTERED_KEY) === "1";
+    sessionStorage.removeItem(JUST_REGISTERED_KEY);
+    router.replace(
+      justRegistered ? `/comecar${destination === "/" ? "" : `?depois=${encodeURIComponent(destination)}`}` : destination,
+    );
   }, [token, router]);
 
   const loginForm = useForm<LoginFormData>({
@@ -135,6 +135,9 @@ export default function SignInPage() {
         password: data.password,
         acceptedTerms: data.acceptTerms,
       });
+      // antes do token. Não é estado: o token chega por useSyncExternalStore, que renderiza antes
+      // de um setState feito depois do await, e o efeito mandaria primeiro para a home
+      sessionStorage.setItem(JUST_REGISTERED_KEY, "1");
       saveToken(response.token);
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) {
