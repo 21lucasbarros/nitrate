@@ -41,3 +41,7 @@ Para testar a imagem localmente:
 docker build --build-arg NEXT_PUBLIC_API_URL=http://localhost:8080 -t nitrate .
 docker run -p 3000:3000 nitrate
 ```
+
+## Licença
+
+Copyright (c) 2026 Lucas Barros Simon. Todos os direitos reservados. O código está público apenas para consulta; copiar, modificar, redistribuir ou usar qualquer parte dele sem autorização por escrito é proibido. Veja o arquivo [LICENSE](LICENSE).

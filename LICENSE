@@ -1,0 +1,30 @@
+Copyright (c) 2026 Lucas Barros Simon. Todos os direitos reservados.
+
+Este software, incluindo o código-fonte, a documentação, o design, a identidade visual, os
+textos, as imagens e demais arquivos deste repositório (o "Software"), é de autoria e
+propriedade exclusiva de Lucas Barros Simon.
+
+O código está publicado apenas para consulta. Nenhuma licença ou direito é concedido, de
+forma expressa ou implícita, além da visualização do repositório na plataforma em que ele
+está hospedado.
+
+Sem autorização prévia e por escrito do autor, é proibido, no todo ou em parte:
+
+  1. copiar, reproduzir ou redistribuir o Software;
+  2. modificar, adaptar, traduzir ou criar obras derivadas a partir dele;
+  3. usar o Software, ou qualquer parte dele, em outro projeto, pessoal ou comercial;
+  4. publicar, hospedar, vender, sublicenciar ou disponibilizar o Software a terceiros;
+  5. usar o nome "Nitrate", o logotipo ou a identidade visual do projeto.
+
+O Software é protegido pela Lei nº 9.609/1998 (Lei do Software), pela Lei nº 9.610/1998
+(Lei de Direitos Autorais) e pelos tratados internacionais de direito autoral. A violação
+dos direitos de autor de programa de computador é crime, nos termos do art. 12 da Lei
+nº 9.609/1998, sem prejuízo da reparação civil pelos danos causados.
+
+Dados de filmes e séries são fornecidos pela API do TMDB e pertencem aos seus respectivos
+titulares; esta licença não se aplica a eles nem às bibliotecas de terceiros usadas pelo
+projeto, que seguem as próprias licenças.
+
+O SOFTWARE É FORNECIDO "NO ESTADO EM QUE SE ENCONTRA", SEM GARANTIAS DE QUALQUER TIPO.
+
+Para pedidos de autorização: https://github.com/21lucasbarros
