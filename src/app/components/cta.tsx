@@ -3,9 +3,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRightIcon, HeartIcon, LockKeyOpenIcon, ProhibitIcon } from "@phosphor-icons/react";
-import { cachedFetcher } from "@/lib/cache";
 import { useFetch } from "@/lib/hooks/use-fetch";
-import { getTopRatedMovies, getTrendingMovies } from "@/lib/services/movie-service";
+import { FALLBACK_POSTERS, fetchLandingPosters } from "@/lib/landing";
+import { fillTo } from "@/utils/fill";
 import { posterUrl } from "@/utils/poster";
 
 // o que o Nitrate promete, no lugar de números: é de graça, sem anúncios, e os dados são seus
@@ -15,43 +15,14 @@ const PROMISES = [
   { icon: LockKeyOpenIcon, title: "Seus dados", text: "Exporte tudo quando quiser" },
 ];
 
-// pôsteres de reserva, para a faixa nunca ficar vazia (API fora do ar, comunidade ainda pequena)
-const FALLBACK_POSTERS = [
-  "/Ae0pbv4E6YfqfN3UjKWIfQSzP9v.jpg",
-  "/lzyh1lsD4Qaid6bG5zk57Y3bEM.jpg",
-  "/y5ibL0vFnzsRiIHosw0WOfHtIj1.jpg",
-  "/rFHzJrkO1kNIezb6rFog5oCJUEn.jpg",
-  "/is1U9n0e9ofg50U1T7p2WZuIwiO.jpg",
-  "/zNAw7jK8bwCK56rIW676pdgkwhd.jpg",
-  "/AvMietG6xuobpSSdmVnKuTjv4bL.jpg",
-];
-
 const MIN_PER_ROW = 12;
 
-// os filmes da faixa vêm da própria comunidade: em alta e mais bem avaliados
-const fetchPosters = cachedFetcher(async () => {
-  const [trending, topRated] = await Promise.all([
-    getTrendingMovies().catch(() => []),
-    getTopRatedMovies().catch(() => []),
-  ]);
-  const paths = [...trending, ...topRated].map((m) => m.posterPath).filter((p): p is string => Boolean(p));
-  return [...new Set([...paths, ...FALLBACK_POSTERS])];
-}, 10 * 60 * 1000);
-
-/** repete os pôsteres até a fileira ter o bastante para cobrir telas largas */
-function fill(paths: string[], min: number): string[] {
-  if (paths.length === 0) return [];
-  const out = [...paths];
-  while (out.length < min) out.push(...paths);
-  return out;
-}
-
 export default function CTA() {
-  const posters = useFetch("cta", fetchPosters);
+  const posters = useFetch("posters", fetchLandingPosters);
   const paths = posters.data ?? FALLBACK_POSTERS;
   // metade em cada fileira, para as duas não mostrarem os mesmos filmes lado a lado
   const half = Math.ceil(paths.length / 2);
-  const rows = [fill(paths.slice(0, half), MIN_PER_ROW), fill(paths.slice(half).concat(paths.slice(0, 2)), MIN_PER_ROW)];
+  const rows = [fillTo(paths.slice(0, half), MIN_PER_ROW), fillTo(paths.slice(half).concat(paths.slice(0, 2)), MIN_PER_ROW)];
 
   return (
     // o fundo começa na cor da seção anterior e escurece aos poucos: sem degrau entre as duas

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ArrowRightIcon, HeartIcon } from "@phosphor-icons/react";
 import { useFetch } from "@/lib/hooks/use-fetch";
-import { getFeaturedReviews } from "@/lib/services/review-service";
+import { fetchFeaturedReviews } from "@/lib/landing";
 import { timeAgo } from "@/utils/format";
 import { toRating } from "@/utils/rating";
 import { filmHref } from "@/utils/movie-link";
@@ -11,14 +11,12 @@ import { StarRating } from "./ui/star-rating";
 import { Poster } from "./ui/poster";
 import { ReviewText } from "./ui/review-text";
 
-const fetchFeatured = () => getFeaturedReviews();
-
 function framePoster(rank: number): string {
   return `Nº ${String(rank).padStart(2, "0")}`;
 }
 
 export default function TrendingReviews() {
-  const featured = useFetch("featured", fetchFeatured);
+  const featured = useFetch("featured", fetchFeaturedReviews);
   const reviews = featured.data ?? [];
 
   // sem reviews (ou com a API fora do ar), a seção some em vez de mostrar um buraco na landing

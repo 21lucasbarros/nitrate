@@ -87,6 +87,34 @@ dialog.modal::backdrop {
   }
 }
 
+/* colunas de pôsteres do hero: mesma ideia do marquee, na vertical */
+@keyframes marquee-up {
+  to {
+    transform: translateY(-50%);
+  }
+}
+
+@keyframes marquee-down {
+  from {
+    transform: translateY(-50%);
+  }
+}
+
+/* entrada do hero: sobe e aparece, em cascata pelo animation-delay */
+@keyframes hero-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+}
+
+/* cartões que flutuam sobre a parede de pôsteres */
+@keyframes hero-float {
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
 /* easter egg de Marty Supreme: a bolinha quica e a sombra acompanha */
 @keyframes pingpong {
   from {
