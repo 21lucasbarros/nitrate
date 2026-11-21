@@ -13,8 +13,13 @@ export interface PersonCredit {
   tmdbId: number;
   title: string;
   releaseYear: number | null;
+  releaseDate: string | null; // yyyy-mm-dd
   posterPath: string | null;
   role: string | null; // personagem ou função
+  tmdbRating: number | null; // 0 a 10; null com poucos votos
+  tmdbVotes: number;
+  nitrateRating: number | null; // média de 0,5 a 5; null se ninguém deu nota no Nitrate
+  nitrateRatings: number;
 }
 
 export interface PersonDetail {

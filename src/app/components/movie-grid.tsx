@@ -21,6 +21,10 @@ export interface MovieGridItem {
   reviewHref?: string;
   /** linha de contexto no painel do hover ("1 nov", "na lista há 3 meses"...) */
   caption?: React.ReactNode;
+  /** selo no canto do pôster (nota, "Em breve"...) */
+  badge?: React.ReactNode;
+  /** linha abaixo do título, com showTitles (personagem, função...) */
+  subtitle?: React.ReactNode;
   /** troca a navegação do clique por uma ação (o href continua valendo para abrir em nova aba) */
   onOpen?: () => void;
 }
@@ -53,7 +57,7 @@ export function MovieGrid({ items, variant = "default", showTitles = false }: Mo
 
   return (
     <ul className={`grid ${cols} gap-x-3 gap-y-5 sm:gap-x-4`}>
-      {items.map(({ movie, href, rating, liked, rewatch, watchCount = 1, reviewHref, caption, onOpen }, index) => (
+      {items.map(({ movie, href, rating, liked, rewatch, watchCount = 1, reviewHref, caption, badge, subtitle, onOpen }, index) => (
         // o mesmo filme pode aparecer mais de uma vez no diário (reassistido)
         <li key={`${movie.id}-${index}`}>
           <Link
@@ -74,6 +78,11 @@ export function MovieGrid({ items, variant = "default", showTitles = false }: Mo
                 posterPath={movie.posterPath}
                 sizes="(min-width: 1024px) 180px, 30vw"
               />
+              {badge && (
+                <span className="pointer-events-none absolute top-1.5 left-1.5 inline-flex items-center gap-1 h-6 px-1.5 rounded-md bg-black/75 backdrop-blur-sm text-[11px] font-semibold tabular-nums text-white ring-1 ring-white/10">
+                  {badge}
+                </span>
+              )}
               <div
                 aria-hidden="true"
                 style={{ backgroundImage: GRAIN }}
@@ -107,6 +116,9 @@ export function MovieGrid({ items, variant = "default", showTitles = false }: Mo
                 {movie.title}{" "}
                 {movie.releaseYear && <span className="text-foreground/40">{movie.releaseYear}</span>}
               </p>
+            )}
+            {showTitles && subtitle && (
+              <p className="mt-0.5 text-xs text-brand-slate/70 truncate">{subtitle}</p>
             )}
           </Link>
           {(rating != null || liked || rewatch || watchCount > 1 || reviewHref) && (
