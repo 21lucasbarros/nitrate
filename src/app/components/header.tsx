@@ -42,6 +42,7 @@ export default function Header() {
 
         <nav aria-label="Navegação Principal" className="hidden md:flex items-center gap-1 ml-auto">
           <Link href="/movies" className={navLink}>Filmes</Link>
+          <Link href="/series" className={navLink}>Séries</Link>
           {status === "authenticated" ? (
             <>
               <Link href={`/u/${user.username}?tab=filmes`} className={navLink}>Meus filmes</Link>

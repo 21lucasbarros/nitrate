@@ -24,6 +24,7 @@ import Header from "@/app/components/header";
 import { AddToListModal } from "@/app/components/add-to-list";
 import { NitrateRating } from "@/app/components/movie-community";
 import { ReviewComments } from "@/app/components/review-comments";
+import { ReviewLikeButton } from "@/app/components/review-like-button";
 import { ReviewForm } from "@/app/components/review-form";
 import { reviewHref } from "@/app/components/review-card";
 import { ShareReviewStoryModal } from "@/app/components/review-story-share";
@@ -40,7 +41,7 @@ import { useFetch } from "@/lib/hooks/use-fetch";
 import { getMovieCredits, getMovieStats } from "@/lib/services/movie-service";
 import { getReview, getReviewEngagement, likeReview, unlikeReview } from "@/lib/services/review-service";
 import { getUserReviews } from "@/lib/services/user-service";
-import type { MovieReview, ReviewEngagement } from "@/lib/types/review";
+import type { MovieReview } from "@/lib/types/review";
 import { shortDate, timeAgo } from "@/utils/format";
 import { filmHref } from "@/utils/movie-link";
 import { backdropUrl } from "@/utils/poster";
@@ -216,7 +217,15 @@ function ReviewView({ review, onChange, onDeleted }: {
             )}
 
             <div className="mt-10 pt-5 border-t border-foreground/10 flex flex-wrap items-center gap-x-6 gap-y-3">
-              <LikeButton review={review} isOwn={isOwn} engagement={engagement.data} onChange={engagement.setData} />
+              <ReviewLikeButton
+                reviewId={review.id}
+                href={reviewHref(review)}
+                isOwn={isOwn}
+                engagement={engagement.data}
+                onChange={engagement.setData}
+                like={likeReview}
+                unlike={unlikeReview}
+              />
               <a href="#comentarios" className="inline-flex items-center gap-2 text-sm text-brand-slate hover:text-foreground transition-colors">
                 <ChatCircleIcon size={20} />
                 <span className="tabular-nums">{engagement.data?.commentsCount ?? "–"}</span>
@@ -226,6 +235,7 @@ function ReviewView({ review, onChange, onDeleted }: {
 
             <ReviewComments
               review={review}
+              href={reviewHref(review)}
               onCountChange={(delta) => {
                 if (engagement.data) engagement.setData({ ...engagement.data, commentsCount: engagement.data.commentsCount + delta });
               }}
@@ -368,71 +378,5 @@ function ActionPanel({ review, isOwn, onEdit }: { review: MovieReview; isOwn: bo
         <AddToListModal open={addingToList} movie={review.movie} onClose={() => setAddingToList(false)} />
       )}
     </div>
-  );
-}
-
-/** curtir a review (não o filme). Quem escreveu só vê quantas curtidas recebeu. */
-function LikeButton({ review, isOwn, engagement, onChange }: {
-  review: MovieReview;
-  isOwn: boolean;
-  engagement: ReviewEngagement | undefined;
-  onChange: (engagement: ReviewEngagement) => void;
-}) {
-  const { status } = useAuth();
-  const [busy, setBusy] = useState(false);
-  const count = engagement?.likesCount ?? 0;
-  const liked = engagement?.likedByMe ?? false;
-  const label = `${count} ${count === 1 ? "curtida" : "curtidas"}`;
-
-  if (isOwn || !engagement) {
-    return (
-      <span className="inline-flex items-center gap-2 text-sm text-brand-slate">
-        <HeartIcon size={20} weight={count > 0 ? "fill" : "regular"} className={count > 0 ? "text-brand-orange" : ""} />
-        <span className="tabular-nums">{engagement ? label : "–"}</span>
-      </span>
-    );
-  }
-
-  if (status !== "authenticated") {
-    return (
-      <Link
-        href={`/sign-in?redirect=${encodeURIComponent(reviewHref(review))}`}
-        className="inline-flex items-center gap-2 text-sm text-brand-slate hover:text-brand-orange transition-colors"
-      >
-        <HeartIcon size={20} />
-        <span className="tabular-nums">{label}</span>
-      </Link>
-    );
-  }
-
-  const toggle = async () => {
-    setBusy(true);
-    // otimista: o coração responde na hora; a resposta do servidor confirma o número
-    onChange({ ...engagement, likedByMe: !liked, likesCount: count + (liked ? -1 : 1) });
-    try {
-      onChange(liked ? await unlikeReview(review.id) : await likeReview(review.id));
-    } catch {
-      onChange(engagement);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <button
-      type="button"
-      onClick={toggle}
-      disabled={busy}
-      aria-pressed={liked}
-      className={`group inline-flex items-center gap-2 text-sm transition-colors ${liked ? "text-brand-orange" : "text-brand-slate hover:text-brand-orange"}`}
-    >
-      <HeartIcon
-        size={20}
-        weight={liked ? "fill" : "regular"}
-        className={`transition-transform ${liked ? "scale-110" : "group-hover:scale-110"}`}
-      />
-      <span className="tabular-nums">{label}</span>
-      <span className="sr-only">{liked ? "Descurtir a review" : "Curtir a review"}</span>
-    </button>
   );
 }

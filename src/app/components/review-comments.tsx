@@ -6,18 +6,34 @@ import { TrashIcon } from "@phosphor-icons/react";
 import { useAuth } from "@/lib/auth-context";
 import { useFetch } from "@/lib/hooks/use-fetch";
 import { addReviewComment, deleteReviewComment, getReviewComments } from "@/lib/services/review-service";
-import type { MovieReview } from "@/lib/types/review";
+import type { ReviewComment } from "@/lib/types/review";
+import type { UserSummary } from "@/lib/types/user";
 import { timeAgo } from "@/utils/format";
-import { reviewHref } from "./review-card";
 import { Avatar } from "./ui/avatar";
 import { SectionHeading } from "./ui/section-heading";
 
 const COMMENT_MAX = 1000;
 
+/** de onde vêm os comentários: as reviews de filme e os registros de série têm rotas próprias */
+export interface CommentsApi {
+  list: (reviewId: number) => Promise<ReviewComment[]>;
+  add: (reviewId: number, text: string) => Promise<ReviewComment>;
+  remove: (reviewId: number, commentId: number) => Promise<void>;
+}
+
+// fora do componente: o useFetch precisa de uma função estável
+const movieCommentsApi: CommentsApi = { list: getReviewComments, add: addReviewComment, remove: deleteReviewComment };
+
 /** comentários da review: qualquer pessoa lê; logado, comenta; autor do comentário ou dono da review apagam */
-export function ReviewComments({ review, onCountChange }: { review: MovieReview; onCountChange: (delta: number) => void }) {
+export function ReviewComments({ review, href, api = movieCommentsApi, onCountChange }: {
+  review: { id: number; user: UserSummary };
+  /** endereço da página, para voltar depois do login */
+  href: string;
+  api?: CommentsApi;
+  onCountChange: (delta: number) => void;
+}) {
   const { status, user: me } = useAuth();
-  const comments = useFetch(review.id, getReviewComments);
+  const comments = useFetch(review.id, api.list);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +45,7 @@ export function ReviewComments({ review, onCountChange }: { review: MovieReview;
     setSending(true);
     setError(null);
     try {
-      const comment = await addReviewComment(review.id, text.trim());
+      const comment = await api.add(review.id, text.trim());
       comments.setData([...comments.data, comment]);
       onCountChange(1);
       setText("");
@@ -43,7 +59,7 @@ export function ReviewComments({ review, onCountChange }: { review: MovieReview;
   const remove = async (commentId: number) => {
     if (!comments.data) return;
     try {
-      await deleteReviewComment(review.id, commentId);
+      await api.remove(review.id, commentId);
       comments.setData(comments.data.filter((c) => c.id !== commentId));
       onCountChange(-1);
     } catch {
@@ -116,7 +132,7 @@ export function ReviewComments({ review, onCountChange }: { review: MovieReview;
         status === "anonymous" && (
           <p className="text-sm text-brand-slate">
             <Link
-              href={`/sign-in?redirect=${encodeURIComponent(reviewHref(review))}`}
+              href={`/sign-in?redirect=${encodeURIComponent(href)}`}
               className="font-semibold text-foreground hover:text-brand-orange"
             >
               Entre

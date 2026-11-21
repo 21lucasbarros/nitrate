@@ -52,6 +52,9 @@ import {
   type FilmSort,
 } from "@/lib/services/user-service";
 import { getSavedLists, getUserLists } from "@/lib/services/list-service";
+import { getUserSeries, getUserSeriesWatchlist } from "@/lib/services/series-service";
+import { seasonLabel, type SeriesReview } from "@/types/series";
+import { seriesHref, seriesReviewHref } from "@/utils/series-link";
 import type { FilmEntry, MovieReview } from "@/lib/types/review";
 import type { FavoritePeopleKind } from "@/types/person";
 import { compactDate, monthYear, timeAgo } from "@/utils/format";
@@ -62,6 +65,7 @@ const TABS = [
   { id: "filmes", label: "Filmes" },
   { id: "reviews", label: "Reviews" },
   { id: "watchlist", label: "Watchlist" },
+  { id: "series", label: "Séries" },
   { id: "listas", label: "Listas" },
   { id: "rede", label: "Amigos" },
 ] as const;
@@ -547,6 +551,8 @@ function Profile() {
             <Empty isMe={isMe} me="Sua watchlist está vazia." other={`A watchlist de ${user.name} está vazia.`} />
           ))}
 
+        {tab === "series" && <ProfileSeries username={user.username} name={user.name} isMe={isMe} />}
+
         {tab === "listas" && (
           <div>
             {isMe && (
@@ -773,6 +779,70 @@ function PeopleSkeleton() {
           <div key={i} className="w-[calc((100%-3rem)/5)] max-w-20 aspect-square rounded-full bg-surface animate-pulse" />
         ))}
       </div>
+    </div>
+  );
+}
+
+/** aba Séries: o diário de séries fica à parte dos filmes (uma série por pôster, com o registro mais recente) */
+function ProfileSeries({ username, name, isMe }: { username: string; name: string; isMe: boolean }) {
+  const diary = useFetch(username, getUserSeries);
+  const watchlist = useFetch(username, getUserSeriesWatchlist);
+
+  if (!diary.data || !watchlist.data) {
+    return diary.error || watchlist.error ? <p className="py-12 text-center text-brand-slate">Não foi possível carregar as séries.</p> : <Loading />;
+  }
+
+  // a API devolve do mais recente para o mais antigo: o primeiro de cada série é o que aparece
+  const latest = new Map<number, SeriesReview>();
+  for (const review of diary.data) {
+    if (!latest.has(review.series.id)) latest.set(review.series.id, review);
+  }
+  const watched = [...latest.values()];
+
+  if (watched.length === 0 && watchlist.data.length === 0) {
+    return (
+      <div className="py-12 text-center text-brand-slate">
+        <p>{isMe ? "Você ainda não registrou nenhuma série." : `${name} ainda não registrou nenhuma série.`}</p>
+        {isMe && (
+          <Link href="/series" className="inline-block mt-4 font-medium text-brand-orange hover:underline underline-offset-4">
+            Explorar séries
+          </Link>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-12">
+      {watched.length > 0 && (
+        <section>
+          <SectionHeading title="Assistidas" count={watched.length} />
+          <MovieGrid
+            variant="library"
+            items={watched.map((review) => ({
+              movie: { id: review.series.id, title: review.series.name, posterPath: review.series.posterPath, releaseYear: review.series.firstAirYear },
+              href: seriesHref(review.series),
+              rating: review.rating,
+              liked: review.liked,
+              reviewHref: review.text ? seriesReviewHref(review) : undefined,
+              caption: `${seasonLabel(review.seasonNumber)} · ${compactDate(review.watchedOn)}`,
+            }))}
+          />
+        </section>
+      )}
+      {watchlist.data.length > 0 && (
+        <section>
+          <SectionHeading title="Quero assistir" count={watchlist.data.length} />
+          <MovieGrid
+            variant="library"
+            items={watchlist.data.map((item) => ({
+              movie: { id: item.series.id, title: item.series.name, posterPath: item.series.posterPath, releaseYear: item.series.firstAirYear },
+              href: seriesHref(item.series),
+              caption: `Na lista ${timeAgo(item.addedAt)}`,
+            }))}
+          />
+        </section>
+      )}
     </div>
   );
 }

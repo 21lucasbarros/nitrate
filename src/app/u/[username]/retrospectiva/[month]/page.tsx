@@ -20,11 +20,13 @@ import { useFetch } from "@/lib/hooks/use-fetch";
 import { shareStoryFile, useStoryImage } from "@/lib/hooks/use-story-image";
 import { getMyRetrospective, getMyRetrospectiveMonths } from "@/lib/services/retrospective-service";
 import { PrivateNotice, useOwnerAccess } from "../retrospective-access";
-import type { RankedItem, Retrospective, RetrospectiveFilm } from "@/lib/types/retrospective";
+import type { RankedItem, Retrospective, RetrospectiveFilm, RetrospectiveSeries } from "@/lib/types/retrospective";
+import { seasonLabel } from "@/types/series";
 import { monthLabel } from "@/utils/format";
 import { posterUrl } from "@/utils/poster";
 import { toRating } from "@/utils/rating";
 import { filmHref } from "@/utils/movie-link";
+import { seriesHref } from "@/utils/series-link";
 
 const fetchMonths = () => getMyRetrospectiveMonths();
 
@@ -87,7 +89,7 @@ function Dossier({ retro, months }: { retro: Retrospective; months: string[] }) 
     <main>
       {/* capa */}
       <section className="relative overflow-hidden bg-brand-charcoal text-foreground pt-36 sm:pt-40 pb-16 sm:pb-20 px-6 md:px-12 xl:px-24">
-        <PosterMosaic films={retro.films} />
+        <PosterMosaic posterPaths={[...retro.films.map((f) => f.movie.posterPath), ...retro.series.map((s) => s.series.posterPath)]} />
         <div className="relative max-w-[1400px] mx-auto">
           <div className="flex items-center justify-between gap-4">
             <span className="text-xs font-bold tracking-[0.25em] uppercase text-brand-orange">
@@ -111,28 +113,40 @@ function Dossier({ retro, months }: { retro: Retrospective; months: string[] }) 
               </Link>{" "}
               no cinema.
             </p>
-            <div className="flex items-end gap-4">
-              <span className="text-8xl sm:text-9xl font-semibold tracking-tighter leading-none text-brand-orange">
-                {retro.filmsCount}
-              </span>
-              <span className="pb-3 text-sm uppercase tracking-[0.2em] text-foreground/60 leading-tight">
-                {retro.filmsCount === 1 ? "filme" : "filmes"}
-                <br />
-                assistidos
-              </span>
+            <div className="flex items-end gap-8 sm:gap-10">
+              <div className="flex items-end gap-4">
+                <span className="text-8xl sm:text-9xl font-semibold tracking-tighter leading-none text-brand-orange">
+                  {retro.filmsCount}
+                </span>
+                <span className="pb-3 text-sm uppercase tracking-[0.2em] text-foreground/60 leading-tight">
+                  {retro.filmsCount === 1 ? "filme" : "filmes"}
+                  <br />
+                  assistidos
+                </span>
+              </div>
+              {retro.seriesCount > 0 && (
+                <div className="flex items-end gap-3">
+                  <span className="text-6xl sm:text-7xl font-semibold tracking-tighter leading-none">{retro.seriesCount}</span>
+                  <span className="pb-2 text-sm uppercase tracking-[0.2em] text-foreground/60 leading-tight">
+                    {retro.seriesCount === 1 ? "série" : "séries"}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </section>
 
       <div className="max-w-[1400px] mx-auto px-6 md:px-12 xl:px-24 pb-24">
-        {retro.filmsCount === 0 ? (
+        {retro.filmsCount === 0 && retro.series.length === 0 ? (
           <div className="py-24 text-center text-brand-slate/60">
-            <p className="text-lg">Nenhum filme registrado em {monthLabel(retro.month)}.</p>
+            <p className="text-lg">Nenhum filme ou série registrado em {monthLabel(retro.month)}.</p>
             <Link href="/movies" className="inline-block mt-4 font-medium text-brand-blue hover:underline">
               Explorar filmes
             </Link>
           </div>
+        ) : retro.filmsCount === 0 ? (
+          <SeriesOfTheMonth entries={retro.series} />
         ) : (
           <>
             <StatsStrip retro={retro} />
@@ -156,6 +170,7 @@ function Dossier({ retro, months }: { retro: Retrospective; months: string[] }) 
             {retro.topActors.length > 0 && <Actors items={retro.topActors} />}
             {retro.averageRating !== null && <RatingChart distribution={retro.ratingDistribution} />}
             <MonthWall films={retro.films} />
+            {retro.series.length > 0 && <SeriesOfTheMonth entries={retro.series} />}
           </>
         )}
 
@@ -165,9 +180,9 @@ function Dossier({ retro, months }: { retro: Retrospective; months: string[] }) 
   );
 }
 
-/** fundo da capa: pôsteres do mês, apagados, em grade */
-function PosterMosaic({ films }: { films: RetrospectiveFilm[] }) {
-  const posters = films.map((f) => posterUrl(f.movie.posterPath, "w185")).filter((src): src is string => !!src);
+/** fundo da capa: pôsteres do mês (filmes e séries), apagados, em grade */
+function PosterMosaic({ posterPaths }: { posterPaths: (string | null)[] }) {
+  const posters = posterPaths.map((path) => posterUrl(path, "w185")).filter((src): src is string => !!src);
   if (posters.length === 0) return null;
   // repete os pôsteres para preencher a grade mesmo em meses com poucos filmes
   const tiles = Array.from({ length: 24 }, (_, i) => posters[i % posters.length]);
@@ -390,6 +405,42 @@ function MonthWall({ films }: { films: RetrospectiveFilm[] }) {
                 <span className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-brand-charcoal/80 text-foreground text-[11px] font-mono">
                   {film.watchedOn.slice(8, 10)}
                 </span>
+              </div>
+            </Link>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+/** as séries do mês, à parte dos filmes: cada registro com a temporada, a nota e o dia */
+function SeriesOfTheMonth({ entries }: { entries: RetrospectiveSeries[] }) {
+  const watchedSeries = new Set(entries.map((e) => e.series.id)).size;
+  return (
+    <section className="pt-20">
+      <SectionTitle eyebrow="Fora do cinema" title={watchedSeries === 1 ? "A série do mês" : "As séries do mês"} />
+      <ol className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-x-5 gap-y-8">
+        {entries.map((entry) => (
+          <li key={`${entry.series.id}-${entry.seasonNumber}-${entry.watchedOn}`}>
+            <Link href={seriesHref(entry.series)} className="group block">
+              <div className="relative">
+                <Poster
+                  title={entry.series.name}
+                  posterPath={entry.series.posterPath}
+                  size="w342"
+                  sizes="180px"
+                  className="group-hover:ring-brand-orange/50 transition-all"
+                />
+                <span className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-brand-charcoal/80 text-foreground text-[11px] font-mono">
+                  {entry.watchedOn.slice(8, 10)}
+                </span>
+              </div>
+              <p className="mt-3 text-sm font-medium leading-tight group-hover:text-brand-blue transition-colors">{entry.series.name}</p>
+              <p className="mt-1 text-xs text-brand-slate">{seasonLabel(entry.seasonNumber)}</p>
+              <div className="flex items-center gap-1.5 mt-1.5">
+                {entry.rating !== null && <StarRating rating={toRating(entry.rating)} size={12} />}
+                {entry.liked && <HeartIcon size={12} weight="fill" className="text-brand-orange" />}
               </div>
             </Link>
           </li>

@@ -83,7 +83,7 @@ const GROUPS: { key: keyof Omit<WatchProviders, "link">; label: string }[] = [
 ];
 
 /** onde assistir no Brasil. A atribuição à JustWatch é exigida pelos termos do TMDB. */
-export function WhereToWatch({ providers }: { providers: WatchProviders }) {
+export function WhereToWatch({ providers, subject = "este filme" }: { providers: WatchProviders; subject?: string }) {
   const groups = GROUPS.filter((g) => providers[g.key].length > 0);
 
   return (
@@ -104,7 +104,7 @@ export function WhereToWatch({ providers }: { providers: WatchProviders }) {
 
       {groups.length === 0 ? (
         <p className="text-brand-slate/60">
-          Não encontramos este filme em nenhum serviço no Brasil no momento.
+          Não encontramos {subject} em nenhum serviço no Brasil no momento.
         </p>
       ) : (
         <div className="flex flex-col gap-4">

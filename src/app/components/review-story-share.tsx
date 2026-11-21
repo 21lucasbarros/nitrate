@@ -6,26 +6,65 @@ import { CircleNotchIcon, InstagramLogoIcon } from "@phosphor-icons/react";
 import { easterEggFor } from "@/lib/easter-eggs";
 import { shareStoryFile, useStoryImage } from "@/lib/hooks/use-story-image";
 import type { MovieReview } from "@/lib/types/review";
+import type { SeriesReview } from "@/types/series";
 import { Modal } from "./ui/modal";
+
+interface StoryCopy {
+  /** rota que devolve o PNG */
+  url: string;
+  fileName: string;
+  eyebrow: string;
+  title: string;
+  description: string;
+  loadingLabel: string;
+}
 
 /** modal "Compartilhar nos Stories" da review: prévia do ingresso e o botão de compartilhar a imagem */
 export function ShareReviewStoryModal({ review, open, onClose }: { review: MovieReview; open: boolean; onClose: () => void }) {
+  // easter egg (Psicopata Americano): a imagem é um cartão de visita
+  const businessCard = easterEggFor(review.movie)?.story === "business-card";
   return (
     <Modal open={open} onClose={onClose} label="Compartilhar a review nos Stories">
-      {open && <ShareBody review={review} />}
+      {open && (
+        <ShareBody
+          url={`/u/${review.user.username}/reviews/${review.id}/story`}
+          fileName={`nitrate-${review.movie.slug ?? review.movie.id}.png`}
+          eyebrow={businessCard ? "Seu cartão de visita" : "Seu ingresso"}
+          title={businessCard ? "Let's see Paul Allen's card." : "Mostre o que você assistiu."}
+          description={
+            businessCard
+              ? "Off-white sutil, espessura de bom gosto: sua review num cartão corporativo, com nota e tudo. "
+              : "Pôster, sua nota e a data da sessão num ingresso de cinema. "
+          }
+          loadingLabel={businessCard ? "Imprimindo os cartões…" : "Imprimindo o ingresso…"}
+        />
+      )}
     </Modal>
   );
 }
 
-function ShareBody({ review }: { review: MovieReview }) {
-  // a imagem começa a ser gerada assim que o modal abre: no iOS ela precisa estar pronta antes do toque
-  const story = useStoryImage(
-    `/u/${review.user.username}/reviews/${review.id}/story`,
-    `nitrate-${review.movie.slug ?? review.movie.id}.png`,
+/** o mesmo modal para um registro de série: o ingresso traz a temporada no lugar da sessão */
+export function ShareSeriesStoryModal({ review, open, onClose }: { review: SeriesReview | null; open: boolean; onClose: () => void }) {
+  return (
+    <Modal open={open && review !== null} onClose={onClose} label="Compartilhar a série nos Stories">
+      {open && review && (
+        <ShareBody
+          url={`/u/${review.user.username}/series/${review.id}/story`}
+          fileName={`nitrate-${review.series.slug ?? review.series.id}${review.seasonNumber !== null ? `-t${review.seasonNumber}` : ""}.png`}
+          eyebrow="Seu ingresso"
+          title="Mostre o que você maratonou."
+          description="Pôster, sua nota, a temporada e quando você terminou, num ingresso do Nitrate. "
+          loadingLabel="Imprimindo o ingresso…"
+        />
+      )}
+    </Modal>
   );
+}
+
+function ShareBody({ url, fileName, eyebrow, title, description, loadingLabel }: StoryCopy) {
+  // a imagem começa a ser gerada assim que o modal abre: no iOS ela precisa estar pronta antes do toque
+  const story = useStoryImage(url, fileName);
   const [saved, setSaved] = useState(false);
-  // easter egg (Psicopata Americano): a imagem é um cartão de visita
-  const businessCard = easterEggFor(review.movie)?.story === "business-card";
 
   const share = async () => {
     const file = story.file ?? (await story.load());
@@ -44,7 +83,7 @@ function ShareBody({ review }: { review: MovieReview }) {
             ) : (
               <>
                 <CircleNotchIcon size={24} className="animate-spin" />
-                <span className="text-xs">{businessCard ? "Imprimindo os cartões…" : "Imprimindo o ingresso…"}</span>
+                <span className="text-xs">{loadingLabel}</span>
               </>
             )}
           </div>
@@ -52,12 +91,10 @@ function ShareBody({ review }: { review: MovieReview }) {
       </div>
 
       <div className="text-center sm:text-left">
-        <span className="text-xs font-bold tracking-[0.2em] uppercase text-brand-orange">{businessCard ? "Seu cartão de visita" : "Seu ingresso"}</span>
-        <h2 className="mt-2 text-2xl font-semibold tracking-tight">{businessCard ? "Let's see Paul Allen's card." : "Mostre o que você assistiu."}</h2>
+        <span className="text-xs font-bold tracking-[0.2em] uppercase text-brand-orange">{eyebrow}</span>
+        <h2 className="mt-2 text-2xl font-semibold tracking-tight">{title}</h2>
         <p className="mt-2 text-sm text-brand-slate leading-relaxed">
-          {businessCard
-            ? "Off-white sutil, espessura de bom gosto: sua review num cartão corporativo, com nota e tudo. "
-            : "Pôster, sua nota e a data da sessão num ingresso de cinema. "}
+          {description}
           No celular, escolha{" "}
           <strong className="font-medium text-foreground/85">Instagram → Stories</strong> na hora de compartilhar.
         </p>

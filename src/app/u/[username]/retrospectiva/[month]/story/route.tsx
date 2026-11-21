@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 import { apiFetch } from "@/lib/api-client";
 import { loadGoogleFont } from "@/lib/og-fonts";
-import type { Retrospective } from "@/lib/types/retrospective";
+import type { Retrospective, RetrospectiveSeries } from "@/lib/types/retrospective";
 import { monthLabel } from "@/utils/format";
 import { posterUrl } from "@/utils/poster";
 import { sameUsername } from "@/utils/username";
@@ -58,10 +58,16 @@ export async function GET(
 function Story({ retro }: { retro: Retrospective }) {
   const [monthName, year] = monthLabel(retro.month).split(" de ");
   // fotogramas da tira: favoritos primeiro, completando com o resto do mês
-  const frames = [...retro.favorites, ...retro.films.filter((f) => !retro.favorites.includes(f))]
-    .map((f) => posterUrl(f.movie.posterPath, "w342"))
+  // sem filmes suficientes, as séries completam a tira
+  const frames = [
+    ...[...retro.favorites, ...retro.films.filter((f) => !retro.favorites.includes(f))].map((f) => f.movie.posterPath),
+    ...retro.series.map((s) => s.series.posterPath),
+  ]
+    .map((path) => posterUrl(path, "w342"))
     .filter((src): src is string => !!src)
+    .filter((src, i, all) => all.indexOf(src) === i) // a mesma série em duas temporadas aparece uma vez
     .slice(0, 4);
+  const topSeries = seriesOfTheMonth(retro.series);
 
   return (
     <div
@@ -112,6 +118,11 @@ function Story({ retro }: { retro: Retrospective }) {
             <span style={{ fontSize: 28, color: "rgba(249,249,248,0.6)", marginTop: 6 }}>
               {`${retro.likesCount} curtido${retro.likesCount === 1 ? "" : "s"}`}
             </span>
+            {retro.seriesCount > 0 && (
+              <span style={{ fontSize: 28, color: "rgba(249,249,248,0.6)", marginTop: 6 }}>
+                {`+ ${retro.seriesCount} série${retro.seriesCount === 1 ? "" : "s"}`}
+              </span>
+            )}
           </div>
         </div>
 
@@ -127,13 +138,42 @@ function Story({ retro }: { retro: Retrospective }) {
           />
         </div>
 
-        {/* gênero do mês */}
-        {retro.topGenres[0] && (
-          <div style={{ display: "flex", flexDirection: "column", marginTop: "auto" }}>
-            <span style={{ fontSize: 30, color: "rgba(249,249,248,0.6)" }}>Gênero do mês</span>
-            <span style={{ fontSize: 72, fontWeight: 600, color: ORANGE, letterSpacing: -2 }}>
-              {retro.topGenres[0].name}
-            </span>
+        {/* gênero e série do mês, lado a lado */}
+        {(retro.topGenres[0] || topSeries) && (
+          <div style={{ display: "flex", marginTop: "auto", gap: 56 }}>
+            {retro.topGenres[0] && (
+              <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
+                <span style={{ fontSize: 30, color: "rgba(249,249,248,0.6)" }}>Gênero do mês</span>
+                <span style={{ fontSize: topSeries ? 56 : 72, fontWeight: 600, color: ORANGE, letterSpacing: -2 }}>
+                  {retro.topGenres[0].name}
+                </span>
+              </div>
+            )}
+            {topSeries && (
+              <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
+                <span style={{ fontSize: 30, color: "rgba(249,249,248,0.6)" }}>Série do mês</span>
+                <span
+                  style={{
+                    fontSize: topSeries.series.name.length > 18 ? 44 : 56,
+                    fontWeight: 600,
+                    color: ORANGE,
+                    letterSpacing: -2,
+                    lineHeight: 1.1,
+                    overflow: "hidden",
+                    whiteSpace: "nowrap",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {topSeries.series.name}
+                </span>
+                {topSeries.rating !== null && (
+                  <div style={{ display: "flex", alignItems: "center", marginTop: 6, fontSize: 28, color: "rgba(249,249,248,0.7)" }}>
+                    <Star size={24} />
+                    <span style={{ marginLeft: 6 }}>{topSeries.rating.toLocaleString("pt-BR")}</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -145,6 +185,17 @@ function Story({ retro }: { retro: Retrospective }) {
       </div>
     </div>
   );
+}
+
+/** a série de maior nota no mês (curtida desempata); sem notas nem curtidas, a mais recente */
+function seriesOfTheMonth(entries: RetrospectiveSeries[]): RetrospectiveSeries | null {
+  if (entries.length === 0) return null;
+  return [...entries].sort(
+    (a, b) =>
+      (b.rating ?? 0) - (a.rating ?? 0) ||
+      Number(b.liked) - Number(a.liked) ||
+      b.watchedOn.localeCompare(a.watchedOn),
+  )[0];
 }
 
 /** tira de filme 35mm: perfurações em cima e embaixo, pôsteres como fotogramas */

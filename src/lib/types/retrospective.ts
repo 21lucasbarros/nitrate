@@ -1,4 +1,5 @@
 import type { Movie } from "@/types/movie";
+import type { Series } from "@/types/series";
 
 // Espelha RetrospectiveDTO do backend
 export interface RankedItem {
@@ -27,4 +28,14 @@ export interface Retrospective {
   topActors: RankedItem[];
   favorites: RetrospectiveFilm[];
   films: RetrospectiveFilm[];
+  seriesCount: number; // séries diferentes registradas no mês (à parte dos filmes)
+  series: RetrospectiveSeries[]; // em ordem de quando assistiu
+}
+
+export interface RetrospectiveSeries {
+  series: Series;
+  seasonNumber: number | null; // null = a série inteira
+  rating: number | null;
+  liked: boolean;
+  watchedOn: string; // yyyy-mm-dd
 }
