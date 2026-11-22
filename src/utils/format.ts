@@ -62,6 +62,14 @@ export function compactDate(isoDate: string): string {
   return `${day} ${SHORT_MONTHS[month - 1]}${year !== new Date().getFullYear() ? ` ${year}` : ""}`;
 }
 
+/** duração em minutos: "48 min", "2h" ou "2h 35min" */
+export function runtimeLabel(minutes: number): string {
+  if (minutes < 60) return `${minutes} min`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m === 0 ? `${h}h` : `${h}h ${m}min`;
+}
+
 /** data local de hoje no formato yyyy-mm-dd */
 export function todayIso(): string {
   const now = new Date();

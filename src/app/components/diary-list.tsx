@@ -164,10 +164,10 @@ function DiaryRow({ entry, showDate }: { entry: ActivityEntry; showDate: boolean
                 </span>
               )}
               <ReviewText
-                // as quebras em sequência viram uma: na prévia, parágrafo em branco só come linha
-                text={(review.text ?? "").replace(/\n{2,}/g, "\n")}
+                // a linha em branco entre parágrafos fica: separa a citação do resto do texto
+                text={(review.text ?? "").replace(/\n{3,}/g, "\n\n")}
                 inline
-                className={`${review.spoiler ? "mt-1.5" : "mt-2.5"} text-[15px] leading-relaxed text-foreground/80 line-clamp-3`}
+                className={`${review.spoiler ? "mt-1.5" : "mt-2.5"} text-[15px] leading-relaxed text-foreground/80 line-clamp-4`}
               />
             </>
           )}

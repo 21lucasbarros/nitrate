@@ -10,7 +10,7 @@ import { canRate, type Movie } from "@/types/movie";
 import { easterEggFor } from "@/lib/easter-eggs";
 import { showQuote } from "@/lib/hooks/use-easter-eggs";
 import { clearReviewDraft, loadReviewDraft, reviewDraftKey, saveReviewDraft, type ReviewDraft } from "@/lib/review-draft";
-import { shortDate, todayIso } from "@/utils/format";
+import { runtimeLabel, shortDate, todayIso } from "@/utils/format";
 import { CompanionPicker } from "./companion-picker";
 import { DeleteConfirmBar } from "./ui/delete-confirm-bar";
 import { Poster } from "./ui/poster";
@@ -24,6 +24,10 @@ interface ReviewFormProps {
   existing: MovieReview | null;
   /** já existe alguma review deste filme: a nova é um reassistido */
   previouslyWatched?: boolean;
+  /** a review mais recente do filme: um registro novo já vem com a nota e a curtida dela */
+  previous?: MovieReview | null;
+  /** duração do filme, em minutos */
+  runtime?: number | null;
   /** aceitando um convite de review em conjunto escrevendo a própria review */
   invite?: ReviewInvite;
   onSaved: (review: MovieReview) => void;
@@ -31,13 +35,15 @@ interface ReviewFormProps {
   onCancel: () => void;
 }
 
-export function ReviewForm({ movie, existing, previouslyWatched = false, invite, onSaved, onDeleted, onCancel }: ReviewFormProps) {
+export function ReviewForm({ movie, existing, previouslyWatched = false, previous = null, runtime = null, invite, onSaved, onDeleted, onCancel }: ReviewFormProps) {
   // antes da estreia a review pode ter texto e curtida, mas não nota
   const rateable = canRate(movie);
-  // o que o formulário mostraria sem rascunho: a review salva, ou tudo em branco
+  // o que o formulário mostraria sem rascunho: a review salva; num registro novo, a nota e a curtida
+  // do último (quem reassiste costuma manter, e muda se quiser); senão, tudo em branco
+  const base = existing ?? previous;
   const initial: ReviewDraft = {
-    rating: rateable ? existing?.rating ?? null : null,
-    liked: existing?.liked ?? false,
+    rating: rateable ? base?.rating ?? null : null,
+    liked: base?.liked ?? false,
     // no convite, a sessão é a mesma de quem convidou
     watchedOn: existing?.watchedOn ?? invite?.review.watchedOn ?? todayIso(),
     text: existing?.text ?? "",
@@ -172,137 +178,150 @@ export function ReviewForm({ movie, existing, previouslyWatched = false, invite,
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-      {/* cabeçalho: qual filme está sendo registrado */}
-      <div className="flex items-center gap-4 pr-10">
-        <div className="w-14 shrink-0">
-          <Poster title={movie.title} posterPath={movie.posterPath} size="w185" sizes="56px" />
+      {/* pôster à esquerda (desktop) e o formulário ao lado: o modal cresce para os lados, não para baixo */}
+      <div className="grid sm:grid-cols-[150px_minmax(0,1fr)] md:grid-cols-[180px_minmax(0,1fr)] gap-x-8 gap-y-6">
+        <div className="hidden sm:block">
+          <Poster title={movie.title} posterPath={movie.posterPath} size="w500" sizes="180px" className="shadow-xl shadow-black/40" />
         </div>
-        <div className="min-w-0">
-          <span className="text-xs font-bold tracking-[0.2em] uppercase text-brand-orange">
-            {invite ? "Sua review em conjunto" : existing ? "Editar review" : previouslyWatched ? "Assisti de novo…" : "Eu assisti…"}
-          </span>
-          <h2 className="text-xl sm:text-2xl font-medium tracking-tight leading-tight mt-1 truncate">
-            {movie.title}{" "}
-            {movie.releaseYear && <span className="text-foreground/40 font-normal">{movie.releaseYear}</span>}
-          </h2>
-        </div>
-      </div>
 
-      {showRestored && (
-        <div className="flex items-center gap-3 -mt-2 px-3.5 py-2.5 rounded-lg bg-brand-blue/10 text-sm text-foreground/85">
-          <FloppyDiskIcon size={16} className="shrink-0 text-brand-blue" />
-          <span className="flex-1">Rascunho recuperado: continuamos de onde você parou.</span>
-          <button type="button" onClick={discardDraft} className="shrink-0 text-brand-slate hover:text-brand-crimson transition-colors">
-            Descartar
-          </button>
-        </div>
-      )}
+        <div className="min-w-0 flex flex-col gap-5">
+          {/* cabeçalho: qual filme está sendo registrado */}
+          <div className="flex items-center gap-4 pr-10">
+            <div className="w-14 shrink-0 sm:hidden">
+              <Poster title={movie.title} posterPath={movie.posterPath} size="w185" sizes="56px" />
+            </div>
+            <div className="min-w-0">
+              <span className="text-xs font-bold tracking-[0.2em] uppercase text-brand-orange">
+                {invite ? "Sua review em conjunto" : existing ? "Editar review" : previouslyWatched ? "Assisti de novo…" : "Eu assisti…"}
+              </span>
+              <h2 className="text-xl sm:text-2xl font-medium tracking-tight leading-tight mt-1 truncate">
+                {movie.title}{" "}
+                {movie.releaseYear && <span className="text-foreground/40 font-normal">{movie.releaseYear}</span>}
+              </h2>
+              {runtime ? <p className="mt-1 text-sm text-brand-slate tabular-nums">{runtimeLabel(runtime)}</p> : null}
+            </div>
+          </div>
 
-      {/* nota, curtida e data na mesma faixa */}
-      <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-5 py-5 border-y border-foreground/10">
-        <div className="flex flex-col gap-2">
-          <span className="text-xs uppercase tracking-[0.15em] text-brand-slate/60">Nota</span>
-          {rateable ? (
-            <StarInput
-              value={rating}
-              onChange={(value) => {
-                setRating(value);
-                // easter egg (Whiplash): certas notas ganham uma fala
-                const quote = value !== null ? easterEggFor(movie)?.ratingQuotes?.[value] : undefined;
-                if (quote) showQuote(quote);
-              }}
-              size={30}
-            />
-          ) : (
-            <span className="flex items-center gap-2 min-h-[38px] text-sm text-brand-slate/80">
-              <CalendarBlankIcon size={18} className="shrink-0" />
-              {movie.releaseDate ? `Liberada na estreia, em ${shortDate(movie.releaseDate)}` : "Liberada quando o filme estrear"}
-            </span>
+          {showRestored && (
+            <div className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg bg-brand-blue/10 text-sm text-foreground/85">
+              <FloppyDiskIcon size={16} className="shrink-0 text-brand-blue" />
+              <span className="flex-1">Rascunho recuperado: continuamos de onde você parou.</span>
+              <button type="button" onClick={discardDraft} className="shrink-0 text-brand-slate hover:text-brand-crimson transition-colors">
+                Descartar
+              </button>
+            </div>
           )}
-        </div>
 
-        <div className="flex flex-col gap-2 items-center">
-          <span className="text-xs uppercase tracking-[0.15em] text-brand-slate/60">Curtir</span>
-          <button
-            type="button"
-            onClick={() => setLiked(!liked)}
-            aria-pressed={liked}
-            aria-label={liked ? "Descurtir" : "Curtir"}
-            className={`p-1 transition-all active:scale-90 ${liked ? "text-brand-orange" : "text-brand-slate/25 hover:text-brand-orange/60"}`}
-          >
-            <HeartIcon size={30} weight="fill" />
-          </button>
-        </div>
+          {/* data e reassistido na mesma linha */}
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+            <label className="flex items-center gap-2.5 text-sm text-brand-slate/80">
+              Assistido em
+              <input
+                type="date"
+                value={watchedOn}
+                max={todayIso()}
+                onChange={(e) => setWatchedOn(e.target.value)}
+                className="px-3 py-1.5 bg-transparent border border-brand-slate/20 rounded-lg text-sm text-foreground focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue"
+              />
+            </label>
+            <label
+              className={`flex items-center gap-2.5 w-fit text-sm select-none ${rewatchLocked ? "text-brand-slate/50" : "cursor-pointer text-brand-slate/80"}`}
+              title={rewatchLocked ? "Você já registrou este filme" : undefined}
+            >
+              <input
+                type="checkbox"
+                checked={rewatch || rewatchLocked}
+                disabled={rewatchLocked}
+                onChange={(e) => setRewatch(e.target.checked)}
+                className="w-4 h-4 accent-brand-orange"
+              />
+              <ArrowsClockwiseIcon size={16} weight="bold" className={rewatch || rewatchLocked ? "text-brand-orange" : ""} />
+              {rewatchLocked ? "Reassistido" : "Já tinha assistido antes"}
+            </label>
+          </div>
 
-        <label className="flex flex-col gap-2">
-          <span className="text-xs uppercase tracking-[0.15em] text-brand-slate/60">Assistido em</span>
-          <input
-            type="date"
-            value={watchedOn}
-            max={todayIso()}
-            onChange={(e) => setWatchedOn(e.target.value)}
-            className="px-3 py-2 bg-transparent border border-brand-slate/20 rounded-lg text-sm text-foreground focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue"
-          />
-        </label>
-      </div>
+          <div className="flex flex-col gap-2">
+            {together?.sharedText && (
+              <p className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg bg-background/40 text-sm text-brand-slate">
+                <UsersIcon size={16} className="shrink-0 text-brand-orange" />
+                Este texto é a review de {together.partner.name}. Se você mudar, a review passa a ser sua.
+              </p>
+            )}
+            <div className="relative">
+              <RichTextEditor
+                label={`Sua review de ${movie.title}`}
+                value={text}
+                onChange={handleText}
+                maxLength={TEXT_MAX}
+                placeholder="Escreva sua review… (opcional)"
+                rows={5}
+              />
+              {pending !== null && warnings[nextWarning] && (
+                <RuleWarning
+                  rule={nextWarning + 1}
+                  text={warnings[nextWarning]}
+                  onRespect={respectRule}
+                  onBreak={breakRule}
+                />
+              )}
+            </div>
+            <label
+              className={`flex items-center gap-2.5 w-fit text-sm select-none ${hasText ? "cursor-pointer text-brand-slate/80" : "cursor-not-allowed text-brand-slate/35"}`}
+              title={hasText ? undefined : "Escreva algo para poder marcar spoilers"}
+            >
+              <input
+                type="checkbox"
+                checked={hasText && spoiler}
+                disabled={!hasText}
+                onChange={(e) => setSpoiler(e.target.checked)}
+                className="peer sr-only"
+              />
+              {/* switch */}
+              <span className="relative w-9 h-5 rounded-full bg-brand-slate/20 transition-colors peer-checked:bg-brand-crimson peer-focus-visible:ring-2 peer-focus-visible:ring-brand-blue after:absolute after:top-0.5 after:left-0.5 after:w-4 after:h-4 after:rounded-full after:bg-white after:transition-transform peer-checked:after:translate-x-4" />
+              <WarningIcon size={16} className={hasText && spoiler ? "text-brand-crimson" : ""} />
+              Contém spoilers
+            </label>
+          </div>
 
-      <label
-        className={`flex items-center gap-2.5 w-fit text-sm select-none ${rewatchLocked ? "text-brand-slate/50" : "cursor-pointer text-brand-slate/80"}`}
-      >
-        <input
-          type="checkbox"
-          checked={rewatch || rewatchLocked}
-          disabled={rewatchLocked}
-          onChange={(e) => setRewatch(e.target.checked)}
-          className="w-4 h-4 accent-brand-orange"
-        />
-        <ArrowsClockwiseIcon size={16} weight="bold" className={rewatch || rewatchLocked ? "text-brand-orange" : ""} />
-        {rewatchLocked ? "Reassistido (você já registrou este filme)" : "Já tinha assistido antes"}
-      </label>
+          {/* assisti com, nota e curtida na mesma faixa, embaixo do texto */}
+          <div className="flex flex-wrap items-start gap-x-8 gap-y-5 pt-5 border-t border-foreground/10">
+            <div className="flex-1 min-w-[220px]">
+              <CompanionPicker value={companion} onChange={setCompanion} locked={companionLocked} hint={companionHint} />
+            </div>
+            <div className="flex flex-col gap-2">
+              <span className="text-xs uppercase tracking-[0.15em] text-brand-slate/60">Nota</span>
+              {rateable ? (
+                <StarInput
+                  value={rating}
+                  onChange={(value) => {
+                    setRating(value);
+                    // easter egg (Whiplash): certas notas ganham uma fala
+                    const quote = value !== null ? easterEggFor(movie)?.ratingQuotes?.[value] : undefined;
+                    if (quote) showQuote(quote);
+                  }}
+                  size={30}
+                />
+              ) : (
+                <span className="flex items-center gap-2 min-h-[38px] text-sm text-brand-slate/80">
+                  <CalendarBlankIcon size={18} className="shrink-0" />
+                  {movie.releaseDate ? `Liberada na estreia, em ${shortDate(movie.releaseDate)}` : "Liberada quando o filme estrear"}
+                </span>
+              )}
+            </div>
 
-      <CompanionPicker value={companion} onChange={setCompanion} locked={companionLocked} hint={companionHint} />
-
-      <div className="flex flex-col gap-2">
-        {together?.sharedText && (
-          <p className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg bg-surface text-sm text-brand-slate">
-            <UsersIcon size={16} className="shrink-0 text-brand-orange" />
-            Este texto é a review de {together.partner.name}. Se você mudar, a review passa a ser sua.
-          </p>
-        )}
-        <div className="relative">
-          <RichTextEditor
-            label={`Sua review de ${movie.title}`}
-            value={text}
-            onChange={handleText}
-            maxLength={TEXT_MAX}
-            placeholder="Escreva sua review… (opcional)"
-          />
-          {pending !== null && warnings[nextWarning] && (
-            <RuleWarning
-              rule={nextWarning + 1}
-              text={warnings[nextWarning]}
-              onRespect={respectRule}
-              onBreak={breakRule}
-            />
-          )}
-        </div>
-        <div className="flex items-center gap-4">
-          <label
-            className={`flex items-center gap-2.5 text-sm select-none ${hasText ? "cursor-pointer text-brand-slate/80" : "cursor-not-allowed text-brand-slate/35"}`}
-            title={hasText ? undefined : "Escreva algo para poder marcar spoilers"}
-          >
-            <input
-              type="checkbox"
-              checked={hasText && spoiler}
-              disabled={!hasText}
-              onChange={(e) => setSpoiler(e.target.checked)}
-              className="peer sr-only"
-            />
-            {/* switch */}
-            <span className="relative w-9 h-5 rounded-full bg-brand-slate/20 transition-colors peer-checked:bg-brand-crimson peer-focus-visible:ring-2 peer-focus-visible:ring-brand-blue after:absolute after:top-0.5 after:left-0.5 after:w-4 after:h-4 after:rounded-full after:bg-white after:transition-transform peer-checked:after:translate-x-4" />
-            <WarningIcon size={16} className={hasText && spoiler ? "text-brand-crimson" : ""} />
-            Contém spoilers
-          </label>
+            <div className="flex flex-col gap-2 items-center">
+              <span className="text-xs uppercase tracking-[0.15em] text-brand-slate/60">Curtir</span>
+              <button
+                type="button"
+                onClick={() => setLiked(!liked)}
+                aria-pressed={liked}
+                aria-label={liked ? "Descurtir" : "Curtir"}
+                className={`p-1 transition-all active:scale-90 ${liked ? "text-brand-orange" : "text-brand-slate/25 hover:text-brand-orange/60"}`}
+              >
+                <HeartIcon size={30} weight="fill" />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 

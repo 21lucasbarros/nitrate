@@ -57,7 +57,7 @@ import {
   watchProgress,
   type EpisodeRef,
 } from "@/types/series";
-import { shortDate, todayIso } from "@/utils/format";
+import { runtimeLabel, shortDate, todayIso } from "@/utils/format";
 import { backdropUrl, stillUrl } from "@/utils/poster";
 import { toRating } from "@/utils/rating";
 import { seriesReviewHref } from "@/utils/series-link";
@@ -150,6 +150,7 @@ function SeriesView({ series }: { series: Series }) {
 
   const years = seriesYears({ ...series, status: details.data?.status ?? series.status });
   const statusLabel = seriesStatusLabel(details.data?.status ?? series.status);
+  const runtimePerEpisode = details.data?.episodeRunTime ? `${runtimeLabel(details.data.episodeRunTime)} por episódio` : null;
   // os seus registros primeiro, depois os dos outros
   const otherReviews = (reviews.data ?? []).filter((r) => !myReviews.some((mine) => mine.id === r.id));
   const allReviews = [...myReviews, ...otherReviews];
@@ -175,7 +176,7 @@ function SeriesView({ series }: { series: Series }) {
               <span className="flex items-center gap-1.5 text-brand-orange">
                 <TelevisionSimpleIcon size={14} weight="bold" /> Série
               </span>
-              {[years, statusLabel, ...series.genres.slice(0, 2)].filter(Boolean).map((item) => (
+              {[years, statusLabel, ...series.genres.slice(0, 2), runtimePerEpisode].filter(Boolean).map((item) => (
                 <span key={String(item)} className="flex items-center gap-2">
                   <span className="w-1 h-1 rounded-full bg-brand-orange" />
                   {item}
@@ -260,7 +261,13 @@ function SeriesView({ series }: { series: Series }) {
               </section>
             )}
 
-            <SeasonList seriesId={series.id} seasons={details.data ? seasons : undefined} myReviews={myReviews} onLog={logSeason} />
+            <SeasonList
+              seriesId={series.id}
+              seasons={details.data ? seasons : undefined}
+              episodeRunTime={details.data?.episodeRunTime ?? null}
+              myReviews={myReviews}
+              onLog={logSeason}
+            />
             <CastList cast={details.data?.cast} />
             {details.data && <FactSheet series={series} details={details.data} />}
 
@@ -299,6 +306,8 @@ function SeriesView({ series }: { series: Series }) {
               existing={editing.review}
               initialSeason={editing.season}
               initialEpisode={editing.episode}
+              firstAirDate={details.data?.firstAirDate}
+              episodeRunTime={details.data?.episodeRunTime}
               onSaved={afterChange}
               onDeleted={afterChange}
               onCancel={() => setEditing(null)}
@@ -381,9 +390,10 @@ function ActionPanel(props: {
 }
 
 /** temporadas em sanfona: abrir uma busca os episódios dela */
-function SeasonList({ seriesId, seasons, myReviews, onLog }: {
+function SeasonList({ seriesId, seasons, episodeRunTime, myReviews, onLog }: {
   seriesId: number;
   seasons: SeasonSummary[] | undefined;
+  episodeRunTime: number | null;
   myReviews: SeriesReview[];
   onLog?: (season: number, episode?: number | null) => void;
 }) {
@@ -438,6 +448,7 @@ function SeasonList({ seriesId, seasons, myReviews, onLog }: {
                   <EpisodeList
                     seriesId={seriesId}
                     seasonNumber={season.seasonNumber}
+                    episodeRunTime={episodeRunTime}
                     // os episódios que a pessoa já registrou (a temporada inteira marca todos)
                     watched={(ep) => myReviews.some((r) => r.seasonNumber === season.seasonNumber && (r.episodeNumber === null || r.episodeNumber === ep))}
                     onLog={onLog ? (ep) => onLog(season.seasonNumber, ep) : undefined}
@@ -452,9 +463,11 @@ function SeasonList({ seriesId, seasons, myReviews, onLog }: {
   );
 }
 
-function EpisodeList({ seriesId, seasonNumber, watched, onLog }: {
+function EpisodeList({ seriesId, seasonNumber, episodeRunTime, watched, onLog }: {
   seriesId: number;
   seasonNumber: number;
+  /** duração típica da série: aproxima a dos episódios que o TMDB ainda não sabe */
+  episodeRunTime: number | null;
   watched: (episodeNumber: number) => boolean;
   onLog?: (episodeNumber: number) => void;
 }) {
@@ -487,7 +500,7 @@ function EpisodeList({ seriesId, seasonNumber, watched, onLog }: {
                   <span className="text-brand-slate tabular-nums">{ep.episodeNumber}.</span> {ep.name}
                 </p>
                 <p className="text-xs text-brand-slate">
-                  {[ep.airDate ? shortDate(ep.airDate) : null, ep.runtime ? `${ep.runtime} min` : null, ep.rating ? `TMDB ${ep.rating.toFixed(1)}` : null]
+                  {[ep.airDate ? shortDate(ep.airDate) : null, ep.runtime ? runtimeLabel(ep.runtime) : episodeRunTime ? `~${runtimeLabel(episodeRunTime)}` : null, ep.rating ? `TMDB ${ep.rating.toFixed(1)}` : null]
                     .filter(Boolean).join(" · ")}
                 </p>
                 {ep.overview && <p className="mt-1 text-xs leading-relaxed text-foreground/70 line-clamp-3">{ep.overview}</p>}
@@ -580,7 +593,7 @@ function FactSheet({ series, details }: { series: Series; details: SeriesDetails
       value: `${series.numberOfSeasons}${series.numberOfEpisodes ? ` · ${series.numberOfEpisodes} episódios` : ""}`,
     });
   }
-  if (details.episodeRunTime) facts.push({ label: "Duração", value: `${details.episodeRunTime} min por episódio` });
+  if (details.episodeRunTime) facts.push({ label: "Duração", value: `${runtimeLabel(details.episodeRunTime)} por episódio` });
   if (details.firstAirDate) facts.push({ label: "Estreia", value: shortDate(details.firstAirDate) });
   if (details.nextEpisode?.airDate) {
     facts.push({

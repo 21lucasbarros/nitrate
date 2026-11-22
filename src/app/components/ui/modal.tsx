@@ -8,6 +8,8 @@ interface ModalProps {
   onClose: () => void;
   /** título acessível do modal (lido por leitores de tela) */
   label: string;
+  /** "wide": formulários com pôster ao lado, que crescem para os lados em vez de para baixo */
+  size?: "default" | "wide";
   children: React.ReactNode;
 }
 
@@ -15,7 +17,7 @@ interface ModalProps {
  * Modal centralizado usando o <dialog> nativo: o navegador cuida do foco preso dentro dele,
  * do Esc para fechar e do fundo (::backdrop). Clicar fora também fecha.
  */
-export function Modal({ open, onClose, label, children }: ModalProps) {
+export function Modal({ open, onClose, label, size = "default", children }: ModalProps) {
   const ref = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -39,7 +41,7 @@ export function Modal({ open, onClose, label, children }: ModalProps) {
         // o clique no ::backdrop chega com target = o próprio <dialog>
         if (e.target === e.currentTarget) onClose();
       }}
-      className="modal m-auto w-[min(640px,calc(100%-2rem))] max-h-[calc(100dvh-2rem)] rounded-lg bg-surface text-foreground p-0 ring-1 ring-white/10 shadow-2xl shadow-black/60"
+      className={`modal m-auto ${size === "wide" ? "w-[min(960px,calc(100%-2rem))]" : "w-[min(640px,calc(100%-2rem))]"} max-h-[calc(100dvh-2rem)] rounded-lg bg-surface text-foreground p-0 ring-1 ring-white/10 shadow-2xl shadow-black/60`}
     >
       {open && (
         <div className="relative p-6 sm:p-8">

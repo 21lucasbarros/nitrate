@@ -53,7 +53,7 @@ import { getMovieState } from "@/lib/services/user-service";
 import { addToWatchlist, removeFromWatchlist } from "@/lib/services/watchlist-service";
 import type { MovieReview, ReviewRequest } from "@/lib/types/review";
 import { canRate, type Movie } from "@/types/movie";
-import { shortDate, todayIso } from "@/utils/format";
+import { runtimeLabel, shortDate, todayIso } from "@/utils/format";
 import { backdropUrl } from "@/utils/poster";
 import { toRating } from "@/utils/rating";
 import type { MovieStats } from "@/lib/services/movie-service";
@@ -142,6 +142,7 @@ function FilmView({ film }: { film: Movie }) {
   const otherReviews = (reviews.data ?? []).filter((review) => review.id !== myReview?.id);
   const directors = credits.data?.directors ?? [];
   const backdrop = backdropUrl(credits.data?.backdropPath);
+  const runtime = credits.data?.runtime ? runtimeLabel(credits.data.runtime) : null;
 
   const poster = (
     <Poster title={film.title} posterPath={film.posterPath} size="w500" sizes="(min-width: 768px) 230px, 112px" className="shadow-2xl shadow-black/60" />
@@ -183,6 +184,7 @@ function FilmView({ film }: { film: Movie }) {
         backdrop={backdrop}
         directors={directors}
         tagline={credits.data?.tagline ?? null}
+        runtime={runtime}
         poster={posterWithEgg}
         stats={stats.data}
         myRating={myReview?.rating ?? null}
@@ -241,7 +243,7 @@ function FilmView({ film }: { film: Movie }) {
             <div className="hidden md:block">
             {/* linha de contexto acima do título: ano e gêneros */}
             <p className="flex flex-wrap items-center gap-x-2 text-xs uppercase tracking-[0.14em] text-foreground/70">
-              {[film.releaseYear, ...film.genres.slice(0, 3)].filter(Boolean).map((item, i) => (
+              {[film.releaseYear, runtime, ...film.genres.slice(0, 3)].filter(Boolean).map((item, i) => (
                 <span key={String(item)} className="flex items-center gap-2">
                   {i > 0 && <span className="w-1 h-1 rounded-full bg-brand-orange" />}
                   {item}
@@ -262,7 +264,7 @@ function FilmView({ film }: { film: Movie }) {
             </div>
 
             <CastList cast={credits.data?.cast} />
-            <FactSheet film={film} directors={directors} />
+            <FactSheet film={film} directors={directors} runtime={runtime} />
 
             <section className="mt-12">
               <SectionHeading title="Onde assistir" />
@@ -332,6 +334,7 @@ function FilmView({ film }: { film: Movie }) {
           open={editing !== null}
           onClose={() => setEditing(null)}
           label={editing === "edit" ? `Editar review de ${film.title}` : `Registrar ${film.title}`}
+          size="wide"
         >
           {/* key: trocar entre "editar" e "assisti de novo" recria o formulário */}
           <ReviewForm
@@ -339,6 +342,8 @@ function FilmView({ film }: { film: Movie }) {
             movie={film}
             existing={editing === "edit" ? myReview : null}
             previouslyWatched={timesWatched > 0}
+            previous={myReview}
+            runtime={credits.data?.runtime}
             onSaved={afterChange}
             onDeleted={afterChange}
             onCancel={() => setEditing(null)}
@@ -634,7 +639,7 @@ function CastList({ cast: castOrNull }: { cast: CreditPerson[] | undefined }) {
 }
 
 /** Ficha técnica: os dados do filme em blocos, cada um com o rótulo em cima. */
-function FactSheet({ film, directors }: { film: Movie; directors: CreditPerson[] }) {
+function FactSheet({ film, directors, runtime }: { film: Movie; directors: CreditPerson[]; runtime: string | null }) {
   const facts: { label: string; value: React.ReactNode }[] = [];
 
   if (directors.length > 0 || film.director) {
@@ -651,6 +656,7 @@ function FactSheet({ film, directors }: { film: Movie; directors: CreditPerson[]
     });
   }
   if (film.releaseYear) facts.push({ label: "Lançamento", value: film.releaseYear });
+  if (runtime) facts.push({ label: "Duração", value: runtime });
   if (film.genres.length > 0) facts.push({ label: "Gêneros", value: film.genres.join(", ") });
   if (film.franchise) facts.push({ label: "Franquia", value: film.franchise });
   if (film.rating !== null) {
@@ -678,11 +684,12 @@ function FactSheet({ film, directors }: { film: Movie; directors: CreditPerson[]
 }
 
 /** Topo da página do filme no celular: cena, título e pôster lado a lado, sinopse, notas e a barra de ações. */
-function MobileFilmHeader({ film, backdrop, directors, tagline, poster, stats, myRating, onOpenSheet, children }: {
+function MobileFilmHeader({ film, backdrop, directors, tagline, runtime, poster, stats, myRating, onOpenSheet, children }: {
   film: Movie;
   backdrop: string | null;
   directors: CreditPerson[];
   tagline: string | null;
+  runtime: string | null;
   poster: React.ReactNode;
   stats: MovieStats | undefined;
   myRating: number | null;
@@ -722,10 +729,10 @@ function MobileFilmHeader({ film, backdrop, directors, tagline, poster, stats, m
           ) : (
             film.director && <p className="mt-0.5 font-semibold text-foreground/90">{film.director}</p>
           )}
-          {film.genres.length > 0 && (
+          {(runtime || film.genres.length > 0) && (
             <ul className="mt-3 flex flex-wrap gap-1.5">
-              {film.genres.slice(0, 2).map((genre) => (
-                <li key={genre} className="px-2 py-0.5 rounded-full bg-surface text-[11px] text-brand-slate">{genre}</li>
+              {[runtime, ...film.genres.slice(0, 2)].filter(Boolean).map((item) => (
+                <li key={item} className="px-2 py-0.5 rounded-full bg-surface text-[11px] text-brand-slate tabular-nums">{item}</li>
               ))}
             </ul>
           )}

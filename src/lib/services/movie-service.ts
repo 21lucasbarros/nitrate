@@ -60,9 +60,10 @@ export interface MovieCredits {
   cast: CreditPerson[];
   backdropPath: string | null; // imagem de fundo da página do filme
   tagline: string | null;
+  runtime: number | null; // minutos
 }
 
-/** direção, elenco, imagem de fundo e frase de efeito, direto do TMDB */
+/** direção, elenco, imagem de fundo, frase de efeito e duração, direto do TMDB */
 export function getMovieCredits(id: number): Promise<MovieCredits> {
   return apiFetch<MovieCredits>(`/movies/${id}/credits`);
 }

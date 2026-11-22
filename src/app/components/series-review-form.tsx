@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { CircleNotchIcon, HeartIcon, TrashIcon, WarningIcon } from "@phosphor-icons/react";
+import { CalendarBlankIcon, CircleNotchIcon, HeartIcon, TrashIcon, WarningIcon } from "@phosphor-icons/react";
 import { ApiError } from "@/lib/api-client";
 import { useFetch } from "@/lib/hooks/use-fetch";
 import { createSeriesReview, deleteSeriesReview, getSeason, updateSeriesReview } from "@/lib/services/series-service";
 import { episodeCode, seasonLabel, type SeasonSummary, type Series, type SeriesReview } from "@/types/series";
-import { shortDate, todayIso } from "@/utils/format";
+import { runtimeLabel, shortDate, todayIso } from "@/utils/format";
 import { DeleteConfirmBar } from "./ui/delete-confirm-bar";
 import { Poster } from "./ui/poster";
 import { RichTextEditor } from "./ui/rich-text-editor";
@@ -26,6 +26,10 @@ interface SeriesReviewFormProps {
   initialSeason?: number | null;
   /** episódio já escolhido ao abrir, junto com `initialSeason` */
   initialEpisode?: number | null;
+  /** estreia da série (yyyy-mm-dd), para dizer quando a nota fica liberada */
+  firstAirDate?: string | null;
+  /** duração típica de um episódio, em minutos (quando o TMDB não sabe a do episódio) */
+  episodeRunTime?: number | null;
   onSaved: () => void;
   onDeleted: () => void;
   onCancel: () => void;
@@ -38,6 +42,8 @@ export function SeriesReviewForm({
   existing,
   initialSeason = null,
   initialEpisode = null,
+  firstAirDate = null,
+  episodeRunTime = null,
   onSaved,
   onDeleted,
   onCancel,
@@ -58,6 +64,19 @@ export function SeriesReviewForm({
   const hasText = text.trim().length > 0;
   const today = todayIso();
 
+  // como nos filmes: antes da estreia (da série, da temporada ou do episódio) dá para registrar e curtir,
+  // mas a nota só depois. Sem a data, fica no benefício da dúvida (o backend tem a palavra final)
+  const episode = episodeNumber === null ? undefined : season.data?.episodes.find((ep) => ep.episodeNumber === episodeNumber);
+  const premiere = seasonNumber === null
+    ? firstAirDate
+    : episodeNumber === null
+      ? seasons.find((s) => s.seasonNumber === seasonNumber)?.airDate ?? null
+      : episode?.airDate ?? null;
+  const rateable = series.released !== false && (premiere === null || premiere <= today);
+  const notYet = seasonNumber === null ? "a série estrear" : episodeNumber === null ? "a temporada estrear" : "o episódio ir ao ar";
+  // a duração do episódio escolhido (ou a típica da série, aproximada)
+  const runtime = episode?.runtime ? runtimeLabel(episode.runtime) : episodeNumber !== null && episodeRunTime ? `~${runtimeLabel(episodeRunTime)}` : null;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy("save");
@@ -65,7 +84,8 @@ export function SeriesReviewForm({
     const data = {
       seasonNumber,
       episodeNumber: seasonNumber === null ? null : episodeNumber,
-      rating,
+      // trocar para algo que ainda não estreou descarta a nota que já estava marcada
+      rating: rateable ? rating : null,
       liked,
       watchedOn,
       text: text.trim() || null,
@@ -108,6 +128,11 @@ export function SeriesReviewForm({
             {series.name}{" "}
             {series.firstAirYear && <span className="text-foreground/40 font-normal">{series.firstAirYear}</span>}
           </h2>
+          {seasonNumber !== null && episodeNumber !== null && (
+            <p className="mt-1 text-sm text-brand-slate truncate">
+              {[episodeCode(seasonNumber, episodeNumber), episode?.name, runtime].filter(Boolean).join(" · ")}
+            </p>
+          )}
         </div>
       </div>
 
@@ -150,6 +175,7 @@ export function SeriesReviewForm({
               return (
                 <option key={ep.episodeNumber} value={ep.episodeNumber} disabled={upcoming}>
                   {ep.episodeNumber}. {ep.name || `Episódio ${ep.episodeNumber}`}
+                  {ep.runtime ? ` · ${runtimeLabel(ep.runtime)}` : ""}
                   {upcoming && ep.airDate ? ` (estreia em ${shortDate(ep.airDate)})` : ""}
                 </option>
               );
@@ -161,7 +187,14 @@ export function SeriesReviewForm({
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-5 py-5 border-y border-foreground/10">
         <div className="flex flex-col gap-2">
           <span className="text-xs uppercase tracking-[0.15em] text-brand-slate/60">Nota</span>
-          <StarInput value={rating} onChange={setRating} size={30} />
+          {rateable ? (
+            <StarInput value={rating} onChange={setRating} size={30} />
+          ) : (
+            <span className="flex items-center gap-2 min-h-[38px] text-sm text-brand-slate/80">
+              <CalendarBlankIcon size={18} className="shrink-0" />
+              {premiere ? `Liberada na estreia, em ${shortDate(premiere)}` : `Liberada quando ${notYet}`}
+            </span>
+          )}
         </div>
 
         <div className="flex flex-col gap-2 items-center">

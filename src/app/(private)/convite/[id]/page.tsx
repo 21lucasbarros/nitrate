@@ -194,13 +194,14 @@ function InviteView({ invite }: { invite: ReviewInvite }) {
       )}
 
       {isInvitee && status === "PENDING" && (
-        <Modal open={writing} onClose={() => setWriting(false)} label={`Sua review de ${movie.title}`}>
+        <Modal open={writing} onClose={() => setWriting(false)} label={`Sua review de ${movie.title}`} size="wide">
           <ReviewForm
             key={writing ? "aberto" : "fechado"}
             movie={movie}
             existing={null}
             invite={invite}
             previouslyWatched={(state.data?.reviewsCount ?? 0) > 0}
+            previous={state.data?.review}
             onSaved={done}
             onDeleted={() => setWriting(false)}
             onCancel={() => setWriting(false)}

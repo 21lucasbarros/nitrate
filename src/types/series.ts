@@ -16,6 +16,7 @@ export interface Series {
   genres: string[];
   posterPath: string | null;
   overview: string | null;
+  released?: boolean; // antes da estreia dá para registrar e curtir, mas não dar nota
 }
 
 /** Série vinda do TMDB (busca e listas). `id` só existe se ela já foi importada. */

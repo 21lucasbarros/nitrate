@@ -315,12 +315,13 @@ function ReviewView({ review, onChange, onDeleted }: {
       </div>
 
       {isOwn && (
-        <Modal open={editing} onClose={() => setEditing(false)} label={`Editar review de ${movie.title}`}>
+        <Modal open={editing} onClose={() => setEditing(false)} label={`Editar review de ${movie.title}`} size="wide">
           {/* key: reabrir o modal recomeça do que está salvo */}
           <ReviewForm
             key={editing ? "aberto" : "fechado"}
             movie={movie}
             existing={review}
+            runtime={credits.data?.runtime}
             onSaved={(saved) => {
               onChange(saved);
               setEditing(false);

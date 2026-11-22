@@ -300,6 +300,8 @@ function ReviewView({ review, onSaved, onDeleted }: {
             series={series}
             seasons={seasons}
             existing={review}
+            firstAirDate={details.data?.firstAirDate}
+            episodeRunTime={details.data?.episodeRunTime}
             onSaved={() => {
               setEditing(false);
               onSaved();
