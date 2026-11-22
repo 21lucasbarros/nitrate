@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
+  TelevisionSimpleIcon,
   BookmarkSimpleIcon,
   ChatCircleIcon,
   CheckIcon,
@@ -13,6 +14,7 @@ import {
   LinkSimpleIcon,
   LockSimpleIcon,
   PencilSimpleIcon,
+  SealCheckIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
 
@@ -27,7 +29,8 @@ import { ApiError } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
 import { useFetch } from "@/lib/hooks/use-fetch";
 import { deleteList, getListBySlug, likeList, saveList, unlikeList, unsaveList } from "@/lib/services/list-service";
-import type { ListEngagement, MovieList } from "@/lib/types/list";
+import { listCountLabel, listItemInfo, listItems, type ListEngagement, type MovieList } from "@/lib/types/list";
+import { seriesHref } from "@/utils/series-link";
 import { monthYear } from "@/utils/format";
 import { posterUrl } from "@/utils/poster";
 
@@ -107,16 +110,19 @@ function ListView({ list, onChange }: { list: MovieList; onChange: (list: MovieL
 
           <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-brand-slate">
             <Link href={`/u/${list.owner.username}`} className="group flex items-center gap-2.5">
-              <Avatar name={list.owner.name} username={list.owner.username} avatar={list.owner.avatar} size="sm" />
+              {/* lista do Nitrate: o selo no lugar da foto */}
+              {list.official ? (
+                <SealCheckIcon size={32} weight="fill" className="text-brand-orange" aria-hidden="true" />
+              ) : (
+                <Avatar name={list.owner.name} username={list.owner.username} avatar={list.owner.avatar} size="sm" />
+              )}
               <span>
-                <span className="text-brand-slate">Lista de </span>
+                <span className="text-brand-slate">{list.official ? "Lista do " : "Lista de "}</span>
                 <span className="font-medium text-foreground group-hover:text-brand-orange transition-colors">{list.owner.name}</span>
               </span>
             </Link>
             <span aria-hidden="true">·</span>
-            <span>
-              {list.filmsCount} {list.filmsCount === 1 ? "filme" : "filmes"}
-            </span>
+            <span>{listCountLabel(list)}</span>
             <span aria-hidden="true">·</span>
             <span>atualizada em {monthYear(list.updatedAt)}</span>
           </div>
@@ -153,8 +159,24 @@ function ListView({ list, onChange }: { list: MovieList; onChange: (list: MovieL
         </div>
 
         <section className="pt-10">
-          {list.movies.length > 0 ? (
-            <MovieGrid showTitles items={list.movies.map((movie) => ({ movie }))} />
+          {listItems(list).length > 0 ? (
+            <MovieGrid
+              showTitles
+              items={listItems(list).map((item) =>
+                item.kind === "MOVIE"
+                  ? { movie: item.movie }
+                  : {
+                      // série: o pôster leva à página dela, com o selo para não passar por filme
+                      movie: { id: `series-${item.series.id}`, title: item.series.name, posterPath: item.series.posterPath, releaseYear: item.series.firstAirYear },
+                      href: seriesHref(item.series),
+                      badge: (
+                        <>
+                          <TelevisionSimpleIcon size={11} weight="bold" className="text-brand-orange" /> Série
+                        </>
+                      ),
+                    },
+              )}
+            />
           ) : (
             <p className="py-12 text-center text-brand-slate">
               {isMine ? "Sua lista está vazia. Toque em Editar para adicionar filmes." : "Esta lista ainda está vazia."}
@@ -212,8 +234,8 @@ const pill =
 
 /** os primeiros pôsteres lado a lado, desfocados, desbotando para o fundo da página */
 function Backdrop({ list }: { list: MovieList }) {
-  const posters = list.movies
-    .map((movie) => posterUrl(movie.posterPath, "w342"))
+  const posters = listItems(list)
+    .map((item) => posterUrl(listItemInfo(item).posterPath, "w342"))
     .filter((src): src is string => Boolean(src))
     .slice(0, BACKDROP_POSTERS);
   if (posters.length === 0) return null;
@@ -347,7 +369,7 @@ function ShareButton({ list }: { list: MovieList }) {
     // celular: folha de compartilhar; computador: copia o link
     if (navigator.share) {
       try {
-        await navigator.share({ title: `${list.name}, lista de ${list.owner.name} no Nitrate`, url });
+        await navigator.share({ title: list.official ? `${list.name}, lista do Nitrate` : `${list.name}, lista de ${list.owner.name} no Nitrate`, url });
       } catch {
         // cancelou
       }

@@ -25,6 +25,16 @@ export function getPopularLists(limit = 6): Promise<MovieList[]> {
   return apiFetch<MovieList[]>(`/lists/popular?limit=${limit}`);
 }
 
+/** as listas públicas do Nitrate, da atualizada mais recentemente para a mais antiga */
+export function getOfficialLists(): Promise<MovieList[]> {
+  return apiFetch<MovieList[]>("/lists/official");
+}
+
+/** as listas públicas de quem eu sigo, das atualizadas por último */
+export function getFriendsLists(limit = 6): Promise<MovieList[]> {
+  return apiFetch<MovieList[]>(`/users/me/friends/lists?limit=${limit}`);
+}
+
 /** listas de outras pessoas que salvei */
 export function getSavedLists(): Promise<MovieList[]> {
   return apiFetch<MovieList[]>("/users/me/saved-lists");

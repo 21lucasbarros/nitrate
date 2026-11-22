@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useFetch } from "@/lib/hooks/use-fetch";
 import { getFriendsFeed, type Activity } from "@/lib/services/friends-service";
 import { likeReview, unlikeReview } from "@/lib/services/review-service";
+import { listCountLabel } from "@/lib/types/list";
 import type { MovieReview } from "@/lib/types/review";
 import type { UserSummary } from "@/lib/types/user";
 import { filmHref } from "@/utils/movie-link";
@@ -169,7 +170,7 @@ function CompactEntry({ item }: { item: Activity }) {
           <>
             criou a lista{" "}
             <Link href={listHref(item.list!)} className="text-foreground hover:text-brand-orange">{item.list!.name}</Link>
-            <span className="text-brand-slate/70"> · {item.list!.filmsCount} {item.list!.filmsCount === 1 ? "filme" : "filmes"}</span>
+            <span className="text-brand-slate/70"> · {listCountLabel(item.list!)}</span>
           </>
         );
       case "LIST_ENTRY":

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { OPEN_GRAPH_BASE } from "@/lib/brand";
 import { describe, fetchForMetadata } from "@/lib/seo";
-import type { MovieList } from "@/lib/types/list";
+import { listCountLabel, listItemInfo, listItems, type MovieList } from "@/lib/types/list";
 import { posterUrl } from "@/utils/poster";
 
 type Props = { params: Promise<{ username: string; slug: string }> };
@@ -14,11 +14,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   );
   if (!list) return { title: "Lista", robots: { index: false } };
 
-  const title = `${list.name}, lista de ${list.owner.name}`;
+  const title = list.official ? `${list.name}, lista do Nitrate` : `${list.name}, lista de ${list.owner.name}`;
+  const items = listItems(list).map(listItemInfo);
   const description =
     describe(list.description) ??
-    `${list.filmsCount} ${list.filmsCount === 1 ? "filme" : "filmes"}${list.movies.length > 0 ? `: ${list.movies.slice(0, 4).map((movie) => movie.title).join(", ")}` : ""}.`;
-  const cover = posterUrl(list.movies.find((movie) => movie.posterPath)?.posterPath, "w500");
+    `${listCountLabel(list)}${items.length > 0 ? `: ${items.slice(0, 4).map((item) => item.title).join(", ")}` : ""}.`;
+  const cover = posterUrl(items.find((item) => item.posterPath)?.posterPath, "w500");
   const path = `/u/${list.owner.username}/lista/${list.slug}`;
 
   return {

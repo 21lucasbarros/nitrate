@@ -6,7 +6,11 @@ import {
   ArrowsClockwiseIcon,
   CheckIcon,
   CircleNotchIcon,
+  GlobeHemisphereWestIcon,
+  LockSimpleIcon,
   MagnifyingGlassIcon,
+  PencilSimpleIcon,
+  PlusIcon,
   TrashIcon,
   WarningIcon,
   XIcon,
@@ -14,6 +18,9 @@ import {
 
 import Header from "@/app/components/header";
 import { BadgeChip, BadgeIcon } from "@/app/components/badges";
+import { listHref } from "@/app/components/list-card";
+import { ListEditor } from "@/app/components/list-editor";
+import { DeleteConfirmBar } from "@/app/components/ui/delete-confirm-bar";
 import { Avatar } from "@/app/components/ui/avatar";
 import { SectionHeading } from "@/app/components/ui/section-heading";
 import { ApiError } from "@/lib/api-client";
@@ -22,20 +29,27 @@ import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { useFetch } from "@/lib/hooks/use-fetch";
 import {
   awardBadge,
+  createOfficialList,
+  deleteOfficialList,
   getAdminStats,
   getBadgeAwards,
   getBadgeCatalog,
+  getOfficialListAdmin,
+  getOfficialListsAdmin,
   getUserBadges,
   revokeBadge,
+  updateOfficialList,
 } from "@/lib/services/admin-service";
 import { searchUsers } from "@/lib/services/user-service";
 import type { AdminDay, AdminStats } from "@/lib/types/admin";
+import type { MovieList, MovieListRequest } from "@/lib/types/list";
 import type { Badge, UserSummary } from "@/lib/types/user";
 import { timeAgo } from "@/utils/format";
 
 const TABS = [
   { id: "geral", label: "Visão geral" },
   { id: "selos", label: "Selos" },
+  { id: "listas", label: "Listas do Nitrate" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -49,6 +63,11 @@ const input =
 const fetchStats = () => getAdminStats();
 const fetchCatalog = () => getBadgeCatalog();
 const fetchAwards = () => getBadgeAwards();
+const fetchOfficialLists = () => getOfficialListsAdmin();
+
+// o editor de listas salva na conta do Nitrate em vez da de quem está logado
+const saveOfficialList = (data: MovieListRequest, list: MovieList | null) =>
+  list ? updateOfficialList(list.id, data) : createOfficialList(data);
 
 export default function AdminPage() {
   const { status, user } = useAuth();
@@ -87,7 +106,7 @@ export default function AdminPage() {
               ))}
             </div>
             <section role="tabpanel" className="pt-8">
-              {tab === "geral" ? <Overview /> : <Badges />}
+              {tab === "geral" ? <Overview /> : tab === "selos" ? <Badges /> : <OfficialLists />}
             </section>
           </>
         )}
@@ -559,6 +578,143 @@ function BadgeForm({
         )}
       </div>
     </form>
+  );
+}
+
+/* ------------------------------------------------------------------ listas do nitrate */
+
+function OfficialLists() {
+  const lists = useFetch("1", fetchOfficialLists);
+  // null: fechado; "nova": criando; uma lista: editando (completa, com todos os filmes)
+  const [editing, setEditing] = useState<MovieList | "nova" | null>(null);
+  const [opening, setOpening] = useState<number | null>(null); // id da lista sendo carregada para editar
+  const [confirming, setConfirming] = useState<number | null>(null); // id da lista com a confirmação de apagar
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const edit = async (id: number) => {
+    setError(null);
+    setOpening(id);
+    try {
+      setEditing(await getOfficialListAdmin(id));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Não foi possível abrir a lista.");
+    } finally {
+      setOpening(null);
+    }
+  };
+
+  const remove = async (id: number) => {
+    setError(null);
+    setDeleting(true);
+    try {
+      await deleteOfficialList(id);
+      setConfirming(null);
+      lists.reload();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Não foi possível apagar a lista.");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <div>
+      <SectionHeading
+        title="Listas do Nitrate"
+        count={lists.data?.length}
+        action={
+          <button
+            onClick={() => setEditing("nova")}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-brand-btn text-brand-btn-text text-sm font-semibold hover:bg-brand-btn/90 transition-colors"
+          >
+            <PlusIcon size={14} weight="bold" /> Nova lista
+          </button>
+        }
+      />
+      <p className="-mt-1 mb-6 text-sm text-brand-slate/70">
+        Feitas como o perfil <Link href="/u/nitrate" className="text-foreground hover:text-brand-orange">@nitrate</Link>.
+        As públicas aparecem na home de todo mundo; as privadas são rascunhos e só aparecem aqui.
+      </p>
+
+      {error && (
+        <p role="alert" className="mb-4 flex items-center gap-2 text-sm text-brand-crimson">
+          <WarningIcon size={16} /> {error}
+        </p>
+      )}
+
+      {!lists.data ? (
+        lists.error ? <ErrorMessage error={lists.error} onRetry={lists.reload} /> : <Loading />
+      ) : lists.data.length === 0 ? (
+        <p className="text-sm text-brand-slate">Nenhuma lista ainda. Comece por “Os filmes para ver antes de Vingadores”.</p>
+      ) : (
+        <ul className="flex flex-col divide-y divide-foreground/5">
+          {lists.data.map((list) => (
+            <li key={list.id} className="py-3">
+              {confirming === list.id ? (
+                <DeleteConfirmBar
+                  title={`Apagar a lista ${list.name}?`}
+                  busy={deleting}
+                  onKeep={() => setConfirming(null)}
+                  onConfirm={() => remove(list.id)}
+                />
+              ) : (
+                <div className="flex items-center gap-3">
+                  <div className="min-w-0 flex-1">
+                    <Link href={listHref(list)} className="block truncate text-sm font-medium hover:text-brand-orange transition-colors">
+                      {list.name}
+                    </Link>
+                    <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-brand-slate">
+                      {list.isPublic ? (
+                        <span className="inline-flex items-center gap-1 text-brand-emerald">
+                          <GlobeHemisphereWestIcon size={12} /> Pública
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1">
+                          <LockSimpleIcon size={12} /> Rascunho
+                        </span>
+                      )}
+                      <span aria-hidden="true">·</span>
+                      <span>{list.filmsCount} {list.filmsCount === 1 ? "filme" : "filmes"}</span>
+                      <span aria-hidden="true">·</span>
+                      <span>atualizada {timeAgo(list.updatedAt)}</span>
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => edit(list.id)}
+                    disabled={opening !== null}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-sm text-brand-slate hover:text-foreground hover:bg-surface disabled:opacity-60 transition-colors"
+                  >
+                    {opening === list.id ? <CircleNotchIcon size={14} className="animate-spin" /> : <PencilSimpleIcon size={14} />} Editar
+                  </button>
+                  <button
+                    onClick={() => {
+                      setError(null);
+                      setConfirming(list.id);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-sm text-brand-crimson hover:bg-brand-crimson/10 transition-colors"
+                  >
+                    <TrashIcon size={14} /> Apagar
+                  </button>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <ListEditor
+        open={editing !== null}
+        list={editing === "nova" ? null : editing}
+        save={saveOfficialList}
+        official
+        onClose={() => setEditing(null)}
+        onSaved={() => {
+          setEditing(null);
+          lists.reload();
+        }}
+      />
+    </div>
   );
 }
 
