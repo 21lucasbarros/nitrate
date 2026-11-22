@@ -17,6 +17,7 @@ import {
   LinkSimpleIcon,
   ListPlusIcon,
   PencilSimpleIcon,
+  UsersIcon,
   WarningIcon,
 } from "@phosphor-icons/react";
 
@@ -26,7 +27,7 @@ import { NitrateRating } from "@/app/components/movie-community";
 import { ReviewComments } from "@/app/components/review-comments";
 import { ReviewLikeButton } from "@/app/components/review-like-button";
 import { ReviewForm } from "@/app/components/review-form";
-import { reviewHref } from "@/app/components/review-card";
+import { acceptedTogether, partnerReviewHref, reviewHref } from "@/app/components/review-card";
 import { ShareReviewStoryModal } from "@/app/components/review-story-share";
 import { Avatar } from "@/app/components/ui/avatar";
 import { Modal } from "@/app/components/ui/modal";
@@ -114,6 +115,9 @@ function ReviewView({ review, onChange, onDeleted }: {
   useMovieEasterEgg(movie);
 
   const hideText = review.spoiler && !isOwn && !revealed;
+  const together = acceptedTogether(review);
+  // o convite pendente só aparece para quem convidou
+  const pendingWith = isOwn && review.together?.status === "PENDING" ? review.together.partner : null;
   const backdrop = backdropUrl(credits.data?.backdropPath);
   const director = credits.data?.directors[0]?.name ?? movie.director;
   const firstName = user.name.split(" ")[0];
@@ -165,13 +169,33 @@ function ReviewView({ review, onChange, onDeleted }: {
 
           {/* a review */}
           <section className="min-w-0 md:pt-24">
-            <Link href={`/u/${user.username}`} className="group flex items-center gap-3 pb-4 border-b border-foreground/10">
-              <Avatar name={user.name} username={user.username} avatar={user.avatar} size="sm" />
-              <span className="text-sm text-brand-slate">
-                Review de <span className="font-semibold text-foreground group-hover:text-brand-orange transition-colors">{user.name}</span>
-              </span>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 pb-4 border-b border-foreground/10">
+              <Link href={`/u/${user.username}`} className="group flex items-center gap-3">
+                <Avatar name={user.name} username={user.username} avatar={user.avatar} size="sm" />
+                <span className="text-sm text-brand-slate">
+                  Review de <span className="font-semibold text-foreground group-hover:text-brand-orange transition-colors">{user.name}</span>
+                </span>
+              </Link>
+              {together && (
+                <Link
+                  href={partnerReviewHref(together)}
+                  title={`Ver a review de ${together.partner.name}`}
+                  className="group flex items-center gap-2 text-sm text-brand-slate"
+                >
+                  <UsersIcon size={16} className="text-brand-orange" />
+                  com
+                  <Avatar name={together.partner.name} username={together.partner.username} avatar={together.partner.avatar} size="xs" />
+                  <span className="font-semibold text-foreground group-hover:text-brand-orange transition-colors">{together.partner.name}</span>
+                </Link>
+              )}
+              {pendingWith && (
+                <span className="flex items-center gap-2 text-xs text-brand-slate">
+                  <UsersIcon size={14} />
+                  Aguardando {pendingWith.name} aceitar a review em conjunto
+                </span>
+              )}
               <span className="ml-auto text-xs text-brand-slate/60">registrada {timeAgo(review.createdAt)}</span>
-            </Link>
+            </div>
 
             <h1 className="mt-6 font-serif text-4xl sm:text-5xl font-semibold leading-[1.05] tracking-tight">
               <Link href={filmHref(movie)} className="hover:text-brand-blue transition-colors">{movie.title}</Link>{" "}
@@ -208,6 +232,15 @@ function ReviewView({ review, onChange, onDeleted }: {
                     <span className="mb-3 flex items-center gap-1.5 w-fit text-[11px] font-bold uppercase tracking-[0.15em] text-brand-crimson">
                       <WarningIcon size={13} weight="bold" /> Spoiler
                     </span>
+                  )}
+                  {together?.sharedText && (
+                    <p className="mb-3 text-sm text-brand-slate">
+                      {firstName} usou a review de{" "}
+                      <Link href={partnerReviewHref(together)} className="text-foreground hover:text-brand-orange">
+                        {together.partner.name}
+                      </Link>
+                      .
+                    </p>
                   )}
                   <ReviewText text={review.text} className="font-serif text-[19px] leading-[1.75] text-foreground/85" />
                 </div>

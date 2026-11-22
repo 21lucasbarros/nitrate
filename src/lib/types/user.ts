@@ -72,7 +72,8 @@ export interface ProfileUpdate {
   instagram: string;
 }
 
-// Espelha NotificationDTO: estreias do Radar (com `movie` ou `series`) ou alguém que começou a seguir (com `actor`)
+// Espelha NotificationDTO: estreias do Radar (com `movie` ou `series`), alguém que começou a seguir (com `actor`)
+// ou convites de review em conjunto (com `movie`, `actor` e `collaboration`)
 interface NotificationBase {
   id: number;
   detail: string | null; // data de estreia ou serviços de streaming
@@ -80,8 +81,24 @@ interface NotificationBase {
   read: boolean;
 }
 
+// nos convites de review em conjunto: o estado do convite agora
+export interface NotificationCollaboration {
+  id: number;
+  status: "PENDING" | "ACCEPTED" | "DECLINED";
+  authorReviewId: number;
+  inviteeReviewId: number | null;
+}
+
 export type AppNotification =
   | (NotificationBase & { type: "CINEMA" | "STREAMING"; movie: Movie; series: null; seasonNumber: null; actor: null })
   | (NotificationBase & { type: "SERIES_PREMIERE"; movie: null; series: Series; seasonNumber: null; actor: null })
   | (NotificationBase & { type: "SERIES_SEASON"; movie: null; series: Series; seasonNumber: number; actor: null })
-  | (NotificationBase & { type: "FOLLOW"; movie: null; series: null; seasonNumber: null; actor: UserSummary });
+  | (NotificationBase & { type: "FOLLOW"; movie: null; series: null; seasonNumber: null; actor: UserSummary })
+  | (NotificationBase & {
+      type: "COLLAB_INVITE" | "COLLAB_ACCEPTED";
+      movie: Movie;
+      series: null;
+      seasonNumber: null;
+      actor: UserSummary;
+      collaboration: NotificationCollaboration;
+    });

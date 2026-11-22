@@ -1,15 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowsClockwiseIcon, CalendarBlankIcon, CircleNotchIcon, FloppyDiskIcon, HeartIcon, TrashIcon, WarningIcon } from "@phosphor-icons/react";
+import { ArrowsClockwiseIcon, CalendarBlankIcon, CircleNotchIcon, FloppyDiskIcon, HeartIcon, TrashIcon, UsersIcon, WarningIcon } from "@phosphor-icons/react";
 import { ApiError } from "@/lib/api-client";
-import { createReview, deleteReview, updateReview } from "@/lib/services/review-service";
-import type { MovieReview } from "@/lib/types/review";
+import { acceptReviewInvite, createReview, deleteReview, updateReview } from "@/lib/services/review-service";
+import type { MovieReview, ReviewInvite } from "@/lib/types/review";
+import type { UserSummary } from "@/lib/types/user";
 import { canRate, type Movie } from "@/types/movie";
 import { easterEggFor } from "@/lib/easter-eggs";
 import { showQuote } from "@/lib/hooks/use-easter-eggs";
 import { clearReviewDraft, loadReviewDraft, reviewDraftKey, saveReviewDraft, type ReviewDraft } from "@/lib/review-draft";
 import { shortDate, todayIso } from "@/utils/format";
+import { CompanionPicker } from "./companion-picker";
 import { DeleteConfirmBar } from "./ui/delete-confirm-bar";
 import { Poster } from "./ui/poster";
 import { RichTextEditor } from "./ui/rich-text-editor";
@@ -22,19 +24,22 @@ interface ReviewFormProps {
   existing: MovieReview | null;
   /** já existe alguma review deste filme: a nova é um reassistido */
   previouslyWatched?: boolean;
+  /** aceitando um convite de review em conjunto escrevendo a própria review */
+  invite?: ReviewInvite;
   onSaved: (review: MovieReview) => void;
   onDeleted: () => void;
   onCancel: () => void;
 }
 
-export function ReviewForm({ movie, existing, previouslyWatched = false, onSaved, onDeleted, onCancel }: ReviewFormProps) {
+export function ReviewForm({ movie, existing, previouslyWatched = false, invite, onSaved, onDeleted, onCancel }: ReviewFormProps) {
   // antes da estreia a review pode ter texto e curtida, mas não nota
   const rateable = canRate(movie);
   // o que o formulário mostraria sem rascunho: a review salva, ou tudo em branco
   const initial: ReviewDraft = {
     rating: rateable ? existing?.rating ?? null : null,
     liked: existing?.liked ?? false,
-    watchedOn: existing?.watchedOn ?? todayIso(),
+    // no convite, a sessão é a mesma de quem convidou
+    watchedOn: existing?.watchedOn ?? invite?.review.watchedOn ?? todayIso(),
     text: existing?.text ?? "",
     spoiler: existing?.spoiler ?? false,
     rewatch: existing?.rewatch ?? previouslyWatched,
@@ -58,6 +63,20 @@ export function ReviewForm({ movie, existing, previouslyWatched = false, onSaved
   const [busy, setBusy] = useState<"save" | "delete" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+
+  // "assisti com": convite pendente pode trocar ou desfazer; depois de aceito, o par fica
+  const together = existing?.together ?? null;
+  const initialCompanion = invite?.author ?? together?.partner ?? null;
+  const [companion, setCompanion] = useState<UserSummary | null>(initialCompanion);
+  const companionLocked = invite !== undefined || together?.status === "ACCEPTED";
+  const companionChanged = (companion?.username ?? "") !== (initialCompanion?.username ?? "");
+  const companionHint = companionLocked
+    ? `Review em conjunto com ${initialCompanion?.name}`
+    : companion && !companionChanged
+      ? `Aguardando ${companion.name} aceitar o convite`
+      : companion
+        ? `${companion.name} vai receber um convite para a review em conjunto`
+        : undefined;
 
   const hasText = text.trim().length > 0;
 
@@ -120,11 +139,15 @@ export function ReviewForm({ movie, existing, previouslyWatched = false, onSaved
       text: text.trim() || null,
       spoiler: hasText && spoiler,
       rewatch: rewatch || rewatchLocked,
+      // só manda quando muda: "" desfaz o convite pendente
+      ...(!companionLocked && companionChanged && { watchedWith: companion?.username ?? "" }),
     };
     try {
-      const saved = existing
-        ? await updateReview(existing.id, data)
-        : await createReview({ ...data, movieId: movie.id });
+      const saved = invite
+        ? await acceptReviewInvite(invite.id, data)
+        : existing
+          ? await updateReview(existing.id, data)
+          : await createReview({ ...data, movieId: movie.id });
       clearReviewDraft(draftKey);
       onSaved(saved);
     } catch (err) {
@@ -156,7 +179,7 @@ export function ReviewForm({ movie, existing, previouslyWatched = false, onSaved
         </div>
         <div className="min-w-0">
           <span className="text-xs font-bold tracking-[0.2em] uppercase text-brand-orange">
-            {existing ? "Editar review" : previouslyWatched ? "Assisti de novo…" : "Eu assisti…"}
+            {invite ? "Sua review em conjunto" : existing ? "Editar review" : previouslyWatched ? "Assisti de novo…" : "Eu assisti…"}
           </span>
           <h2 className="text-xl sm:text-2xl font-medium tracking-tight leading-tight mt-1 truncate">
             {movie.title}{" "}
@@ -237,7 +260,15 @@ export function ReviewForm({ movie, existing, previouslyWatched = false, onSaved
         {rewatchLocked ? "Reassistido (você já registrou este filme)" : "Já tinha assistido antes"}
       </label>
 
+      <CompanionPicker value={companion} onChange={setCompanion} locked={companionLocked} hint={companionHint} />
+
       <div className="flex flex-col gap-2">
+        {together?.sharedText && (
+          <p className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg bg-surface text-sm text-brand-slate">
+            <UsersIcon size={16} className="shrink-0 text-brand-orange" />
+            Este texto é a review de {together.partner.name}. Se você mudar, a review passa a ser sua.
+          </p>
+        )}
         <div className="relative">
           <RichTextEditor
             label={`Sua review de ${movie.title}`}

@@ -1,5 +1,5 @@
 import { apiFetch } from "../api-client";
-import type { MovieReview, ReviewComment, ReviewEngagement, ReviewRequest } from "../types/review";
+import type { MovieReview, ReviewComment, ReviewEngagement, ReviewInvite, ReviewRequest } from "../types/review";
 
 export function getRecentReviews(limit = 20): Promise<MovieReview[]> {
   return apiFetch<MovieReview[]>(`/reviews/recent?limit=${limit}`);
@@ -54,6 +54,23 @@ export function addReviewComment(id: number, text: string): Promise<ReviewCommen
 
 export function deleteReviewComment(id: number, commentId: number): Promise<void> {
   return apiFetch<void>(`/reviews/${id}/comments/${commentId}`, { method: "DELETE" });
+}
+
+/** review em conjunto: o convite que chegou pelo sino */
+export function getReviewInvite(id: number): Promise<ReviewInvite> {
+  return apiFetch<ReviewInvite>(`/reviews/invites/${id}`);
+}
+
+/** sem `review`, fica com a review de quem convidou; com, escreve a própria */
+export function acceptReviewInvite(id: number, review?: ReviewRequest): Promise<MovieReview> {
+  return apiFetch<MovieReview>(`/reviews/invites/${id}/accept`, {
+    method: "POST",
+    body: JSON.stringify({ review: review ?? null }),
+  });
+}
+
+export function declineReviewInvite(id: number): Promise<void> {
+  return apiFetch<void>(`/reviews/invites/${id}/decline`, { method: "POST" });
 }
 
 export function deleteReview(id: number): Promise<void> {

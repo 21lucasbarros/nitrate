@@ -13,6 +13,26 @@ export interface MovieReview {
   spoiler: boolean; // texto escondido para os outros até clicarem para ver
   watchedOn: string; // yyyy-mm-dd
   createdAt: string; // ISO
+  together: ReviewTogether | null; // review em conjunto ("assisti com")
+}
+
+// Espelha ReviewDTO.Together: o par visto do lado do dono da review (convites recusados não vêm)
+export interface ReviewTogether {
+  partner: UserSummary;
+  partnerReviewId: number | null; // nula enquanto o convite está pendente
+  status: "PENDING" | "ACCEPTED";
+  invitedByMe: boolean;
+  sharedText: boolean; // o texto desta review é o de `partner`
+}
+
+// Espelha CollaborationDTO: o convite, para quem foi marcado decidir
+export interface ReviewInvite {
+  id: number;
+  status: "PENDING" | "ACCEPTED" | "DECLINED";
+  author: UserSummary;
+  invitee: UserSummary;
+  review: MovieReview; // a review de quem convidou
+  inviteeReviewId: number | null;
 }
 
 export interface ReviewRequest {
@@ -23,6 +43,8 @@ export interface ReviewRequest {
   rewatch: boolean;
   spoiler: boolean;
   watchedOn: string | null;
+  // username de quem assistiu junto; omitido = não muda, "" = desfaz o convite pendente
+  watchedWith?: string;
 }
 
 // Espelha ReviewEngagementDTO e ReviewCommentDTO

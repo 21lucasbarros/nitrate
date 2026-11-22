@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { BellIcon, FilmReelIcon, TelevisionIcon } from "@phosphor-icons/react";
+import { BellIcon, FilmReelIcon, TelevisionIcon, UsersIcon } from "@phosphor-icons/react";
 import { useFetch } from "@/lib/hooks/use-fetch";
 import {
   getMyNotifications,
@@ -22,7 +22,7 @@ const POLL_MS = 5 * 60 * 1000;
 
 const fetchNotifications = () => getMyNotifications();
 
-/** Sino do header: estreias da watchlist (Radar de Estreias) e seguidores novos, numa gaveta à direita. */
+/** Sino do header: estreias da watchlist (Radar de Estreias), seguidores novos e convites de review em conjunto, numa gaveta à direita. */
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [unread, setUnread] = useState(0);
@@ -77,7 +77,7 @@ export function NotificationBell() {
         title={
           <>
             <p className="font-semibold">Notificações</p>
-            <p className="mt-0.5 text-xs text-brand-slate">Estreias da sua watchlist e quem começou a seguir você.</p>
+            <p className="mt-0.5 text-xs text-brand-slate">Estreias da sua watchlist, novos seguidores e reviews em conjunto.</p>
           </>
         }
       >
@@ -116,6 +116,46 @@ function NotificationItem({ notification: n, onSelect }: { notification: AppNoti
             <span className="font-medium">{n.actor.name}</span> começou a seguir você.
           </p>
           <p className="mt-0.5 text-xs text-brand-slate truncate">@{n.actor.username}</p>
+          <p className="mt-1 text-[11px] text-brand-slate/60">{timeAgo(n.createdAt)}</p>
+        </div>
+      </NotificationRow>
+    );
+  }
+
+  if (n.type === "COLLAB_INVITE" || n.type === "COLLAB_ACCEPTED") {
+    const invite = n.type === "COLLAB_INVITE";
+    const c = n.collaboration;
+    // o aceite leva à review de quem aceitou; o convite, à página de responder
+    const href = invite
+      ? `/convite/${c.id}`
+      : c.inviteeReviewId
+        ? `/u/${n.actor.username}/reviews/${c.inviteeReviewId}`
+        : `/convite/${c.id}`;
+    return (
+      <NotificationRow href={href} read={n.read} onSelect={onSelect}>
+        <div className="relative w-10 shrink-0">
+          <Poster title={n.movie.title} posterPath={n.movie.posterPath} size="w185" sizes="40px" />
+          <span className="absolute -bottom-1.5 -right-1.5 rounded-full ring-2 ring-background">
+            <Avatar name={n.actor.name} username={n.actor.username} avatar={n.actor.avatar} size="xs" />
+          </span>
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm leading-snug">
+            <span className="font-medium">{n.actor.name}</span>{" "}
+            {invite ? "marcou que assistiu " : "aceitou a review em conjunto de "}
+            <span className="font-medium">{n.movie.title}</span>
+            {invite ? " com você." : "."}
+          </p>
+          {invite && (
+            <p className="mt-1 flex items-center gap-1.5 text-xs text-brand-slate">
+              <UsersIcon size={12} />
+              {c.status === "PENDING"
+                ? "Responder ao convite de review em conjunto"
+                : c.status === "ACCEPTED"
+                  ? "Você aceitou"
+                  : "Você recusou"}
+            </p>
+          )}
           <p className="mt-1 text-[11px] text-brand-slate/60">{timeAgo(n.createdAt)}</p>
         </div>
       </NotificationRow>
