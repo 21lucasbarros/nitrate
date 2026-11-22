@@ -9,6 +9,8 @@ import type { UserSummary } from "@/lib/types/user";
 import { Avatar } from "./ui/avatar";
 
 const MAX_RESULTS = 6;
+/** igual ao limite do backend: quantas pessoas cabem no "assisti com" */
+export const MAX_COMPANIONS = 15;
 
 interface CompanionPickerProps {
   value: UserSummary[];
@@ -22,7 +24,7 @@ interface CompanionPickerProps {
 }
 
 /**
- * "Assisti com": marca quem viu o filme junto, quantas pessoas quiser. Cada uma recebe um convite
+ * "Assisti com": marca quem viu o filme junto, até MAX_COMPANIONS pessoas. Cada uma recebe um convite
  * para a review em conjunto, por isso só aparecem (e o backend só aceita) quem segue você.
  */
 export function CompanionPicker({ value, onChange, lockedUsernames = [], readOnly = false, hint }: CompanionPickerProps) {
@@ -49,10 +51,14 @@ export function CompanionPicker({ value, onChange, lockedUsernames = [], readOnl
     .filter((u) => !term || u.username.toLowerCase().includes(term) || u.name.toLowerCase().includes(term))
     .slice(0, MAX_RESULTS);
 
-  // a busca continua aberta para marcar mais gente em seguida
+  const full = value.length >= MAX_COMPANIONS;
+
+  // a busca continua aberta para marcar mais gente em seguida (até encher)
   const choose = (user: UserSummary) => {
+    if (full) return;
     onChange([...value, user]);
     setQuery("");
+    if (value.length + 1 >= MAX_COMPANIONS) setOpen(false);
   };
 
   return (
@@ -80,7 +86,7 @@ export function CompanionPicker({ value, onChange, lockedUsernames = [], readOnl
             )}
           </li>
         ))}
-        {!readOnly && (
+        {!readOnly && !full && (
           <li>
             {value.length > 0 ? (
               <button
@@ -111,9 +117,12 @@ export function CompanionPicker({ value, onChange, lockedUsernames = [], readOnl
       </ul>
 
       {value.length > 0 && hint && <span className="text-xs text-brand-slate">{hint}</span>}
+      {!readOnly && full && (
+        <span className="text-xs text-brand-slate/70">Limite de {MAX_COMPANIONS} pessoas numa review em conjunto.</span>
+      )}
 
       {/* por cima do formulário, para o modal não crescer; abre para cima porque o campo fica no fim do formulário */}
-      {open && !readOnly && (
+      {open && !readOnly && !full && (
         <div className="absolute z-20 bottom-full left-0 mb-2 w-full min-w-[260px] max-w-sm rounded-xl border border-brand-slate/20 bg-background shadow-2xl shadow-black/40 overflow-hidden">
           <label className="flex items-center gap-2 px-3 border-b border-brand-slate/10">
             <MagnifyingGlassIcon size={16} className="shrink-0 text-brand-slate/60" />
