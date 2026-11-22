@@ -4,10 +4,12 @@ import Link from "next/link";
 import { ArrowRightIcon, SparkleIcon, UsersThreeIcon } from "@phosphor-icons/react";
 import type { UserProfile } from "@/lib/types/user";
 import type { MovieReview } from "@/lib/types/review";
+import type { SeriesReview } from "@/types/series";
 import { useFetch } from "@/lib/hooks/use-fetch";
 import { getMyFeed, getMyRecommendations, getUserWatchlist } from "@/lib/services/user-service";
 import { getRecentReviews } from "@/lib/services/review-service";
 import { getCatalog } from "@/lib/services/movie-service";
+import { getMySeriesFeed, getRecentSeriesReviews } from "@/lib/services/series-service";
 import { getPopularLists } from "@/lib/services/list-service";
 import { getMyRetrospectiveMonths } from "@/lib/services/retrospective-service";
 import { cachedFetcher } from "@/lib/cache";
@@ -15,7 +17,7 @@ import { currentMonth, monthLabel, shiftMonth } from "@/utils/format";
 import { MovieGrid } from "./movie-grid";
 import { Recommendations } from "./recommendations";
 import { WhatToWatchButton } from "./what-to-watch";
-import { ActivityPoster } from "./activity-poster";
+import { ActivityPoster, type ActivityEntry } from "./activity-poster";
 import { ListCard } from "./list-card";
 import { ReviewCard } from "./review-card";
 import { SectionHeading } from "./ui/section-heading";
@@ -32,6 +34,9 @@ const FEED_LIMIT = 30;
 // a atividade da comunidade (para quem ainda não segue ninguém) não precisa ser buscada a cada visita
 const fetchRecent = cachedFetcher(() => getRecentReviews(RECENT_LIMIT), 5 * 60 * 1000);
 const fetchFeed = () => getMyFeed(FEED_LIMIT);
+// as séries vêm de outro endpoint e entram na mesma fileira, na ordem de quando foram registradas
+const fetchSeriesRecent = cachedFetcher(() => getRecentSeriesReviews(RECENT_LIMIT), 5 * 60 * 1000);
+const fetchSeriesFeed = () => getMySeriesFeed(FEED_LIMIT);
 const fetchRetroMonths = () => getMyRetrospectiveMonths();
 // "Descubra algo novo": uma página do catálogo basta (antes vinha o acervo inteiro)
 const DISCOVER_POOL = 30;
@@ -49,6 +54,9 @@ export default function UserHome({ user }: { user: UserProfile }) {
   const feed = useFetch(followsSomeone ? `${user.username}:${user.followingCount}` : null, fetchFeed);
   const community = useFetch(followsSomeone ? null : "recent", fetchRecent);
   const activity = followsSomeone ? feed : community;
+  const seriesFeed = useFetch(followsSomeone ? `${user.username}:${user.followingCount}` : null, fetchSeriesFeed);
+  const seriesCommunity = useFetch(followsSomeone ? null : "recent", fetchSeriesRecent);
+  const seriesActivity = followsSomeone ? seriesFeed : seriesCommunity;
   const movies = useFetch("all", fetchMovies);
   // a chave inclui a contagem de filmes: registrar um filme novo refaz as recomendações
   const recommendations = useFetch(`${user.username}:${user.filmsCount}`, fetchRecommendations);
@@ -65,9 +73,12 @@ export default function UserHome({ user }: { user: UserProfile }) {
   const watchlistIds = new Set(watchlist.data?.map((item) => item.movie.id));
   const discover = (movies.data?.items ?? []).filter((movie) => !watchlistIds.has(movie.id)).slice(0, 12);
   const recentWritten = (activity.data ?? []).filter((r) => r.text && !r.spoiler).slice(0, RECENT_TEXTS);
+  // se as séries falharem, a fileira sai só com os filmes em vez de ficar carregando
+  const seriesReady = seriesActivity.data !== undefined || seriesActivity.error !== undefined;
+  const entries = activity.data && seriesReady ? mergeActivity(activity.data, seriesActivity.data ?? []) : undefined;
   const posters = followsSomeone && user.followingCount > ONE_PER_PERSON_ABOVE
-    ? latestPerPerson(activity.data ?? [])
-    : (activity.data ?? []);
+    ? latestPerPerson(entries ?? [])
+    : (entries ?? []);
 
   return (
     <main className="pt-28 sm:pt-32 pb-24 px-6 max-w-[1100px] mx-auto w-full">
@@ -93,15 +104,15 @@ export default function UserHome({ user }: { user: UserProfile }) {
             </Link>.
           </p>
         )}
-        {activity.data ? (
-          activity.data.length > 0 ? (
+        {entries ? (
+          entries.length > 0 ? (
             <ul className="grid grid-cols-3 sm:grid-cols-6 gap-x-3 gap-y-6 sm:gap-x-4">
-              {posters.slice(0, RECENT_POSTERS).map((review) => (
-                <ActivityPoster key={review.id} review={review} />
+              {posters.slice(0, RECENT_POSTERS).map((entry) => (
+                <ActivityPoster key={`${entry.kind}-${entry.review.id}`} entry={entry} />
               ))}
             </ul>
           ) : (
-            <p className="text-brand-slate">Quem você segue ainda não registrou nenhum filme.</p>
+            <p className="text-brand-slate">Quem você segue ainda não registrou nenhum filme ou série.</p>
           )
         ) : (
           <GridSkeleton />
@@ -189,10 +200,19 @@ export default function UserHome({ user }: { user: UserProfile }) {
   );
 }
 
-/** o feed já vem do mais recente para o mais antigo: fica o primeiro registro de cada pessoa */
-function latestPerPerson(reviews: MovieReview[]): MovieReview[] {
+/** filmes e séries numa fileira só, do registro mais recente para o mais antigo */
+function mergeActivity(movies: MovieReview[], series: SeriesReview[]): ActivityEntry[] {
+  // Date.parse: o Instant pode vir com mais ou menos casas de fração, e aí comparar texto erra
+  return [
+    ...movies.map((review): ActivityEntry => ({ kind: "movie", review })),
+    ...series.map((review): ActivityEntry => ({ kind: "series", review })),
+  ].sort((a, b) => Date.parse(b.review.createdAt) - Date.parse(a.review.createdAt));
+}
+
+/** a fileira já vem do mais recente para o mais antigo: fica o primeiro registro de cada pessoa */
+function latestPerPerson(entries: ActivityEntry[]): ActivityEntry[] {
   const seen = new Set<string>();
-  return reviews.filter((review) => {
+  return entries.filter(({ review }) => {
     if (seen.has(review.user.username)) return false;
     seen.add(review.user.username);
     return true;

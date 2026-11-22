@@ -18,6 +18,7 @@ import {
   SortAscendingIcon,
   SparkleIcon,
   StackIcon,
+  TelevisionSimpleIcon,
   XLogoIcon,
 } from "@phosphor-icons/react";
 
@@ -26,7 +27,8 @@ import { Avatar } from "@/app/components/ui/avatar";
 import { CoverPicker } from "@/app/components/cover-picker";
 import { ProfileBadges } from "@/app/components/badges";
 import { ProfileAchievements } from "@/app/components/profile-achievements";
-import { MovieGrid } from "@/app/components/movie-grid";
+import type { ActivityEntry } from "@/app/components/activity-poster";
+import { MovieGrid, type MovieGridItem } from "@/app/components/movie-grid";
 import { EditFavoritesButton, FavoriteFilms, FavoritesEditor } from "@/app/components/favorite-films";
 import { FavoritePeopleCompact, FavoritePeopleEditor } from "@/app/components/favorite-people";
 import { FollowButton } from "@/app/components/follow-button";
@@ -57,7 +59,7 @@ import {
 } from "@/lib/services/user-service";
 import { getSavedLists, getUserLists } from "@/lib/services/list-service";
 import { getUserSeries, getUserSeriesWatchlist } from "@/lib/services/series-service";
-import { episodeCode, seasonLabel, type SeriesReview } from "@/types/series";
+import { episodeCode, seasonLabel, seriesBadgeLabel, type SeriesReview } from "@/types/series";
 import { seriesHref, seriesReviewHref } from "@/utils/series-link";
 import type { FilmEntry, MovieReview } from "@/lib/types/review";
 import type { FavoritePeopleKind } from "@/types/person";
@@ -150,6 +152,8 @@ function Profile() {
   const watchlist = useFetch(tab === "watchlist" ? username : null, getUserWatchlist);
   const recentFilms = useFetch(tab === "perfil" ? username : null, fetchRecentFilms);
   const recentReviews = useFetch(tab === "perfil" ? username : null, fetchRecentReviews);
+  // as séries entram em "Assistidos recentemente" junto com os filmes
+  const recentSeries = useFetch(tab === "perfil" ? username : null, getUserSeries);
   const following = useFetch(tab === "rede" || peopleModal === "following" ? username : null, getFollowing);
   const followers = useFetch(tab === "rede" || peopleModal === "followers" ? username : null, getFollowers);
   const lists = useFetch(tab === "listas" || tab === "perfil" ? username : null, getUserLists);
@@ -256,6 +260,10 @@ function Profile() {
       ? { src: backdropUrl(coverCredits.data.backdropPath), title: favorite.title, year: favorite.releaseYear, href: filmHref(favorite) }
       : null;
   const hasCover = !!user.cover || !!favorite;
+
+  // se as séries falharem, a fileira sai só com os filmes em vez de ficar carregando
+  const recentReady = recentFilms.data && (recentSeries.data || recentSeries.error);
+  const recentEntries = recentReady ? mergeRecent(recentFilms.data?.items ?? [], recentSeries.data ?? []) : undefined;
 
   return (
     <>
@@ -416,24 +424,12 @@ function Profile() {
                     href={user.filmsCount > RECENT_FILMS ? `${pathname}?tab=filmes` : undefined}
                     linkLabel="Ver todos"
                   />
-                  {!recentFilms.data ? (
+                  {!recentEntries ? (
                     <Loading />
-                  ) : recentFilms.data.items.length > 0 ? (
-                    <MovieGrid
-                      variant="five"
-                      items={recentFilms.data.items.map((review) => ({
-                        movie: review.movie,
-                        // o pôster abre o registro (nota, review, curtidas e comentários), não a página do filme
-                        href: reviewHref(review),
-                        rating: review.rating,
-                        liked: review.liked,
-                        rewatch: review.rewatch,
-                        reviewHref: review.text ? reviewHref(review) : undefined,
-                        caption: <WatchedCaption review={review} />,
-                      }))}
-                    />
+                  ) : recentEntries.length > 0 ? (
+                    <MovieGrid variant="five" items={recentEntries.map(recentGridItem)} />
                   ) : (
-                    <Empty isMe={isMe} me="Você ainda não registrou nenhum filme." other={`${user.name} ainda não registrou nenhum filme.`} />
+                    <Empty isMe={isMe} me="Você ainda não registrou nenhum filme ou série." other={`${user.name} ainda não registrou nenhum filme ou série.`} />
                   )}
                 </div>
               </div>
@@ -534,7 +530,7 @@ function Profile() {
                       liked: review.liked,
                       watchCount: viewings.length,
                       reviewHref: !several && review.text ? reviewHref(review) : undefined,
-                      caption: several ? `Visto ${viewings.length} vezes` : <WatchedCaption review={review} />,
+                      caption: several ? `Visto ${viewings.length} vezes` : <WatchedCaption watchedOn={review.watchedOn} rewatch={review.rewatch} />,
                     };
                   })}
                 />
@@ -834,17 +830,59 @@ function FilmsToolbar({ total, sort, likedOnly, onChange }: {
   );
 }
 
+/** filmes e séries numa fileira só, na ordem do diário: data em que assistiu, depois a do registro */
+function mergeRecent(movies: MovieReview[], series: SeriesReview[]): ActivityEntry[] {
+  return [
+    ...movies.map((review): ActivityEntry => ({ kind: "movie", review })),
+    ...series.map((review): ActivityEntry => ({ kind: "series", review })),
+  ]
+    .sort((a, b) => b.review.watchedOn.localeCompare(a.review.watchedOn) || Date.parse(b.review.createdAt) - Date.parse(a.review.createdAt))
+    .slice(0, RECENT_FILMS);
+}
+
+/** item do MovieGrid: o pôster abre o registro (nota, review, curtidas e comentários), não a página do filme */
+function recentGridItem(entry: ActivityEntry): MovieGridItem {
+  if (entry.kind === "movie") {
+    const review = entry.review;
+    return {
+      movie: review.movie,
+      href: reviewHref(review),
+      rating: review.rating,
+      liked: review.liked,
+      rewatch: review.rewatch,
+      reviewHref: review.text ? reviewHref(review) : undefined,
+      caption: <WatchedCaption watchedOn={review.watchedOn} rewatch={review.rewatch} />,
+    };
+  }
+  const review = entry.review;
+  return {
+    movie: { id: `series-${review.series.id}`, title: review.series.name, posterPath: review.series.posterPath, releaseYear: review.series.firstAirYear },
+    href: seriesReviewHref(review),
+    rating: review.rating,
+    liked: review.liked,
+    reviewHref: review.text ? seriesReviewHref(review) : undefined,
+    // o selo diz que é série e até onde a pessoa foi
+    badge: (
+      <>
+        <TelevisionSimpleIcon size={11} weight="bold" className="text-brand-orange" />
+        {seriesBadgeLabel(review)}
+      </>
+    ),
+    caption: <WatchedCaption watchedOn={review.watchedOn} rewatch={false} />,
+  };
+}
+
 /** contexto do painel do pôster: quando assistiu (e se foi reassistido) */
-function WatchedCaption({ review }: { review: MovieReview }) {
-  if (!review.watchedOn) return null;
+function WatchedCaption({ watchedOn, rewatch }: { watchedOn: string | null; rewatch: boolean }) {
+  if (!watchedOn) return null;
   return (
     <>
-      {review.rewatch ? (
+      {rewatch ? (
         <ArrowsClockwiseIcon size={10} weight="bold" className="shrink-0 text-brand-emerald" aria-label="Reassistido" />
       ) : (
         <CalendarBlankIcon size={10} className="shrink-0" />
       )}
-      {compactDate(review.watchedOn)}
+      {compactDate(watchedOn)}
     </>
   );
 }

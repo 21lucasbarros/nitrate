@@ -78,8 +78,9 @@ export default function Hero() {
             style={rise(160)}
             className={`${riseClass} mt-7 text-lg text-brand-slate max-w-md leading-relaxed`}
           >
-            Anote cada filme que você vê, com data, nota em meia estrela e o que ficou na cabeça depois dos
-            créditos. Seu diário, suas listas e o que seus amigos andam assistindo.
+            Anote cada filme que você vê e cada série que acompanha, até episódio por episódio, com data, nota
+            em meia estrela e o que ficou na cabeça depois dos créditos. Seu diário, suas listas e o que seus
+            amigos andam assistindo.
           </p>
 
           <div style={rise(240)} className={`${riseClass} mt-9 flex flex-col sm:flex-row sm:items-center gap-5 sm:gap-7`}>

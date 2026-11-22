@@ -149,6 +149,13 @@ export function seasonLabel(seasonNumber: number | null, episodeNumber: number |
   return episodeNumber === null ? season : `${season} · Episódio ${episodeNumber}`;
 }
 
+/** selo curto no canto do pôster: "T2E5", "T2", "Especiais" ou "Série" */
+export function seriesBadgeLabel(review: { seasonNumber: number | null; episodeNumber: number | null }): string {
+  if (review.seasonNumber === null) return "Série";
+  if (review.episodeNumber !== null) return episodeCode(review.seasonNumber, review.episodeNumber);
+  return review.seasonNumber === 0 ? "Especiais" : `T${review.seasonNumber}`;
+}
+
 /** "T2E5" */
 export function episodeCode(seasonNumber: number, episodeNumber: number): string {
   return `T${seasonNumber}E${episodeNumber}`;

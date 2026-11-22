@@ -1,32 +1,65 @@
 import Link from "next/link";
-import { ArrowsClockwiseIcon, ChatTextIcon, HeartIcon } from "@phosphor-icons/react";
+import { ArrowsClockwiseIcon, ChatTextIcon, HeartIcon, TelevisionSimpleIcon } from "@phosphor-icons/react";
 import type { MovieReview } from "@/lib/types/review";
+import { seasonLabel, seriesBadgeLabel, type SeriesReview } from "@/types/series";
 import { shortAgo } from "@/utils/format";
 import { toRating } from "@/utils/rating";
+import { seriesReviewHref } from "@/utils/series-link";
 import { reviewHref } from "./review-card";
 import { Avatar } from "./ui/avatar";
 import { Poster } from "./ui/poster";
 import { StarRating } from "./ui/star-rating";
 
+/** um registro da fileira de atividade: filme ou série (que ganha o selo com o episódio) */
+export type ActivityEntry =
+  | { kind: "movie"; review: MovieReview }
+  | { kind: "series"; review: SeriesReview };
+
 /**
  * Pôster da atividade. Embaixo vem primeiro o que a pessoa achou (nota, curtida) e, menor,
  * quem foi e quando: nesta seção o destaque é o filme e a opinião, não o nome.
  */
-export function ActivityPoster({ review }: { review: MovieReview }) {
-  const { movie, user } = review;
+export function ActivityPoster({ entry }: { entry: ActivityEntry }) {
+  const { review } = entry;
+  const { user } = review;
+  const isSeries = entry.kind === "series";
+  const title = isSeries ? entry.review.series.name : entry.review.movie.title;
+  const posterPath = isSeries ? entry.review.series.posterPath : entry.review.movie.posterPath;
+  const year = isSeries ? entry.review.series.firstAirYear : entry.review.movie.releaseYear;
+  const href = isSeries ? seriesReviewHref(entry.review) : reviewHref(entry.review);
+  const rewatch = !isSeries && entry.review.rewatch;
+  // série sem nota: episódio se assiste, temporada ou série inteira se termina
+  const watchedLabel = isSeries
+    ? entry.review.episodeNumber !== null ? "assistiu" : "terminou"
+    : rewatch ? "reassistiu" : "assistiu";
   // só o primeiro nome: o completo cortava ("Beatriz Velardo Cor…"); ele fica no title
   const firstName = user.name.trim().split(/\s+/)[0] || user.username;
 
   return (
     <li className="min-w-0">
       {/* o pôster abre o registro da pessoa (nota, review, curtidas), não a página do filme */}
-      <Link href={reviewHref(review)} aria-label={`${movie.title}, por ${user.name}`} className="group block">
+      <Link
+        href={href}
+        aria-label={`${title}${isSeries ? `, ${seasonLabel(entry.review.seasonNumber, entry.review.episodeNumber)}` : ""}, por ${user.name}`}
+        className="group block"
+      >
         <div className="relative rounded-md group-hover:ring-2 group-hover:ring-brand-orange group-focus-visible:ring-2 group-focus-visible:ring-brand-orange transition-shadow">
-          <Poster title={movie.title} posterPath={movie.posterPath} sizes="(min-width: 640px) 180px, 30vw" />
+          <Poster title={title} posterPath={posterPath} sizes="(min-width: 640px) 180px, 30vw" />
+          {/* pôster de série e de filme são iguais: o selo diz que é série e até onde a pessoa foi */}
+          {isSeries && (
+            <span className="pointer-events-none absolute left-1.5 top-1.5 flex items-center gap-1 rounded bg-black/75 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums tracking-wide text-white ring-1 ring-inset ring-white/15 backdrop-blur-sm">
+              <TelevisionSimpleIcon size={11} weight="bold" className="text-brand-orange" />
+              {seriesBadgeLabel(entry.review)}
+            </span>
+          )}
           {/* nem todo pôster tem o título legível: no hover ele aparece sobre um degradê */}
           <div className="pointer-events-none absolute inset-x-0 bottom-0 rounded-b-md bg-linear-to-t from-black/90 via-black/55 to-transparent px-2.5 pb-2.5 pt-10 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity">
-            <p className="text-xs font-semibold leading-tight text-white line-clamp-2">{movie.title}</p>
-            {movie.releaseYear && <p className="mt-0.5 text-[11px] text-white/65">{movie.releaseYear}</p>}
+            <p className="text-xs font-semibold leading-tight text-white line-clamp-2">{title}</p>
+            {(isSeries || year) && (
+              <p className="mt-0.5 text-[11px] text-white/65">
+                {isSeries ? seasonLabel(entry.review.seasonNumber, entry.review.episodeNumber) : year}
+              </p>
+            )}
           </div>
         </div>
       </Link>
@@ -36,11 +69,11 @@ export function ActivityPoster({ review }: { review: MovieReview }) {
         {review.rating !== null ? (
           <StarRating rating={toRating(review.rating)} size={11} />
         ) : (
-          <span className="text-xs text-brand-slate">{review.rewatch ? "reassistiu" : "assistiu"}</span>
+          <span className="text-xs text-brand-slate">{watchedLabel}</span>
         )}
         {review.liked && <HeartIcon size={12} weight="fill" className="text-brand-crimson" aria-label="Curtiu" />}
         {/* sem nota, o "reassistiu" já diz isso; no celular não cabe ao lado de 5 estrelas e do coração */}
-        {review.rewatch && review.rating !== null && (
+        {rewatch && review.rating !== null && (
           <ArrowsClockwiseIcon size={11} weight="bold" className="hidden sm:block text-brand-slate/60" aria-label="Reassistiu" />
         )}
         {/* o pôster já leva à review: aqui o ícone só avisa que tem texto */}

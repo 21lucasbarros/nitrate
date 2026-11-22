@@ -58,6 +58,16 @@ export function getSeriesReviews(id: number): Promise<SeriesReview[]> {
   return apiFetch<SeriesReview[]>(`/series/${id}/reviews`);
 }
 
+/** os registros de séries mais recentes de todo mundo */
+export function getRecentSeriesReviews(limit = 12): Promise<SeriesReview[]> {
+  return apiFetch<SeriesReview[]>(`/series/reviews/recent?limit=${limit}`);
+}
+
+/** o que quem eu sigo registrou de séries por último */
+export function getMySeriesFeed(limit: number): Promise<SeriesReview[]> {
+  return apiFetch<SeriesReview[]>(`/users/me/series-feed?limit=${limit}`);
+}
+
 export function getSeriesReview(id: number): Promise<SeriesReview> {
   return apiFetch<SeriesReview>(`/series/reviews/${id}`);
 }
