@@ -4,6 +4,7 @@ import type { Page } from "../types/page";
 import type { AuthResponse } from "../types/auth";
 import type { AppNotification, MovieBackdrops, ProfileUpdate, SimilarUser, UserProfile, UserSummary } from "../types/user";
 import type { Movie } from "@/types/movie";
+import type { SeriesReview } from "@/types/series";
 import type { FavoritePeople, FavoritePeopleKind, FavoritePerson } from "@/types/person";
 import type { Activity } from "./friends-service";
 
@@ -104,6 +105,23 @@ export function getUserReviews(
   return apiFetch<Page<MovieReview>>(
     `/users/${encodeURIComponent(username)}/reviews?page=${page}&size=${size}&withText=${withText}`,
   );
+}
+
+// Espelha DiaryEntryDTO: um registro de filme ou de série; o outro campo vem nulo
+export type DiaryEntry =
+  | { kind: "MOVIE"; review: MovieReview; seriesReview: null }
+  | { kind: "SERIES"; review: null; seriesReview: SeriesReview };
+
+export type DiaryType = "tudo" | "filmes" | "series";
+
+/** diário da aba Reviews: filmes e séries juntos, do que assistiu por último para trás */
+export function getUserDiary(
+  username: string,
+  { page, size, withText, type }: { page: number; size: number; withText: boolean; type: DiaryType },
+): Promise<Page<DiaryEntry>> {
+  const params = new URLSearchParams({ page: String(page), size: String(size), withText: String(withText) });
+  if (type !== "tudo") params.set("type", type);
+  return apiFetch<Page<DiaryEntry>>(`/users/${encodeURIComponent(username)}/diary?${params}`);
 }
 
 /** ordens da aba "Filmes" (espelha UserService.OrdemFilmes) */

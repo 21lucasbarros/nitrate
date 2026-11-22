@@ -14,9 +14,11 @@ export interface UserProfile extends UserSummary {
   twitter: string | null; // só o @, sem a URL
   instagram: string | null;
   filmsCount: number;
-  reviewsCount: number; // só as que têm texto
+  reviewsCount: number; // só as que têm texto (de filmes e de séries)
   likesCount: number;
-  watchlistCount: number;
+  watchlistCount: number; // só filmes
+  seriesCount?: number; // séries registradas, sem repetir (opcional enquanto a API antiga estiver no ar)
+  seriesWatchlistCount?: number;
   followersCount: number;
   followingCount: number;
   favorites: Movie[]; // até 5, em ordem

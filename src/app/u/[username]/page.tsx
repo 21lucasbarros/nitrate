@@ -19,6 +19,7 @@ import {
   SparkleIcon,
   StackIcon,
   TelevisionSimpleIcon,
+  TrashIcon,
   XLogoIcon,
 } from "@phosphor-icons/react";
 
@@ -28,6 +29,7 @@ import { CoverPicker } from "@/app/components/cover-picker";
 import { ProfileBadges } from "@/app/components/badges";
 import { ProfileAchievements } from "@/app/components/profile-achievements";
 import type { ActivityEntry } from "@/app/components/activity-poster";
+import { DiaryList } from "@/app/components/diary-list";
 import { MovieGrid, type MovieGridItem } from "@/app/components/movie-grid";
 import { EditFavoritesButton, FavoriteFilms, FavoritesEditor } from "@/app/components/favorite-films";
 import { FavoritePeopleCompact, FavoritePeopleEditor } from "@/app/components/favorite-people";
@@ -40,6 +42,7 @@ import { UserList } from "@/app/components/user-list";
 import { Modal } from "@/app/components/ui/modal";
 import { SectionHeading } from "@/app/components/ui/section-heading";
 import { ReviewCard, reviewHref } from "@/app/components/review-card";
+import { DeleteConfirmBar } from "@/app/components/ui/delete-confirm-bar";
 import { Pagination } from "@/app/components/ui/pagination";
 import { ViewingPicker } from "@/app/components/viewing-picker";
 import { ApiError } from "@/lib/api-client";
@@ -52,16 +55,20 @@ import {
   getProfile,
   getSimilarUsers,
   getUserFilms,
+  getUserDiary,
   getUserReviews,
   getUserWatchlist,
   FILM_SORTS,
+  type DiaryType,
   type FilmSort,
 } from "@/lib/services/user-service";
 import { getSavedLists, getUserLists } from "@/lib/services/list-service";
-import { getUserSeries, getUserSeriesWatchlist } from "@/lib/services/series-service";
+import { getUserSeries, getUserSeriesWatchlist, removeSeriesFromWatchlist } from "@/lib/services/series-service";
+import { removeFromWatchlist } from "@/lib/services/watchlist-service";
 import { episodeCode, seasonLabel, seriesBadgeLabel, type SeriesReview } from "@/types/series";
 import { seriesHref, seriesReviewHref } from "@/utils/series-link";
 import type { FilmEntry, MovieReview } from "@/lib/types/review";
+import type { Page } from "@/lib/types/page";
 import type { FavoritePeopleKind } from "@/types/person";
 import { getMovieCredits } from "@/lib/services/movie-service";
 import { compactDate, timeAgo } from "@/utils/format";
@@ -71,10 +78,10 @@ import { sameUsername } from "@/utils/username";
 
 const TABS = [
   { id: "perfil", label: "Perfil" },
-  { id: "filmes", label: "Filmes" },
   { id: "reviews", label: "Reviews" },
-  { id: "watchlist", label: "Watchlist" },
+  { id: "filmes", label: "Filmes" },
   { id: "series", label: "Séries" },
+  { id: "watchlist", label: "Watchlist" },
   { id: "listas", label: "Listas" },
   { id: "conquistas", label: "Conquistas" },
   { id: "rede", label: "Amigos" },
@@ -86,7 +93,7 @@ type TabId = (typeof TABS)[number]["id"];
 const TAB_ALIASES: Record<string, TabId> = { diario: "filmes", favoritos: "perfil" };
 
 const FILMS_PER_PAGE = 48; // Filmes e Watchlist: 8 linhas de 6 (12 de 4, 16 de 3 no celular)
-const REVIEWS_PER_PAGE = 10;
+const REVIEWS_PER_PAGE = 20;
 const RECENT_FILMS = 5; // uma linha, alinhada com os 5 favoritos
 const RECENT_REVIEWS = 2;
 const SIDE_LISTS = 3; // listas na coluna lateral do Perfil
@@ -96,9 +103,16 @@ const fetchFilmsPage = (key: string) => {
   const [username, sort, liked, page] = key.split("|");
   return getUserFilms(username, { page: Number(page) - 1, size: FILMS_PER_PAGE, sort: sort as FilmSort, liked: liked === "1" });
 };
-const fetchReviewsPage = (key: string) => {
-  const [username, page] = key.split("|");
-  return getUserReviews(username, { page: Number(page) - 1, size: REVIEWS_PER_PAGE, withText: true });
+// aba Reviews: "usuario|tipo|pagina"; filmes e séries vêm juntos do diário, só os com review escrita
+const fetchDiaryPage = async (key: string): Promise<Page<ActivityEntry>> => {
+  const [username, type, page] = key.split("|");
+  const result = await getUserDiary(username, { page: Number(page) - 1, size: REVIEWS_PER_PAGE, withText: true, type: type as DiaryType });
+  return {
+    ...result,
+    items: result.items.map((entry): ActivityEntry =>
+      entry.kind === "MOVIE" ? { kind: "movie", review: entry.review } : { kind: "series", review: entry.seriesReview },
+    ),
+  };
 };
 const fetchRecentFilms = (username: string) => getUserReviews(username, { page: 0, size: RECENT_FILMS });
 const fetchSimilar = () => getSimilarUsers();
@@ -135,6 +149,9 @@ function Profile() {
   // modal aberto pelos números "seguindo" / "seguidores" do topo
   const [peopleModal, setPeopleModal] = useState<"following" | "followers" | null>(null);
   const [pickingCover, setPickingCover] = useState(false);
+  // aba Watchlist: a confirmação de limpar tudo e o aviso se alguma remoção falhar
+  const [clearing, setClearing] = useState<"confirm" | "busy" | null>(null);
+  const [clearError, setClearError] = useState(false);
 
   const rawTab = searchParams.get("tab") ?? "";
   const tabParam = TAB_ALIASES[rawTab] ?? rawTab;
@@ -144,12 +161,18 @@ function Profile() {
   const rawSort = searchParams.get("ordem");
   const sort: FilmSort = FILM_SORTS.some((s) => s.id === rawSort) ? (rawSort as FilmSort) : "lancamento";
   const likedOnly = searchParams.get("curtidos") === "1";
+  // aba Reviews: filmes, séries ou tudo
+  const rawType = searchParams.get("tipo");
+  const diaryType: DiaryType = rawType === "filmes" || rawType === "series" ? rawType : "tudo";
+  // aba Watchlist: filmes (padrão) ou séries, cada uma com o seu sorteio
+  const watchlistSeries = searchParams.get("tipo") === "series";
 
   // espera a sessão carregar: com token, o perfil diz se você segue a pessoa
   const profile = useFetch(status === "loading" ? null : username, getProfile);
   const films = useFetch(tab === "filmes" ? `${username}|${sort}|${likedOnly ? 1 : 0}|${page}` : null, fetchFilmsPage);
-  const reviewsPage = useFetch(tab === "reviews" ? `${username}|${page}` : null, fetchReviewsPage);
-  const watchlist = useFetch(tab === "watchlist" ? username : null, getUserWatchlist);
+  const reviewsPage = useFetch(tab === "reviews" ? `${username}|${diaryType}|${page}` : null, fetchDiaryPage);
+  const watchlist = useFetch(tab === "watchlist" && !watchlistSeries ? username : null, getUserWatchlist);
+  const seriesWatchlist = useFetch(tab === "watchlist" && watchlistSeries ? username : null, getUserSeriesWatchlist);
   const recentFilms = useFetch(tab === "perfil" ? username : null, fetchRecentFilms);
   const recentReviews = useFetch(tab === "perfil" ? username : null, fetchRecentReviews);
   // as séries entram em "Assistidos recentemente" junto com os filmes
@@ -190,6 +213,8 @@ function Profile() {
     newPage: number,
     mode: "push" | "replace",
     filters: { sort: FilmSort; liked: boolean } = { sort, liked: likedOnly },
+    // na aba Watchlist, só o tipo vale ("series" ou o padrão, filmes)
+    kind: DiaryType = id === "watchlist" ? (watchlistSeries ? "series" : "tudo") : diaryType,
   ) => {
     const params = new URLSearchParams();
     if (id !== "perfil") params.set("tab", id);
@@ -197,16 +222,49 @@ function Profile() {
       if (filters.sort !== "lancamento") params.set("ordem", filters.sort);
       if (filters.liked) params.set("curtidos", "1");
     }
+    if (id === "reviews" && kind !== "tudo") params.set("tipo", kind);
+    if (id === "watchlist" && kind === "series") params.set("tipo", "series");
     if (newPage > 1) params.set("page", String(newPage));
     const qs = params.toString();
     router[mode](qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   };
 
   // trocar de aba volta para a página 1 (e a aba Filmes, para a ordem padrão)
-  const selectTab = (id: TabId) => navigate(id, 1, "replace", { sort: "lancamento", liked: false });
+  const selectTab = (id: TabId) => {
+    setClearing(null);
+    setClearError(false);
+    navigate(id, 1, "replace", { sort: "lancamento", liked: false }, "tudo");
+  };
 
   // mudar a ordem ou o filtro também volta para a página 1
   const setFilmFilters = (filters: { sort: FilmSort; liked: boolean }) => navigate("filmes", 1, "replace", filters);
+
+  const setWatchlistType = (type: "filmes" | "series") => {
+    setClearing(null);
+    setClearError(false);
+    navigate("watchlist", 1, "replace", undefined, type === "series" ? "series" : "tudo");
+  };
+
+  const setDiaryType = (type: DiaryType) => navigate("reviews", 1, "replace", undefined, type);
+
+  // esvazia a watchlist aberta (filmes ou séries); o que falhar continua na lista
+  const clearWatchlist = async () => {
+    setClearing("busy");
+    setClearError(false);
+    const remaining = watchlistSeries
+      ? await removeAll((seriesWatchlist.data ?? []).map((item) => item.series.id), removeSeriesFromWatchlist)
+      : await removeAll((watchlist.data ?? []).map((item) => item.movie.id), removeFromWatchlist);
+    setClearing(null);
+    profile.setData(watchlistSeries ? { ...user, seriesWatchlistCount: remaining } : { ...user, watchlistCount: remaining });
+    if (remaining > 0) {
+      setClearError(true);
+      (watchlistSeries ? seriesWatchlist : watchlist).reload();
+    } else if (watchlistSeries) {
+      seriesWatchlist.setData([]);
+    } else {
+      watchlist.setData([]);
+    }
+  };
 
   // push: o "voltar" do navegador volta para a página anterior
   const selectPage = (newPage: number) => {
@@ -238,7 +296,8 @@ function Profile() {
   const counts: Partial<Record<TabId, number>> = {
     filmes: user.filmsCount,
     reviews: user.reviewsCount,
-    watchlist: user.watchlistCount,
+    series: user.seriesCount,
+    watchlist: user.watchlistCount + (user.seriesWatchlistCount ?? 0),
   };
 
   const stats: { label: string; value: number; onClick: () => void }[] = [
@@ -421,7 +480,8 @@ function Profile() {
                 <div>
                   <SectionHeading
                     title="Assistidos recentemente"
-                    href={user.filmsCount > RECENT_FILMS ? `${pathname}?tab=filmes` : undefined}
+                    // a aba Filmes, do assistido por último para trás
+                    href={recentEntries && recentEntries.length >= RECENT_FILMS ? `${pathname}?tab=filmes&ordem=assistidos` : undefined}
                     linkLabel="Ver todos"
                   />
                   {!recentEntries ? (
@@ -546,48 +606,82 @@ function Profile() {
           </div>
         )}
 
-        {tab === "reviews" &&
-          (!reviewsPage.data ? (
-            <Loading />
-          ) : reviewsPage.data.items.length > 0 ? (
-            <div className={reviewsPage.loading ? "opacity-50 transition-opacity" : ""}>
-              <div className="divide-y divide-foreground/10 -mt-8">
-                {reviewsPage.data.items.map((review) => (
-                  <ReviewCard key={review.id} review={review} hideUser excerpt />
-                ))}
+        {tab === "reviews" && (
+          <div>
+            <DiaryToolbar total={reviewsPage.data?.totalItems} type={diaryType} onChange={setDiaryType} />
+            {!reviewsPage.data ? (
+              <Loading />
+            ) : reviewsPage.data.items.length > 0 ? (
+              <div className={reviewsPage.loading ? "opacity-50 transition-opacity" : ""}>
+                <DiaryList entries={reviewsPage.data.items} />
+                <Pagination page={page} totalPages={reviewsPage.data.totalPages} onChange={selectPage} />
               </div>
-              <Pagination page={page} totalPages={reviewsPage.data.totalPages} onChange={selectPage} />
-            </div>
-          ) : (
-            <Empty isMe={isMe} me="Você ainda não escreveu nenhuma review." other={`${user.name} ainda não escreveu nenhuma review.`} />
-          ))}
+            ) : (
+              <p className="py-12 text-center text-brand-slate">{emptyDiary(diaryType, isMe ? null : user.name)}</p>
+            )}
+          </div>
+        )}
 
-        {tab === "watchlist" &&
-          (watchlist.loading ? (
-            <Loading />
-          ) : watchlist.data && watchlist.data.length > 0 ? (
-            <>
-              {isMe && <WhatToWatchButton variant="banner" movies={watchlist.data.map((item) => item.movie)} className="mb-8" />}
-              {/* a API devolve a watchlist inteira (o sorteio precisa dela toda): a página é só um recorte */}
-              {(() => {
-                const totalPages = Math.ceil(watchlist.data.length / FILMS_PER_PAGE);
-                const current = Math.min(page, totalPages); // ?page=9 numa watchlist de 3 páginas
-                return (
-                  <>
-                    <MovieGrid
-                      variant="library"
-                      items={watchlist.data
-                        .slice((current - 1) * FILMS_PER_PAGE, current * FILMS_PER_PAGE)
-                        .map((item) => ({ movie: item.movie, caption: `Na lista ${timeAgo(item.addedAt)}` }))}
-                    />
-                    <Pagination page={current} totalPages={totalPages} onChange={selectPage} />
-                  </>
-                );
-              })()}
-            </>
-          ) : (
-            <Empty isMe={isMe} me="Sua watchlist está vazia." other={`A watchlist de ${user.name} está vazia.`} />
-          ))}
+        {tab === "watchlist" && (
+          <div>
+            <WatchlistToolbar
+              series={watchlistSeries}
+              movieCount={user.watchlistCount}
+              seriesCount={user.seriesWatchlistCount}
+              onChange={setWatchlistType}
+              // só no próprio perfil, com algo na lista aberta
+              onClear={isMe && !clearing && ((watchlistSeries ? seriesWatchlist : watchlist).data?.length ?? 0) > 0 ? () => setClearing("confirm") : undefined}
+            />
+            {clearing && (
+              <div className="-mt-4 mb-8">
+                <DeleteConfirmBar
+                  title={clearTitle(watchlistSeries, (watchlistSeries ? seriesWatchlist : watchlist).data?.length ?? 0)}
+                  busy={clearing === "busy"}
+                  onKeep={() => setClearing(null)}
+                  onConfirm={clearWatchlist}
+                />
+              </div>
+            )}
+            {clearError && (
+              <p role="alert" className="-mt-4 mb-8 text-sm text-brand-crimson">
+                Não foi possível remover tudo. Tente de novo para tirar o que sobrou.
+              </p>
+            )}
+            {(() => {
+              const state = watchlistSeries ? seriesWatchlist : watchlist;
+              if (state.loading || !state.data) {
+                return state.error ? <p className="py-12 text-center text-brand-slate">Não foi possível carregar a watchlist.</p> : <Loading />;
+              }
+              const items: MovieGridItem[] = watchlistSeries
+                ? (seriesWatchlist.data ?? []).map((item) => ({
+                    movie: { id: item.series.id, title: item.series.name, posterPath: item.series.posterPath, releaseYear: item.series.firstAirYear },
+                    href: seriesHref(item.series),
+                    caption: `Na lista ${timeAgo(item.addedAt)}`,
+                  }))
+                : (watchlist.data ?? []).map((item) => ({ movie: item.movie, caption: `Na lista ${timeAgo(item.addedAt)}` }));
+              if (items.length === 0) {
+                const what = watchlistSeries ? "de séries" : "de filmes";
+                return <Empty isMe={isMe} me={`Sua watchlist ${what} está vazia.`} other={`A watchlist ${what} de ${user.name} está vazia.`} />;
+              }
+              // a API devolve a watchlist inteira (o sorteio precisa dela toda): a página é só um recorte
+              const totalPages = Math.ceil(items.length / FILMS_PER_PAGE);
+              const current = Math.min(page, totalPages); // ?page=9 numa watchlist de 3 páginas
+              return (
+                <>
+                  {/* o sorteio só olha a watchlist que está aberta: filme com filme, série com série */}
+                  {isMe &&
+                    (watchlistSeries ? (
+                      <WhatToWatchButton variant="banner" series={(seriesWatchlist.data ?? []).map((item) => item.series)} className="mb-8" />
+                    ) : (
+                      <WhatToWatchButton variant="banner" movies={(watchlist.data ?? []).map((item) => item.movie)} className="mb-8" />
+                    ))}
+                  <MovieGrid variant="library" items={items.slice((current - 1) * FILMS_PER_PAGE, current * FILMS_PER_PAGE)} />
+                  <Pagination page={current} totalPages={totalPages} onChange={selectPage} />
+                </>
+              );
+            })()}
+          </div>
+        )}
 
         {tab === "series" && <ProfileSeries username={user.username} name={user.name} isMe={isMe} />}
 
@@ -783,6 +877,109 @@ function SocialLink({ href, label, children }: { href: string; label: string; ch
   );
 }
 
+/** barra da aba Watchlist: filmes e séries separados, com o total de cada uma, e o botão de limpar */
+function WatchlistToolbar({ series, movieCount, seriesCount, onChange, onClear }: {
+  series: boolean;
+  movieCount: number;
+  seriesCount: number | undefined;
+  onChange: (type: "filmes" | "series") => void;
+  onClear?: () => void;
+}) {
+  const options = [
+    { id: "filmes" as const, label: "Filmes", count: movieCount, active: !series },
+    { id: "series" as const, label: "Séries", count: seriesCount, active: series },
+  ];
+  return (
+    <div className="-mt-2 mb-8 flex items-center gap-3">
+      <SegmentedControl label="Watchlist de" options={options} onChange={onChange} />
+      {onClear && (
+        <button
+          type="button"
+          onClick={onClear}
+          className="ml-auto shrink-0 inline-flex items-center gap-1.5 h-9 px-3 rounded-md text-sm text-brand-slate hover:text-brand-crimson hover:bg-brand-crimson/10 transition-colors"
+        >
+          <TrashIcon size={15} />
+          Limpar watchlist
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** abas pequenas em pílula: a opção ativa ganha fundo, o resto fica discreto */
+function SegmentedControl<T extends string>({ label, options, onChange }: {
+  label: string;
+  options: { id: T; label: string; count?: number; active: boolean }[];
+  onChange: (id: T) => void;
+}) {
+  return (
+    <div role="radiogroup" aria-label={label} className="flex h-9 p-1 gap-1 rounded-full bg-surface/80 ring-1 ring-inset ring-foreground/[0.06]">
+      {options.map((option) => (
+        <button
+          key={option.id}
+          type="button"
+          role="radio"
+          aria-checked={option.active}
+          onClick={() => onChange(option.id)}
+          className={`px-3.5 rounded-full text-sm font-medium transition-colors ${option.active ? "bg-foreground text-background" : "text-brand-slate hover:text-foreground"}`}
+        >
+          {option.label}
+          {option.count !== undefined && (
+            <span className={`ml-1.5 text-xs tabular-nums ${option.active ? "text-background/60" : "text-brand-slate/60"}`}>{option.count}</span>
+          )}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+const DIARY_TYPES: { id: DiaryType; label: string }[] = [
+  { id: "tudo", label: "Tudo" },
+  { id: "filmes", label: "Filmes" },
+  { id: "series", label: "Séries" },
+];
+
+/** barra da aba Reviews: o total e o filtro de filmes, séries ou tudo */
+function DiaryToolbar({ total, type, onChange }: {
+  total: number | undefined;
+  type: DiaryType;
+  onChange: (type: DiaryType) => void;
+}) {
+  return (
+    <div className="-mt-2 mb-6 flex items-center justify-between gap-4">
+      <p className="text-sm text-brand-slate tabular-nums min-h-5">
+        {total !== undefined && `${total} ${total === 1 ? "review" : "reviews"}`}
+      </p>
+      <SegmentedControl
+        label="Mostrar"
+        options={DIARY_TYPES.map((option) => ({ ...option, active: type === option.id }))}
+        onChange={onChange}
+      />
+    </div>
+  );
+}
+
+/** "Você ainda não escreveu nenhuma review de série." e afins, conforme o filtro */
+function emptyDiary(type: DiaryType, name: string | null): string {
+  const what = type === "filmes" ? " de filme" : type === "series" ? " de série" : "";
+  return name ? `${name} ainda não escreveu nenhuma review${what}.` : `Você ainda não escreveu nenhuma review${what}.`;
+}
+
+function clearTitle(series: boolean, n: number): string {
+  if (series) return `Remover ${n === 1 ? "a série" : `as ${n} séries`} da watchlist?`;
+  return `Remover ${n === 1 ? "o filme" : `os ${n} filmes`} da watchlist?`;
+}
+
+/** a API remove um item por vez: vai de 6 em 6 para não abrir centenas de requisições juntas; devolve quantos falharam */
+async function removeAll(ids: number[], remove: (id: number) => Promise<void>): Promise<number> {
+  let failed = 0;
+  for (let i = 0; i < ids.length; i += 6) {
+    const results = await Promise.allSettled(ids.slice(i, i + 6).map(remove));
+    failed += results.filter((result) => result.status === "rejected").length;
+  }
+  return failed;
+}
+
 /** barra da aba Filmes: a ordem e o filtro de curtidos (o total já aparece na aba) */
 function FilmsToolbar({ total, sort, likedOnly, onChange }: {
   total: number | undefined;
@@ -916,10 +1113,9 @@ function PeopleSkeleton() {
 /** aba Séries: o diário de séries fica à parte dos filmes (uma série por pôster, com o registro mais recente) */
 function ProfileSeries({ username, name, isMe }: { username: string; name: string; isMe: boolean }) {
   const diary = useFetch(username, getUserSeries);
-  const watchlist = useFetch(username, getUserSeriesWatchlist);
 
-  if (!diary.data || !watchlist.data) {
-    return diary.error || watchlist.error ? <p className="py-12 text-center text-brand-slate">Não foi possível carregar as séries.</p> : <Loading />;
+  if (!diary.data) {
+    return diary.error ? <p className="py-12 text-center text-brand-slate">Não foi possível carregar as séries.</p> : <Loading />;
   }
 
   // a API devolve do mais recente para o mais antigo: o primeiro de cada série é o que aparece
@@ -929,7 +1125,7 @@ function ProfileSeries({ username, name, isMe }: { username: string; name: strin
   }
   const watched = [...latest.values()];
 
-  if (watched.length === 0 && watchlist.data.length === 0) {
+  if (watched.length === 0) {
     return (
       <div className="py-12 text-center text-brand-slate">
         <p>{isMe ? "Você ainda não registrou nenhuma série." : `${name} ainda não registrou nenhuma série.`}</p>
@@ -943,37 +1139,18 @@ function ProfileSeries({ username, name, isMe }: { username: string; name: strin
   }
 
   return (
-    <div className="flex flex-col gap-12">
-      {watched.length > 0 && (
-        <section>
-          <SectionHeading title="Assistidas" count={watched.length} />
-          <MovieGrid
-            variant="library"
-            items={watched.map((review) => ({
-              movie: { id: review.series.id, title: review.series.name, posterPath: review.series.posterPath, releaseYear: review.series.firstAirYear },
-              // como na aba Filmes: o pôster abre o registro mais recente da pessoa
-              href: seriesReviewHref(review),
-              rating: review.rating,
-              liked: review.liked,
-              caption: `${review.seasonNumber !== null && review.episodeNumber !== null ? episodeCode(review.seasonNumber, review.episodeNumber) : seasonLabel(review.seasonNumber)} · ${compactDate(review.watchedOn)}`,
-            }))}
-          />
-        </section>
-      )}
-      {watchlist.data.length > 0 && (
-        <section>
-          <SectionHeading title="Quero assistir" count={watchlist.data.length} />
-          <MovieGrid
-            variant="library"
-            items={watchlist.data.map((item) => ({
-              movie: { id: item.series.id, title: item.series.name, posterPath: item.series.posterPath, releaseYear: item.series.firstAirYear },
-              href: seriesHref(item.series),
-              caption: `Na lista ${timeAgo(item.addedAt)}`,
-            }))}
-          />
-        </section>
-      )}
-    </div>
+    // as que a pessoa quer ver ficam na aba Watchlist, separadas dos filmes
+    <MovieGrid
+      variant="library"
+      items={watched.map((review) => ({
+        movie: { id: review.series.id, title: review.series.name, posterPath: review.series.posterPath, releaseYear: review.series.firstAirYear },
+        // como na aba Filmes: o pôster abre o registro mais recente da pessoa
+        href: seriesReviewHref(review),
+        rating: review.rating,
+        liked: review.liked,
+        caption: `${review.seasonNumber !== null && review.episodeNumber !== null ? episodeCode(review.seasonNumber, review.episodeNumber) : seasonLabel(review.seasonNumber)} · ${compactDate(review.watchedOn)}`,
+      }))}
+    />
   );
 }
 

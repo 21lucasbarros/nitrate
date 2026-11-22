@@ -5,7 +5,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRightIcon, ShuffleIcon } from "@phosphor-icons/react";
 import type { Movie } from "@/types/movie";
+import type { Series } from "@/types/series";
 import { filmHref } from "@/utils/movie-link";
+import { seriesHref } from "@/utils/series-link";
 import { posterUrl } from "@/utils/poster";
 import { Modal } from "./ui/modal";
 
@@ -14,14 +16,31 @@ const REEL_SIZE = 30;
 const REEL_TAIL = 3; // pôsteres depois do sorteado, para a fileira não acabar no meio da tela
 const REEL_START = 2;
 
-interface Reel {
+/** o que entra no sorteio: um filme ou uma série, já com o endereço e a linha de detalhes */
+interface Pick {
   id: number;
-  movies: Movie[];
-  pick: Movie;
+  title: string;
+  year: number | null;
+  posterPath: string | null;
+  href: string;
+  details: string | null;
 }
 
-/** sorteia o filme e monta a fileira que passa até parar nele */
-function buildReel(pool: Movie[]): Reel {
+interface Reel {
+  id: number;
+  movies: Pick[];
+  pick: Pick;
+}
+
+// filmes e séries nunca se misturam no mesmo sorteio: cada watchlist tem o seu
+const WORDS = {
+  movies: { one: "filme", many: "filmes", draw: "Sortear um filme", open: "Ver o filme" },
+  series: { one: "série", many: "séries", draw: "Sortear uma série", open: "Ver a série" },
+};
+type Words = (typeof WORDS)[keyof typeof WORDS];
+
+/** sorteia e monta a fileira que passa até parar no sorteado */
+function buildReel(pool: Pick[]): Reel {
   const random = () => pool[Math.floor(Math.random() * pool.length)];
   const pick = random();
   const movies = Array.from({ length: REEL_SIZE }, random);
@@ -29,26 +48,50 @@ function buildReel(pool: Movie[]): Reel {
   return { id: Date.now(), movies, pick };
 }
 
-/** filmes que já estrearam (em produção não dá para dar o play); se não sobrar nenhum, todos */
-function candidates(movies: Movie[]): Movie[] {
+/** o que já estreou (em produção não dá para dar o play); se não sobrar nada, tudo */
+function candidates(items: Pick[]): Pick[] {
   const year = new Date().getFullYear();
-  const released = movies.filter((m) => m.releaseYear === null || m.releaseYear <= year);
-  return released.length > 0 ? released : movies;
+  const released = items.filter((m) => m.year === null || m.year <= year);
+  return released.length > 0 ? released : items;
+}
+
+function moviePick(movie: Movie): Pick {
+  return {
+    id: movie.id,
+    title: movie.title,
+    year: movie.releaseYear,
+    posterPath: movie.posterPath,
+    href: filmHref(movie),
+    details: [movie.director && `de ${movie.director}`, movie.genres.slice(0, 2).join(", ")].filter(Boolean).join(" · ") || null,
+  };
+}
+
+function seriesPick(series: Series): Pick {
+  return {
+    id: series.id,
+    title: series.name,
+    year: series.firstAirYear,
+    posterPath: series.posterPath,
+    href: seriesHref(series),
+    details: [series.creators && `de ${series.creators}`, series.genres.slice(0, 2).join(", ")].filter(Boolean).join(" · ") || null,
+  };
 }
 
 const BANNER_POSTERS = 3;
 
 /**
- * "What Should I Watch?": sorteia um filme da própria watchlist.
+ * "What Should I Watch?": sorteia um filme (ou, com `series`, uma série) da própria watchlist.
  * "link" é o atalho discreto (home); "banner" é o destaque no topo da aba Watchlist.
  */
-export function WhatToWatchButton({ movies, variant = "link", className = "" }: {
-  movies: Movie[];
+export function WhatToWatchButton({ movies, series, variant = "link", className = "" }: {
+  movies?: Movie[];
+  series?: Series[];
   variant?: "link" | "banner";
   className?: string;
 }) {
   const [reel, setReel] = useState<Reel | null>(null);
-  const pool = candidates(movies);
+  const words = series ? WORDS.series : WORDS.movies;
+  const pool = candidates(series ? series.map(seriesPick) : (movies ?? []).map(moviePick));
 
   if (pool.length === 0) return null;
 
@@ -58,7 +101,7 @@ export function WhatToWatchButton({ movies, variant = "link", className = "" }: 
   return (
     <>
       {variant === "banner" ? (
-        <Banner pool={pool} onDraw={draw} className={className} />
+        <Banner pool={pool} words={words} onDraw={draw} className={className} />
       ) : (
         <button
           type="button"
@@ -70,14 +113,14 @@ export function WhatToWatchButton({ movies, variant = "link", className = "" }: 
         </button>
       )}
       <Modal open={reel !== null} onClose={() => setReel(null)} label="What Should I Watch? Sorteio da watchlist">
-        {reel && <Draw key={reel.id} reel={reel} poolSize={pool.length} onRedraw={draw} />}
+        {reel && <Draw key={reel.id} reel={reel} poolSize={pool.length} words={words} onRedraw={draw} />}
       </Modal>
     </>
   );
 }
 
 /** o convite para o sorteio: um leque de pôsteres da watchlist, a pergunta e o botão */
-function Banner({ pool, onDraw, className }: { pool: Movie[]; onDraw: () => void; className: string }) {
+function Banner({ pool, words, onDraw, className }: { pool: Pick[]; words: Words; onDraw: () => void; className: string }) {
   // os primeiros com pôster, para o leque não ter buracos
   const fan = pool.filter((m) => m.posterPath).slice(0, BANNER_POSTERS);
 
@@ -112,7 +155,7 @@ function Banner({ pool, onDraw, className }: { pool: Movie[]; onDraw: () => void
         <span className="text-[11px] font-semibold tracking-[0.2em] uppercase text-brand-orange">What Should I Watch?</span>
         <h3 className="mt-1 text-lg sm:text-xl font-semibold tracking-tight">Não sabe o que assistir hoje?</h3>
         <p className="mt-1 text-sm text-brand-slate">
-          Deixa com a gente: sorteamos um entre os {pool.length} {pool.length === 1 ? "filme" : "filmes"} da sua watchlist.
+          Deixa com a gente: sorteamos {words === WORDS.series ? "uma entre as" : "um entre os"} {pool.length} {pool.length === 1 ? words.one : words.many} da sua watchlist.
         </p>
       </div>
 
@@ -122,13 +165,13 @@ function Banner({ pool, onDraw, className }: { pool: Movie[]; onDraw: () => void
         className="group relative inline-flex items-center justify-center gap-2 shrink-0 px-5 py-3 rounded-md bg-brand-btn text-brand-btn-text font-semibold hover:bg-brand-btn/90 active:scale-[0.98] transition-all"
       >
         <ShuffleIcon size={18} weight="bold" className="group-hover:rotate-180 transition-transform duration-500" />
-        Sortear um filme
+        {words.draw}
       </button>
     </div>
   );
 }
 
-function Draw({ reel, poolSize, onRedraw }: { reel: Reel; poolSize: number; onRedraw: () => void }) {
+function Draw({ reel, poolSize, words, onRedraw }: { reel: Reel; poolSize: number; words: Words; onRedraw: () => void }) {
   const [spinning, setSpinning] = useState(false);
   const [done, setDone] = useState(false);
 
@@ -193,15 +236,11 @@ function Draw({ reel, poolSize, onRedraw }: { reel: Reel; poolSize: number; onRe
           <>
             <p className="font-serif text-2xl sm:text-3xl font-semibold leading-tight">
               {pick.title}{" "}
-              {pick.releaseYear && <span className="text-lg font-normal text-foreground/50">{pick.releaseYear}</span>}
+              {pick.year && <span className="text-lg font-normal text-foreground/50">{pick.year}</span>}
             </p>
-            {(pick.director || pick.genres.length > 0) && (
-              <p className="mt-2 text-sm text-brand-slate">
-                {[pick.director && `de ${pick.director}`, pick.genres.slice(0, 2).join(", ")].filter(Boolean).join(" · ")}
-              </p>
-            )}
+            {pick.details && <p className="mt-2 text-sm text-brand-slate">{pick.details}</p>}
             <p className="mt-1 text-xs text-brand-slate/60">
-              sorteado entre {poolSize} {poolSize === 1 ? "filme" : "filmes"} da sua watchlist
+              {words === WORDS.series ? "sorteada" : "sorteado"} entre {poolSize} {poolSize === 1 ? words.one : words.many} da sua watchlist
             </p>
             <div className="mt-6 flex flex-col-reverse sm:flex-row justify-center gap-3">
               <button
@@ -212,10 +251,10 @@ function Draw({ reel, poolSize, onRedraw }: { reel: Reel; poolSize: number; onRe
                 <ShuffleIcon size={16} weight="bold" /> Sortear de novo
               </button>
               <Link
-                href={filmHref(pick)}
+                href={pick.href}
                 className="group inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-md bg-brand-btn text-brand-btn-text text-sm font-semibold hover:bg-brand-btn/90 transition-colors"
               >
-                Ver o filme
+                {words.open}
                 <ArrowRightIcon size={16} weight="bold" className="group-hover:translate-x-0.5 transition-transform" />
               </Link>
             </div>
