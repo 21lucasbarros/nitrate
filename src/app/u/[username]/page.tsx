@@ -480,8 +480,8 @@ function Profile() {
                 <div>
                   <SectionHeading
                     title="Assistidos recentemente"
-                    // a aba Filmes, do assistido por último para trás
-                    href={recentEntries && recentEntries.length >= RECENT_FILMS ? `${pathname}?tab=filmes&ordem=assistidos` : undefined}
+                    // a aba Reviews, a linha do tempo com filmes e séries
+                    href={recentEntries && recentEntries.length >= RECENT_FILMS ? `${pathname}?tab=reviews` : undefined}
                     linkLabel="Ver todos"
                   />
                   {!recentEntries ? (
