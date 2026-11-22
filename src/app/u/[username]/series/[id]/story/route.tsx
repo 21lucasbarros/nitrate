@@ -70,6 +70,8 @@ function Story({ review, details }: { review: SeriesReview; details: SeriesDetai
   const years = seriesYears({ ...series, status: details?.status ?? series.status });
   const titleSize = series.name.length > 30 ? 64 : series.name.length > 18 ? 80 : 96;
   const episodes = season?.episodeCount ?? (review.seasonNumber === null ? series.numberOfEpisodes : null);
+  // num episódio, quanto da temporada ele representa (a barra fica cheia sem o total)
+  const progress = review.episodeNumber !== null && season?.episodeCount ? Math.min(1, review.episodeNumber / season.episodeCount) : 1;
   // o canal "sintonizado" sai do número do registro: sempre o mesmo para o mesmo registro
   const channel = String((review.id % 98) + 2).padStart(2, "0");
 
@@ -102,7 +104,7 @@ function Story({ review, details }: { review: SeriesReview; details: SeriesDetai
       {/* o que foi assistido */}
       <div style={{ display: "flex", flexDirection: "column", width: TV_WIDTH, marginTop: 64 }}>
         <span style={{ fontFamily: "Mono", fontSize: 26, letterSpacing: 5, color: ORANGE }}>
-          {seasonLabel(review.seasonNumber).toUpperCase()}
+          {seasonLabel(review.seasonNumber, review.episodeNumber).toUpperCase()}
         </span>
         <span style={{ marginTop: 14, fontFamily: "Serif", fontWeight: 600, fontSize: titleSize, lineHeight: 1.02, letterSpacing: -2 }}>
           {series.name}
@@ -126,12 +128,20 @@ function Story({ review, details }: { review: SeriesReview; details: SeriesDetai
           {review.liked && <Heart size={80} />}
         </div>
 
-        {/* a barra de progresso do streaming, cheia: assistiu até o fim */}
+        {/* a barra de progresso do streaming: cheia se assistiu até o fim; num episódio, até onde ele está na temporada */}
         <div style={{ display: "flex", flexDirection: "column", marginTop: 52 }}>
-          <div style={{ display: "flex", height: 10, borderRadius: 5, backgroundColor: ORANGE }} />
+          <div style={{ display: "flex", height: 10, borderRadius: 5, backgroundColor: review.episodeNumber !== null ? FAINT : ORANGE }}>
+            {review.episodeNumber !== null && (
+              <div style={{ display: "flex", width: `${progress * 100}%`, height: 10, borderRadius: 5, backgroundColor: ORANGE }} />
+            )}
+          </div>
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: 18, fontFamily: "Mono", fontSize: 24, letterSpacing: 2, color: SOFT }}>
-            <span>{episodes ? `${episodes} DE ${episodes} EPISÓDIOS` : "ASSISTIDA ATÉ O FIM"}</span>
-            <span>{`TERMINEI EM ${shortDate(review.watchedOn).toUpperCase()}`}</span>
+            <span>
+              {review.episodeNumber !== null
+                ? season?.episodeCount ? `EPISÓDIO ${review.episodeNumber} DE ${season.episodeCount}` : `EPISÓDIO ${review.episodeNumber}`
+                : episodes ? `${episodes} DE ${episodes} EPISÓDIOS` : "ASSISTIDA ATÉ O FIM"}
+            </span>
+            <span>{`${review.episodeNumber !== null ? "ASSISTI" : "TERMINEI"} EM ${shortDate(review.watchedOn).toUpperCase()}`}</span>
           </div>
         </div>
       </div>

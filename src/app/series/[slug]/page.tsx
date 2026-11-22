@@ -7,6 +7,7 @@ import { useParams } from "next/navigation";
 import {
   BookmarkSimpleIcon,
   CaretDownIcon,
+  CheckIcon,
   CircleNotchIcon,
   EyeIcon,
   HeartIcon,
@@ -43,6 +44,8 @@ import {
   removeSeriesFromWatchlist,
 } from "@/lib/services/series-service";
 import {
+  episodeAfter,
+  episodeCode,
   seasonLabel,
   seriesStatusLabel,
   seriesYears,
@@ -51,8 +54,10 @@ import {
   type SeriesDetails,
   type SeriesPerson,
   type SeriesReview,
+  watchProgress,
+  type EpisodeRef,
 } from "@/types/series";
-import { shortDate } from "@/utils/format";
+import { shortDate, todayIso } from "@/utils/format";
 import { backdropUrl, stillUrl } from "@/utils/poster";
 import { toRating } from "@/utils/rating";
 import { seriesReviewHref } from "@/utils/series-link";
@@ -95,7 +100,7 @@ export default function SeriesDetailPage() {
   );
 }
 
-type Editing = { review: SeriesReview | null; season: number | null };
+type Editing = { review: SeriesReview | null; season: number | null; episode: number | null };
 
 function SeriesView({ series }: { series: Series }) {
   const { status } = useAuth();
@@ -136,8 +141,12 @@ function SeriesView({ series }: { series: Series }) {
   };
 
   const logSeason = status === "authenticated" && myState.data
-    ? (season: number | null) => setEditing({ review: null, season })
+    ? (season: number | null, episode: number | null = null) => setEditing({ review: null, season, episode })
     : undefined;
+
+  // até onde a pessoa assistiu, para quem acompanha episódio a episódio
+  const progress = details.data ? watchProgress(myReviews, seasons) : null;
+  const nextUp = progress ? episodeAfter(progress, seasons, details.data?.nextEpisode) : null;
 
   const years = seriesYears({ ...series, status: details.data?.status ?? series.status });
   const statusLabel = seriesStatusLabel(details.data?.status ?? series.status);
@@ -193,7 +202,10 @@ function SeriesView({ series }: { series: Series }) {
                 liked={myReviews.some((r) => r.liked)}
                 inWatchlist={inWatchlist}
                 watchlistBusy={watchlistBusy}
-                onLog={() => setEditing({ review: null, season: null })}
+                progress={progress}
+                nextUp={nextUp}
+                onLog={() => setEditing({ review: null, season: null, episode: null })}
+                onLogNext={nextUp ? () => setEditing({ review: null, season: nextUp.seasonNumber, episode: nextUp.episodeNumber }) : undefined}
                 onToggleWatchlist={toggleWatchlist}
                 onShare={myReviews.length > 0 ? () => setSharing(myReviews[0]) : undefined}
               />
@@ -219,15 +231,15 @@ function SeriesView({ series }: { series: Series }) {
                         href={seriesReviewHref(review)}
                         className="flex-1 min-w-0 flex items-center gap-3 px-4 py-3 hover:bg-surface-strong transition-colors"
                       >
-                        <span className="font-medium text-foreground/90 truncate">{seasonLabel(review.seasonNumber)}</span>
+                        <span className="font-medium text-foreground/90 truncate">{seasonLabel(review.seasonNumber, review.episodeNumber)}</span>
                         {review.rating !== null && <StarRating rating={toRating(review.rating)} size={13} />}
                         {review.liked && <HeartIcon size={14} weight="fill" className="text-brand-orange" />}
                         <span className="ml-auto shrink-0 text-xs text-brand-slate">{shortDate(review.watchedOn)}</span>
                       </Link>
                       <button
                         type="button"
-                        onClick={() => setEditing({ review, season: review.seasonNumber })}
-                        aria-label={`Editar registro: ${seasonLabel(review.seasonNumber)}`}
+                        onClick={() => setEditing({ review, season: review.seasonNumber, episode: review.episodeNumber })}
+                        aria-label={`Editar registro: ${seasonLabel(review.seasonNumber, review.episodeNumber)}`}
                         title="Editar"
                         className="px-3.5 border-l border-foreground/5 text-brand-slate hover:text-foreground hover:bg-surface-strong transition-colors"
                       >
@@ -236,7 +248,7 @@ function SeriesView({ series }: { series: Series }) {
                       <button
                         type="button"
                         onClick={() => setSharing(review)}
-                        aria-label={`Compartilhar nos Stories: ${seasonLabel(review.seasonNumber)}`}
+                        aria-label={`Compartilhar nos Stories: ${seasonLabel(review.seasonNumber, review.episodeNumber)}`}
                         title="Compartilhar nos Stories"
                         className="px-3.5 border-l border-foreground/5 text-brand-slate hover:text-brand-orange hover:bg-surface-strong transition-colors"
                       >
@@ -248,7 +260,7 @@ function SeriesView({ series }: { series: Series }) {
               </section>
             )}
 
-            <SeasonList seriesId={series.id} seasons={details.data ? seasons : undefined} onLog={logSeason} />
+            <SeasonList seriesId={series.id} seasons={details.data ? seasons : undefined} myReviews={myReviews} onLog={logSeason} />
             <CastList cast={details.data?.cast} />
             {details.data && <FactSheet series={series} details={details.data} />}
 
@@ -281,11 +293,12 @@ function SeriesView({ series }: { series: Series }) {
         >
           {editing && (
             <SeriesReviewForm
-              key={`${editing.review?.id ?? "new"}-${editing.season}`}
+              key={`${editing.review?.id ?? "new"}-${editing.season}-${editing.episode}`}
               series={series}
               seasons={seasons}
               existing={editing.review}
               initialSeason={editing.season}
+              initialEpisode={editing.episode}
               onSaved={afterChange}
               onDeleted={afterChange}
               onCancel={() => setEditing(null)}
@@ -304,7 +317,12 @@ function ActionPanel(props: {
   liked: boolean;
   inWatchlist: boolean;
   watchlistBusy: boolean;
+  /** o episódio mais adiante que a pessoa registrou */
+  progress: EpisodeRef | null;
+  /** o episódio seguinte, se já foi ao ar */
+  nextUp: EpisodeRef | null;
   onLog: () => void;
+  onLogNext?: () => void;
   onToggleWatchlist: () => void;
   /** compartilha o registro mais recente nos Stories */
   onShare?: () => void;
@@ -317,7 +335,9 @@ function ActionPanel(props: {
       <div className="py-1">
         <button onClick={props.onLog} className={row(props.watched, "text-brand-emerald")}>
           <EyeIcon size={18} weight={props.watched ? "fill" : "regular"} />
-          {props.watched ? "Já assisti" : "Marcar como assistida"}
+          {props.progress
+            ? `Parei no ${episodeCode(props.progress.seasonNumber, props.progress.episodeNumber)}`
+            : props.watched ? "Já assisti" : "Marcar como assistida"}
         </button>
         {props.liked && (
           <span className={row(true, "text-brand-orange")}>
@@ -340,7 +360,15 @@ function ActionPanel(props: {
           </button>
         )}
       </div>
-      <div className="border-t border-foreground/5 p-3">
+      <div className="border-t border-foreground/5 p-3 flex flex-col gap-2">
+        {props.nextUp && props.onLogNext && (
+          <button
+            onClick={props.onLogNext}
+            className="w-full py-2 rounded-md border border-foreground/10 text-sm font-medium text-foreground/90 hover:border-brand-orange/60 hover:text-brand-orange transition-colors"
+          >
+            Registrar o {episodeCode(props.nextUp.seasonNumber, props.nextUp.episodeNumber)}
+          </button>
+        )}
         <button
           onClick={props.onLog}
           className="w-full py-2 rounded-md bg-brand-btn text-brand-btn-text text-sm font-semibold hover:bg-brand-btn/90 transition-colors"
@@ -353,10 +381,11 @@ function ActionPanel(props: {
 }
 
 /** temporadas em sanfona: abrir uma busca os episódios dela */
-function SeasonList({ seriesId, seasons, onLog }: {
+function SeasonList({ seriesId, seasons, myReviews, onLog }: {
   seriesId: number;
   seasons: SeasonSummary[] | undefined;
-  onLog?: (season: number) => void;
+  myReviews: SeriesReview[];
+  onLog?: (season: number, episode?: number | null) => void;
 }) {
   const [open, setOpen] = useState<number | null>(null);
   if (seasons !== undefined && seasons.length === 0) return null;
@@ -405,7 +434,15 @@ function SeasonList({ seriesId, seasons, onLog }: {
                     </button>
                   )}
                 </div>
-                {isOpen && <EpisodeList seriesId={seriesId} seasonNumber={season.seasonNumber} />}
+                {isOpen && (
+                  <EpisodeList
+                    seriesId={seriesId}
+                    seasonNumber={season.seasonNumber}
+                    // os episódios que a pessoa já registrou (a temporada inteira marca todos)
+                    watched={(ep) => myReviews.some((r) => r.seasonNumber === season.seasonNumber && (r.episodeNumber === null || r.episodeNumber === ep))}
+                    onLog={onLog ? (ep) => onLog(season.seasonNumber, ep) : undefined}
+                  />
+                )}
               </li>
             );
           })}
@@ -415,8 +452,14 @@ function SeasonList({ seriesId, seasons, onLog }: {
   );
 }
 
-function EpisodeList({ seriesId, seasonNumber }: { seriesId: number; seasonNumber: number }) {
+function EpisodeList({ seriesId, seasonNumber, watched, onLog }: {
+  seriesId: number;
+  seasonNumber: number;
+  watched: (episodeNumber: number) => boolean;
+  onLog?: (episodeNumber: number) => void;
+}) {
   const season = useFetch(`${seriesId}|${seasonNumber}`, getSeason);
+  const today = todayIso();
 
   if (!season.data) {
     return (
@@ -432,6 +475,8 @@ function EpisodeList({ seriesId, seasonNumber }: { seriesId: number; seasonNumbe
       <ol className="flex flex-col gap-3">
         {season.data.episodes.map((ep) => {
           const still = stillUrl(ep.stillPath);
+          const aired = ep.airDate === null || ep.airDate <= today;
+          const seen = watched(ep.episodeNumber);
           return (
             <li key={ep.episodeNumber} className="flex gap-3">
               <div className="relative w-28 sm:w-36 aspect-video shrink-0 overflow-hidden rounded bg-surface">
@@ -447,6 +492,17 @@ function EpisodeList({ seriesId, seasonNumber }: { seriesId: number; seasonNumbe
                 </p>
                 {ep.overview && <p className="mt-1 text-xs leading-relaxed text-foreground/70 line-clamp-3">{ep.overview}</p>}
               </div>
+              {onLog && aired && (
+                <button
+                  type="button"
+                  onClick={() => onLog(ep.episodeNumber)}
+                  aria-label={`Registrar ${episodeCode(seasonNumber, ep.episodeNumber)}${seen ? " de novo" : ""}`}
+                  title={seen ? "Você já registrou este episódio. Registrar de novo" : "Registrar este episódio"}
+                  className={`ml-auto self-start shrink-0 p-2 rounded-md transition-colors hover:bg-surface ${seen ? "text-brand-emerald hover:text-brand-emerald/80" : "text-brand-slate hover:text-brand-orange"}`}
+                >
+                  {seen ? <CheckIcon size={16} weight="bold" /> : <PlusIcon size={16} weight="bold" />}
+                </button>
+              )}
             </li>
           );
         })}
@@ -572,7 +628,7 @@ function SeriesReviewItem({ review }: { review: SeriesReview }) {
           <Avatar name={review.user.name} username={review.user.username} avatar={review.user.avatar} size="sm" />
           {review.user.name}
         </Link>
-        <span className="px-2 py-0.5 rounded-full bg-surface text-xs">{seasonLabel(review.seasonNumber)}</span>
+        <span className="px-2 py-0.5 rounded-full bg-surface text-xs">{seasonLabel(review.seasonNumber, review.episodeNumber)}</span>
         {review.rating !== null && <StarRating rating={toRating(review.rating)} size={16} />}
         {review.liked && <HeartIcon size={15} weight="fill" className="text-brand-orange" aria-label="Curtiu" />}
         <Link href={seriesReviewHref(review)} className="hover:text-foreground transition-colors">

@@ -422,7 +422,7 @@ function SeriesOfTheMonth({ entries }: { entries: RetrospectiveSeries[] }) {
       <SectionTitle eyebrow="Fora do cinema" title={watchedSeries === 1 ? "A série do mês" : "As séries do mês"} />
       <ol className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-x-5 gap-y-8">
         {entries.map((entry) => (
-          <li key={`${entry.series.id}-${entry.seasonNumber}-${entry.watchedOn}`}>
+          <li key={`${entry.series.id}-${entry.seasonNumber}-${entry.episodeNumber}-${entry.watchedOn}`}>
             <Link href={seriesHref(entry.series)} className="group block">
               <div className="relative">
                 <Poster
@@ -437,7 +437,7 @@ function SeriesOfTheMonth({ entries }: { entries: RetrospectiveSeries[] }) {
                 </span>
               </div>
               <p className="mt-3 text-sm font-medium leading-tight group-hover:text-brand-blue transition-colors">{entry.series.name}</p>
-              <p className="mt-1 text-xs text-brand-slate">{seasonLabel(entry.seasonNumber)}</p>
+              <p className="mt-1 text-xs text-brand-slate">{seasonLabel(entry.seasonNumber, entry.episodeNumber)}</p>
               <div className="flex items-center gap-1.5 mt-1.5">
                 {entry.rating !== null && <StarRating rating={toRating(entry.rating)} size={12} />}
                 {entry.liked && <HeartIcon size={12} weight="fill" className="text-brand-orange" />}

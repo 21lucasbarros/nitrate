@@ -35,6 +35,7 @@ export interface Retrospective {
 export interface RetrospectiveSeries {
   series: Series;
   seasonNumber: number | null; // null = a série inteira
+  episodeNumber: number | null; // null = a temporada inteira
   rating: number | null;
   liked: boolean;
   watchedOn: string; // yyyy-mm-dd

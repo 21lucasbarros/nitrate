@@ -23,7 +23,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   const { series, user } = review;
-  const season = review.seasonNumber !== null ? `, ${seasonLabel(review.seasonNumber)}` : "";
+  const season = review.seasonNumber !== null ? `, ${seasonLabel(review.seasonNumber, review.episodeNumber)}` : "";
   const stars = review.rating !== null ? ` ${starsText(toRating(review.rating))}` : "";
   const title = `${user.name} sobre ${series.name}${season}`;
   // texto com spoiler fica de fora da prévia, como na página

@@ -186,8 +186,8 @@ function ReviewView({ review, onSaved, onDeleted }: {
             </Link>
 
             <p className="mt-6 flex items-center gap-1.5 text-xs uppercase tracking-[0.14em] text-brand-orange">
-              <TelevisionSimpleIcon size={14} weight="bold" /> {seasonLabel(review.seasonNumber)}
-              {season?.episodeCount ? <span className="text-brand-slate">· {season.episodeCount} episódios</span> : null}
+              <TelevisionSimpleIcon size={14} weight="bold" /> {seasonLabel(review.seasonNumber, review.episodeNumber)}
+              {season?.episodeCount && review.episodeNumber === null ? <span className="text-brand-slate">· {season.episodeCount} episódios</span> : null}
             </p>
             <h1 className="mt-2 font-serif text-4xl sm:text-5xl font-semibold leading-[1.05] tracking-tight">
               <Link href={seriesHref(series)} className="hover:text-brand-blue transition-colors">{series.name}</Link>{" "}
@@ -197,7 +197,7 @@ function ReviewView({ review, onSaved, onDeleted }: {
             <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-brand-slate">
               {review.rating !== null && <StarRating rating={toRating(review.rating)} size={20} />}
               {review.liked && <HeartIcon size={18} weight="fill" className="text-brand-orange" aria-label="Curtiu a série" />}
-              <span>Terminou em {shortDate(review.watchedOn)}</span>
+              <span>{review.episodeNumber !== null ? "Assistiu" : "Terminou"} em {shortDate(review.watchedOn)}</span>
             </div>
 
             {review.text ? (
@@ -269,7 +269,7 @@ function ReviewView({ review, onSaved, onDeleted }: {
                 <ul className="grid grid-cols-3 gap-2.5">
                   {others.map((other) => (
                     <li key={other.id}>
-                      <Link href={seriesReviewHref(other)} title={`${other.series.name} · ${seasonLabel(other.seasonNumber)}`} className="group block">
+                      <Link href={seriesReviewHref(other)} title={`${other.series.name} · ${seasonLabel(other.seasonNumber, other.episodeNumber)}`} className="group block">
                         <Poster
                           title={other.series.name}
                           posterPath={other.series.posterPath}

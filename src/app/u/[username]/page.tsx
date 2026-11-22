@@ -57,7 +57,7 @@ import {
 } from "@/lib/services/user-service";
 import { getSavedLists, getUserLists } from "@/lib/services/list-service";
 import { getUserSeries, getUserSeriesWatchlist } from "@/lib/services/series-service";
-import { seasonLabel, type SeriesReview } from "@/types/series";
+import { episodeCode, seasonLabel, type SeriesReview } from "@/types/series";
 import { seriesHref, seriesReviewHref } from "@/utils/series-link";
 import type { FilmEntry, MovieReview } from "@/lib/types/review";
 import type { FavoritePeopleKind } from "@/types/person";
@@ -917,7 +917,7 @@ function ProfileSeries({ username, name, isMe }: { username: string; name: strin
               href: seriesReviewHref(review),
               rating: review.rating,
               liked: review.liked,
-              caption: `${seasonLabel(review.seasonNumber)} · ${compactDate(review.watchedOn)}`,
+              caption: `${review.seasonNumber !== null && review.episodeNumber !== null ? episodeCode(review.seasonNumber, review.episodeNumber) : seasonLabel(review.seasonNumber)} · ${compactDate(review.watchedOn)}`,
             }))}
           />
         </section>

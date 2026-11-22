@@ -218,7 +218,7 @@ export function ShareSeriesStoryModal({ review, open, onClose }: { review: Serie
       {open && review && (
         <ShareBody
           url={`/u/${review.user.username}/series/${review.id}/story`}
-          fileName={`nitrate-${review.series.slug ?? review.series.id}${review.seasonNumber !== null ? `-t${review.seasonNumber}` : ""}.png`}
+          fileName={`nitrate-${review.series.slug ?? review.series.id}${review.seasonNumber !== null ? `-t${review.seasonNumber}` : ""}${review.episodeNumber !== null ? `e${review.episodeNumber}` : ""}.png`}
           eyebrow="Sua maratona"
           title="Mostre o que você maratonou."
           description="A série numa TV de tubo, com sua nota, a temporada e quando você terminou. "

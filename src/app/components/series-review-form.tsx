@@ -3,15 +3,19 @@
 import { useState } from "react";
 import { CircleNotchIcon, HeartIcon, TrashIcon, WarningIcon } from "@phosphor-icons/react";
 import { ApiError } from "@/lib/api-client";
-import { createSeriesReview, deleteSeriesReview, updateSeriesReview } from "@/lib/services/series-service";
-import { seasonLabel, type SeasonSummary, type Series, type SeriesReview } from "@/types/series";
-import { todayIso } from "@/utils/format";
+import { useFetch } from "@/lib/hooks/use-fetch";
+import { createSeriesReview, deleteSeriesReview, getSeason, updateSeriesReview } from "@/lib/services/series-service";
+import { episodeCode, seasonLabel, type SeasonSummary, type Series, type SeriesReview } from "@/types/series";
+import { shortDate, todayIso } from "@/utils/format";
 import { DeleteConfirmBar } from "./ui/delete-confirm-bar";
 import { Poster } from "./ui/poster";
 import { RichTextEditor } from "./ui/rich-text-editor";
 import { StarInput } from "./ui/star-input";
 
 const TEXT_MAX = 20000; // igual ao limite do backend
+
+const selectClass =
+  "px-3 py-2.5 bg-surface border border-brand-slate/20 rounded-lg text-sm text-foreground focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue disabled:opacity-60";
 
 interface SeriesReviewFormProps {
   series: Series;
@@ -20,14 +24,28 @@ interface SeriesReviewFormProps {
   existing: SeriesReview | null;
   /** temporada já escolhida ao abrir (ex.: o botão "registrar" de uma temporada) */
   initialSeason?: number | null;
+  /** episódio já escolhido ao abrir, junto com `initialSeason` */
+  initialEpisode?: number | null;
   onSaved: () => void;
   onDeleted: () => void;
   onCancel: () => void;
 }
 
-/** Registro de uma série: a série inteira ou uma temporada, com nota, curtida, data e review. */
-export function SeriesReviewForm({ series, seasons, existing, initialSeason = null, onSaved, onDeleted, onCancel }: SeriesReviewFormProps) {
+/** Registro de uma série: a série inteira, uma temporada ou um episódio, com nota, curtida, data e review. */
+export function SeriesReviewForm({
+  series,
+  seasons,
+  existing,
+  initialSeason = null,
+  initialEpisode = null,
+  onSaved,
+  onDeleted,
+  onCancel,
+}: SeriesReviewFormProps) {
   const [seasonNumber, setSeasonNumber] = useState<number | null>(existing ? existing.seasonNumber : initialSeason);
+  const [episodeNumber, setEpisodeNumber] = useState<number | null>(existing ? existing.episodeNumber : initialEpisode);
+  // os episódios da temporada escolhida, para registrar um só
+  const season = useFetch(seasonNumber === null ? null : `${series.id}|${seasonNumber}`, getSeason);
   const [rating, setRating] = useState<number | null>(existing?.rating ?? null);
   const [liked, setLiked] = useState(existing?.liked ?? false);
   const [watchedOn, setWatchedOn] = useState(existing?.watchedOn ?? todayIso());
@@ -38,6 +56,7 @@ export function SeriesReviewForm({ series, seasons, existing, initialSeason = nu
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const hasText = text.trim().length > 0;
+  const today = todayIso();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,6 +64,7 @@ export function SeriesReviewForm({ series, seasons, existing, initialSeason = nu
     setError(null);
     const data = {
       seasonNumber,
+      episodeNumber: seasonNumber === null ? null : episodeNumber,
       rating,
       liked,
       watchedOn,
@@ -96,8 +116,11 @@ export function SeriesReviewForm({ series, seasons, existing, initialSeason = nu
           <span className="text-xs uppercase tracking-[0.15em] text-brand-slate/60">O que você assistiu</span>
           <select
             value={seasonNumber === null ? "" : String(seasonNumber)}
-            onChange={(e) => setSeasonNumber(e.target.value === "" ? null : Number(e.target.value))}
-            className="px-3 py-2.5 bg-surface border border-brand-slate/20 rounded-lg text-sm text-foreground focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue"
+            onChange={(e) => {
+              setSeasonNumber(e.target.value === "" ? null : Number(e.target.value));
+              setEpisodeNumber(null);
+            }}
+            className={selectClass}
           >
             <option value="">{seasonLabel(null)}</option>
             {seasons.map((s) => (
@@ -105,6 +128,32 @@ export function SeriesReviewForm({ series, seasons, existing, initialSeason = nu
                 {s.name || seasonLabel(s.seasonNumber)}
               </option>
             ))}
+          </select>
+        </label>
+      )}
+
+      {seasonNumber !== null && (
+        <label className="flex flex-col gap-2">
+          <span className="text-xs uppercase tracking-[0.15em] text-brand-slate/60">Episódio</span>
+          <select
+            value={episodeNumber === null ? "" : String(episodeNumber)}
+            onChange={(e) => setEpisodeNumber(e.target.value === "" ? null : Number(e.target.value))}
+            disabled={!season.data && !season.error}
+            className={selectClass}
+          >
+            <option value="">Temporada inteira</option>
+            {/* enquanto carrega (ou se falhar), o episódio já escolhido continua na lista */}
+            {!season.data && episodeNumber !== null && <option value={episodeNumber}>Episódio {episodeNumber}</option>}
+            {season.data?.episodes.map((ep) => {
+              // episódio que ainda não foi ao ar não dá para ter assistido (a não ser o que já estava registrado)
+              const upcoming = ep.airDate !== null && ep.airDate > today && ep.episodeNumber !== existing?.episodeNumber;
+              return (
+                <option key={ep.episodeNumber} value={ep.episodeNumber} disabled={upcoming}>
+                  {ep.episodeNumber}. {ep.name || `Episódio ${ep.episodeNumber}`}
+                  {upcoming && ep.airDate ? ` (estreia em ${shortDate(ep.airDate)})` : ""}
+                </option>
+              );
+            })}
           </select>
         </label>
       )}
@@ -129,11 +178,13 @@ export function SeriesReviewForm({ series, seasons, existing, initialSeason = nu
         </div>
 
         <label className="flex flex-col gap-2">
-          <span className="text-xs uppercase tracking-[0.15em] text-brand-slate/60">Terminei em</span>
+          <span className="text-xs uppercase tracking-[0.15em] text-brand-slate/60">
+            {seasonNumber !== null && episodeNumber !== null ? "Assisti em" : "Terminei em"}
+          </span>
           <input
             type="date"
             value={watchedOn}
-            max={todayIso()}
+            max={today}
             onChange={(e) => setWatchedOn(e.target.value)}
             className="px-3 py-2 bg-transparent border border-brand-slate/20 rounded-lg text-sm text-foreground focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue"
           />
@@ -142,7 +193,7 @@ export function SeriesReviewForm({ series, seasons, existing, initialSeason = nu
 
       <div className="flex flex-col gap-2">
         <RichTextEditor
-          label={`Sua review de ${series.name}`}
+          label={`Sua review de ${series.name}${seasonNumber !== null && episodeNumber !== null ? `, ${episodeCode(seasonNumber, episodeNumber)}` : ""}`}
           value={text}
           onChange={setText}
           maxLength={TEXT_MAX}
