@@ -10,7 +10,7 @@ import { canRate, type Movie } from "@/types/movie";
 import { easterEggFor } from "@/lib/easter-eggs";
 import { showQuote } from "@/lib/hooks/use-easter-eggs";
 import { clearReviewDraft, loadReviewDraft, reviewDraftKey, saveReviewDraft, type ReviewDraft } from "@/lib/review-draft";
-import { runtimeLabel, shortDate, todayIso } from "@/utils/format";
+import { joinNames, runtimeLabel, shortDate, todayIso } from "@/utils/format";
 import { CompanionPicker } from "./companion-picker";
 import { DeleteConfirmBar } from "./ui/delete-confirm-bar";
 import { Poster } from "./ui/poster";
@@ -70,19 +70,20 @@ export function ReviewForm({ movie, existing, previouslyWatched = false, previou
   const [error, setError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
-  // "assisti com": convite pendente pode trocar ou desfazer; depois de aceito, o par fica
+  // "assisti com": quem convidou marca quantas pessoas quiser e pode tirar quem ainda não aceitou;
+  // quem entrou por convite só vê a sessão
   const together = existing?.together ?? null;
-  const initialCompanion = invite?.author ?? together?.partner ?? null;
-  const [companion, setCompanion] = useState<UserSummary | null>(initialCompanion);
-  const companionLocked = invite !== undefined || together?.status === "ACCEPTED";
-  const companionChanged = (companion?.username ?? "") !== (initialCompanion?.username ?? "");
-  const companionHint = companionLocked
-    ? `Review em conjunto com ${initialCompanion?.name}`
-    : companion && !companionChanged
-      ? `Aguardando ${companion.name} aceitar o convite`
-      : companion
-        ? `${companion.name} vai receber um convite para a review em conjunto`
-        : undefined;
+  const joinedByInvite = invite !== undefined || (together !== null && !together.invitedByMe);
+  const initialCompanions: UserSummary[] = invite
+    ? [invite.author, ...invite.companions.filter((p) => p.status === "ACCEPTED").map((p) => p.user)]
+    : (together?.partners.map((p) => p.user) ?? []);
+  const [companions, setCompanions] = useState<UserSummary[]>(initialCompanions);
+  const acceptedUsernames = (together?.partners ?? []).filter((p) => p.status === "ACCEPTED").map((p) => p.user.username);
+  const companionsChanged =
+    companions.map((u) => u.username).join() !== initialCompanions.map((u) => u.username).join();
+  const companionHint = joinedByInvite
+    ? `Review em conjunto com ${joinNames(initialCompanions.map((u) => u.name))}`
+    : companionStatus(companions, initialCompanions, acceptedUsernames);
 
   const hasText = text.trim().length > 0;
 
@@ -146,7 +147,7 @@ export function ReviewForm({ movie, existing, previouslyWatched = false, previou
       spoiler: hasText && spoiler,
       rewatch: rewatch || rewatchLocked,
       // só manda quando muda: "" desfaz o convite pendente
-      ...(!companionLocked && companionChanged && { watchedWith: companion?.username ?? "" }),
+      ...(!joinedByInvite && companionsChanged && { watchedWith: companions.map((u) => u.username) }),
     };
     try {
       const saved = invite
@@ -241,10 +242,10 @@ export function ReviewForm({ movie, existing, previouslyWatched = false, previou
           </div>
 
           <div className="flex flex-col gap-2">
-            {together?.sharedText && (
+            {together?.sharedText && together.invitedBy && (
               <p className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg bg-background/40 text-sm text-brand-slate">
                 <UsersIcon size={16} className="shrink-0 text-brand-orange" />
-                Este texto é a review de {together.partner.name}. Se você mudar, a review passa a ser sua.
+                Este texto é a review de {together.invitedBy.name}. Se você mudar, a review passa a ser sua.
               </p>
             )}
             <div className="relative">
@@ -286,7 +287,13 @@ export function ReviewForm({ movie, existing, previouslyWatched = false, previou
           {/* assisti com, nota e curtida na mesma faixa, embaixo do texto */}
           <div className="flex flex-wrap items-start gap-x-8 gap-y-5 pt-5 border-t border-foreground/10">
             <div className="flex-1 min-w-[220px]">
-              <CompanionPicker value={companion} onChange={setCompanion} locked={companionLocked} hint={companionHint} />
+              <CompanionPicker
+                value={companions}
+                onChange={setCompanions}
+                lockedUsernames={acceptedUsernames}
+                readOnly={joinedByInvite}
+                hint={companionHint}
+              />
             </div>
             <div className="flex flex-col gap-2">
               <span className="text-xs uppercase tracking-[0.15em] text-brand-slate/60">Nota</span>
@@ -411,4 +418,21 @@ function RuleWarning({ rule, text, onRespect, onBreak }: {
       </div>
     </div>
   );
+}
+
+/** a linha embaixo de quem foi marcado: quem já aceitou, quem ainda não respondeu e quem vai receber o convite */
+function companionStatus(companions: UserSummary[], initial: UserSummary[], accepted: string[]): string | undefined {
+  const names = (users: UserSummary[]) => joinNames(users.map((u) => u.name));
+  const plural = (users: UserSummary[], one: string, many: string) => (users.length > 1 ? many : one);
+  const wasThere = new Set(initial.map((u) => u.username));
+  const joined = companions.filter((u) => accepted.includes(u.username));
+  const waiting = companions.filter((u) => wasThere.has(u.username) && !accepted.includes(u.username));
+  const invited = companions.filter((u) => !wasThere.has(u.username));
+  const parts = [
+    joined.length > 0 && `${names(joined)} ${plural(joined, "já aceitou", "já aceitaram")}`,
+    waiting.length > 0 && `Aguardando ${names(waiting)} ${plural(waiting, "aceitar", "aceitarem")} o convite`,
+    invited.length > 0 &&
+      `${names(invited)} ${plural(invited, "vai", "vão")} receber um convite para a review em conjunto`,
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(". ") : undefined;
 }

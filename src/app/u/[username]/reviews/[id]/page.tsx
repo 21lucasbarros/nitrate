@@ -27,7 +27,8 @@ import { NitrateRating } from "@/app/components/movie-community";
 import { ReviewComments } from "@/app/components/review-comments";
 import { ReviewLikeButton } from "@/app/components/review-like-button";
 import { ReviewForm } from "@/app/components/review-form";
-import { acceptedTogether, partnerReviewHref, reviewHref } from "@/app/components/review-card";
+import { reviewHref } from "@/app/components/review-card";
+import { TogetherWith, acceptedPartners, partnerReviewHref, sharedTextAuthor } from "@/app/components/together-with";
 import { ShareReviewStoryModal } from "@/app/components/review-story-share";
 import { Avatar } from "@/app/components/ui/avatar";
 import { Modal } from "@/app/components/ui/modal";
@@ -43,7 +44,7 @@ import { getMovieCredits, getMovieStats } from "@/lib/services/movie-service";
 import { getReview, getReviewEngagement, likeReview, unlikeReview } from "@/lib/services/review-service";
 import { getUserReviews } from "@/lib/services/user-service";
 import type { MovieReview } from "@/lib/types/review";
-import { shortDate, timeAgo } from "@/utils/format";
+import { joinNames, shortDate, timeAgo } from "@/utils/format";
 import { filmHref } from "@/utils/movie-link";
 import { backdropUrl } from "@/utils/poster";
 import { toRating } from "@/utils/rating";
@@ -115,9 +116,10 @@ function ReviewView({ review, onChange, onDeleted }: {
   useMovieEasterEgg(movie);
 
   const hideText = review.spoiler && !isOwn && !revealed;
-  const together = acceptedTogether(review);
-  // o convite pendente só aparece para quem convidou
-  const pendingWith = isOwn && review.together?.status === "PENDING" ? review.together.partner : null;
+  const partners = acceptedPartners(review);
+  const sharedFrom = sharedTextAuthor(review);
+  // os convites pendentes só aparecem para quem convidou
+  const pendingWith = isOwn ? (review.together?.partners ?? []).filter((p) => p.status === "PENDING").map((p) => p.user) : [];
   const backdrop = backdropUrl(credits.data?.backdropPath);
   const director = credits.data?.directors[0]?.name ?? movie.director;
   const firstName = user.name.split(" ")[0];
@@ -176,22 +178,16 @@ function ReviewView({ review, onChange, onDeleted }: {
                   Review de <span className="font-semibold text-foreground group-hover:text-brand-orange transition-colors">{user.name}</span>
                 </span>
               </Link>
-              {together && (
-                <Link
-                  href={partnerReviewHref(together)}
-                  title={`Ver a review de ${together.partner.name}`}
-                  className="group flex items-center gap-2 text-sm text-brand-slate"
-                >
-                  <UsersIcon size={16} className="text-brand-orange" />
-                  com
-                  <Avatar name={together.partner.name} username={together.partner.username} avatar={together.partner.avatar} size="xs" />
-                  <span className="font-semibold text-foreground group-hover:text-brand-orange transition-colors">{together.partner.name}</span>
-                </Link>
+              {partners.length > 0 && (
+                <span className="text-sm text-brand-slate">
+                  <TogetherWith partners={partners} emphasis="font-semibold text-foreground" />
+                </span>
               )}
-              {pendingWith && (
+              {pendingWith.length > 0 && (
                 <span className="flex items-center gap-2 text-xs text-brand-slate">
                   <UsersIcon size={14} />
-                  Aguardando {pendingWith.name} aceitar a review em conjunto
+                  Aguardando {joinNames(pendingWith.map((u) => u.name))}{" "}
+                  {pendingWith.length > 1 ? "aceitarem" : "aceitar"} a review em conjunto
                 </span>
               )}
               <span className="ml-auto text-xs text-brand-slate/60">registrada {timeAgo(review.createdAt)}</span>
@@ -233,11 +229,11 @@ function ReviewView({ review, onChange, onDeleted }: {
                       <WarningIcon size={13} weight="bold" /> Spoiler
                     </span>
                   )}
-                  {together?.sharedText && (
+                  {sharedFrom && (
                     <p className="mb-3 text-sm text-brand-slate">
                       {firstName} usou a review de{" "}
-                      <Link href={partnerReviewHref(together)} className="text-foreground hover:text-brand-orange">
-                        {together.partner.name}
+                      <Link href={partnerReviewHref(sharedFrom)} className="text-foreground hover:text-brand-orange">
+                        {sharedFrom.user.name}
                       </Link>
                       .
                     </p>

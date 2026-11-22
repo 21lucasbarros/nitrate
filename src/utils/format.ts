@@ -70,6 +70,11 @@ export function runtimeLabel(minutes: number): string {
   return m === 0 ? `${h}h` : `${h}h ${m}min`;
 }
 
+/** ["Ana"] -> "Ana"; ["Ana", "Bia", "Caio"] -> "Ana, Bia e Caio" */
+export function joinNames(names: string[]): string {
+  return names.length <= 1 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} e ${names[names.length - 1]}`;
+}
+
 /** data local de hoje no formato yyyy-mm-dd */
 export function todayIso(): string {
   const now = new Date();

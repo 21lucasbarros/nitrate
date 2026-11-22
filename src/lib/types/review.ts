@@ -16,13 +16,20 @@ export interface MovieReview {
   together: ReviewTogether | null; // review em conjunto ("assisti com")
 }
 
-// Espelha ReviewDTO.Together: o par visto do lado do dono da review (convites recusados não vêm)
+// Espelha ReviewDTO.Together: a sessão vista do lado do dono da review (convites recusados não vêm).
+// Quem convidou vê também os pendentes; quem aceitou vê quem convidou e quem mais aceitou
 export interface ReviewTogether {
-  partner: UserSummary;
-  partnerReviewId: number | null; // nula enquanto o convite está pendente
-  status: "PENDING" | "ACCEPTED";
+  partners: ReviewPartner[];
   invitedByMe: boolean;
-  sharedText: boolean; // o texto desta review é o de `partner`
+  invitedBy: UserSummary | null; // quem convidou (nulo para ele mesmo)
+  sharedText: boolean; // o texto desta review é o de `invitedBy`
+}
+
+// Espelha ReviewDTO.Partner
+export interface ReviewPartner {
+  user: UserSummary;
+  reviewId: number | null; // nula enquanto o convite está pendente
+  status: "PENDING" | "ACCEPTED";
 }
 
 // Espelha CollaborationDTO: o convite, para quem foi marcado decidir
@@ -33,6 +40,7 @@ export interface ReviewInvite {
   invitee: UserSummary;
   review: MovieReview; // a review de quem convidou
   inviteeReviewId: number | null;
+  companions: ReviewPartner[]; // as outras pessoas marcadas na mesma sessão (sem quem recusou)
 }
 
 export interface ReviewRequest {
@@ -43,8 +51,8 @@ export interface ReviewRequest {
   rewatch: boolean;
   spoiler: boolean;
   watchedOn: string | null;
-  // username de quem assistiu junto; omitido = não muda, "" = desfaz o convite pendente
-  watchedWith?: string;
+  // usernames de todo mundo que assistiu junto; omitido = não muda, quem sai com o convite pendente tem o convite desfeito
+  watchedWith?: string[];
 }
 
 // Espelha ReviewEngagementDTO e ReviewCommentDTO

@@ -16,6 +16,7 @@ import { useFetch } from "@/lib/hooks/use-fetch";
 import { acceptReviewInvite, declineReviewInvite, getReviewInvite } from "@/lib/services/review-service";
 import { getMovieState } from "@/lib/services/user-service";
 import type { MovieReview, ReviewInvite } from "@/lib/types/review";
+import { joinNames } from "@/utils/format";
 
 export default function InvitePage() {
   const params = useParams<{ id: string }>();
@@ -54,6 +55,8 @@ function InviteView({ invite }: { invite: ReviewInvite }) {
   const movie = review.movie;
   const isInvitee = me?.username === invite.invitee.username;
   const firstName = author.name.split(" ")[0];
+  // as outras pessoas que quem convidou marcou na mesma sessão
+  const others = invite.companions.map((p) => p.user);
 
   const [step, setStep] = useState<"ask" | "choose">("ask");
   const [writing, setWriting] = useState(false);
@@ -97,15 +100,19 @@ function InviteView({ invite }: { invite: ReviewInvite }) {
     <>
       <div className="flex items-center gap-3">
         <div className="flex -space-x-2">
-          <Avatar name={author.name} username={author.username} avatar={author.avatar} size="md" />
-          <Avatar name={invite.invitee.name} username={invite.invitee.username} avatar={invite.invitee.avatar} size="md" />
+          {[author, invite.invitee, ...others].slice(0, 5).map((u) => (
+            <span key={u.username} className="rounded-full ring-2 ring-background">
+              <Avatar name={u.name} username={u.username} avatar={u.avatar} size="md" />
+            </span>
+          ))}
         </div>
         <span className="text-xs font-bold tracking-[0.2em] uppercase text-brand-orange">Review em conjunto</span>
       </div>
       <h1 className="mt-4 text-3xl sm:text-4xl font-medium tracking-tight leading-tight">
         {isInvitee ? (
           <>
-            {author.name} assistiu <span className="font-serif font-semibold">{movie.title}</span> com você.
+            {author.name} assistiu <span className="font-serif font-semibold">{movie.title}</span> com você
+            {others.length > 0 && <> e com {joinNames(others.map((u) => u.name))}</>}.
           </>
         ) : (
           <>
@@ -142,7 +149,8 @@ function InviteView({ invite }: { invite: ReviewInvite }) {
       ) : step === "ask" ? (
         <div className="mt-8">
           <p className="text-brand-slate">
-            Aceitando, {movie.title} entra no seu diário e as duas reviews aparecem juntas, com vocês marcados.
+            Aceitando, {movie.title} entra no seu diário e {others.length > 0 ? "as reviews de quem aceitar aparecem" : "as duas reviews aparecem"}{" "}
+            juntas, com vocês marcados.
           </p>
           <div className="mt-5 flex flex-wrap gap-3">
             <button

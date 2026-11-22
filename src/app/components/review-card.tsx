@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowsClockwiseIcon, EyeIcon, HeartIcon, UsersIcon, WarningIcon } from "@phosphor-icons/react";
+import { ArrowsClockwiseIcon, EyeIcon, HeartIcon, WarningIcon } from "@phosphor-icons/react";
 import { useAuth } from "@/lib/auth-context";
-import type { MovieReview, ReviewTogether } from "@/lib/types/review";
+import type { MovieReview } from "@/lib/types/review";
 import { toRating } from "@/utils/rating";
 import { filmHref } from "@/utils/movie-link";
 import { shortDate, timeAgo } from "@/utils/format";
@@ -12,6 +12,7 @@ import { StarRating } from "./ui/star-rating";
 import { Poster } from "./ui/poster";
 import { Avatar } from "./ui/avatar";
 import { ReviewText } from "./ui/review-text";
+import { TogetherWith, acceptedPartners } from "./together-with";
 
 interface ReviewCardProps {
   review: MovieReview;
@@ -30,16 +31,6 @@ export function reviewHref(review: MovieReview): string {
   return `/u/${review.user.username}/reviews/${review.id}`;
 }
 
-/** a review em conjunto, só depois de a outra pessoa aceitar (convite pendente não aparece para os outros) */
-export function acceptedTogether(review: MovieReview): (ReviewTogether & { partnerReviewId: number }) | null {
-  const t = review.together;
-  return t && t.status === "ACCEPTED" && t.partnerReviewId !== null ? { ...t, partnerReviewId: t.partnerReviewId } : null;
-}
-
-export function partnerReviewHref(together: ReviewTogether & { partnerReviewId: number }): string {
-  return `/u/${together.partner.username}/reviews/${together.partnerReviewId}`;
-}
-
 export function ReviewCard({ review, hideMovie = false, hideUser = false, excerpt = false }: ReviewCardProps) {
   const { movie, user } = review;
   const { user: me } = useAuth();
@@ -47,7 +38,8 @@ export function ReviewCard({ review, hideMovie = false, hideUser = false, excerp
   // o autor sempre vê a própria review; os outros precisam pedir para ver
   const isOwn = me?.username === user.username;
   const hideText = review.spoiler && !isOwn && !revealed;
-  const together = acceptedTogether(review);
+  const partners = acceptedPartners(review);
+  const sharedFrom = review.together?.sharedText ? review.together.invitedBy : null;
 
   return (
     <article className="group flex items-start gap-5 sm:gap-6 py-6">
@@ -79,18 +71,7 @@ export function ReviewCard({ review, hideMovie = false, hideUser = false, excerp
               {user.name}
             </Link>
           )}
-          {together && (
-            <Link
-              href={partnerReviewHref(together)}
-              title={`Review em conjunto: ver a review de ${together.partner.name}`}
-              className="flex items-center gap-1.5 hover:text-brand-orange transition-colors"
-            >
-              <UsersIcon size={15} />
-              com
-              <Avatar name={together.partner.name} username={together.partner.username} avatar={together.partner.avatar} size="xs" />
-              <span className="font-medium text-foreground/80">{together.partner.name}</span>
-            </Link>
-          )}
+          {partners.length > 0 && <TogetherWith partners={partners} />}
           {review.rating !== null && <StarRating rating={toRating(review.rating)} size={16} />}
           {review.liked && (
             <HeartIcon size={15} weight="fill" className="text-brand-orange" aria-label="Curtiu" />
@@ -129,13 +110,13 @@ export function ReviewCard({ review, hideMovie = false, hideUser = false, excerp
                 Spoiler
               </span>
             )}
-            {together?.sharedText && (
-              <span className="mt-3 block text-xs text-brand-slate">Review escrita por {together.partner.name}</span>
+            {sharedFrom && (
+              <span className="mt-3 block text-xs text-brand-slate">Review escrita por {sharedFrom.name}</span>
             )}
             <ReviewText
               text={review.text}
               inline={excerpt}
-              className={`${review.spoiler || together?.sharedText ? "mt-1.5" : "mt-3"} font-serif text-[17px] leading-[1.7] text-foreground/85 max-w-2xl ${excerpt ? "line-clamp-4" : ""}`}
+              className={`${review.spoiler || sharedFrom ? "mt-1.5" : "mt-3"} font-serif text-[17px] leading-[1.7] text-foreground/85 max-w-2xl ${excerpt ? "line-clamp-4" : ""}`}
             />
           </>
         )}

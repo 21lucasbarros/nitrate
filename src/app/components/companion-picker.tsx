@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { MagnifyingGlassIcon, UserPlusIcon, XIcon } from "@phosphor-icons/react";
+import { useEffect, useRef, useState } from "react";
+import { MagnifyingGlassIcon, PlusIcon, UserPlusIcon, XIcon } from "@phosphor-icons/react";
 import { useAuth } from "@/lib/auth-context";
 import { useFetch } from "@/lib/hooks/use-fetch";
 import { getFollowers } from "@/lib/services/user-service";
@@ -11,68 +11,110 @@ import { Avatar } from "./ui/avatar";
 const MAX_RESULTS = 6;
 
 interface CompanionPickerProps {
-  value: UserSummary | null;
-  onChange: (user: UserSummary | null) => void;
-  /** par já confirmado: mostra quem é, sem deixar trocar */
-  locked?: boolean;
-  /** linha embaixo da pessoa escolhida (ex.: "Aguardando aceitar") */
+  value: UserSummary[];
+  onChange: (users: UserSummary[]) => void;
+  /** quem já aceitou: aparece sem o X */
+  lockedUsernames?: string[];
+  /** só mostra quem está na sessão, sem deixar marcar mais ninguém (quem entrou por convite) */
+  readOnly?: boolean;
+  /** linha embaixo das pessoas escolhidas (ex.: "Aguardando aceitar") */
   hint?: string;
 }
 
 /**
- * "Assisti com": marca quem viu o filme junto. A pessoa recebe um convite para a review em conjunto,
- * por isso só aparecem (e o backend só aceita) quem segue você.
+ * "Assisti com": marca quem viu o filme junto, quantas pessoas quiser. Cada uma recebe um convite
+ * para a review em conjunto, por isso só aparecem (e o backend só aceita) quem segue você.
  */
-export function CompanionPicker({ value, onChange, locked = false, hint }: CompanionPickerProps) {
+export function CompanionPicker({ value, onChange, lockedUsernames = [], readOnly = false, hint }: CompanionPickerProps) {
   const { user: me } = useAuth();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const followers = useFetch(open && me ? me.username : null, getFollowers);
+  const root = useRef<HTMLDivElement>(null);
 
+  // clicar fora fecha a busca
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (root.current && !root.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  const chosen = new Set(value.map((u) => u.username.toLowerCase()));
   const term = query.trim().toLowerCase().replace(/^@/, "");
-  const results = (followers.data ?? [])
+  const available = (followers.data ?? []).filter((u) => !chosen.has(u.username.toLowerCase()));
+  const results = available
     .filter((u) => !term || u.username.toLowerCase().includes(term) || u.name.toLowerCase().includes(term))
     .slice(0, MAX_RESULTS);
 
+  // a busca continua aberta para marcar mais gente em seguida
   const choose = (user: UserSummary) => {
-    onChange(user);
-    setOpen(false);
+    onChange([...value, user]);
     setQuery("");
   };
 
   return (
-    <div className="flex flex-col gap-2">
+    <div ref={root} className="relative flex flex-col gap-2">
       <span className="text-xs uppercase tracking-[0.15em] text-brand-slate/60">Assisti com</span>
 
-      {value ? (
-        <div className="flex items-center gap-2.5 w-fit max-w-full pl-1.5 pr-2 py-1.5 rounded-full bg-surface">
-          <Avatar name={value.name} username={value.username} avatar={value.avatar} size="xs" />
-          <span className="min-w-0 truncate text-sm">
-            <span className="font-medium">{value.name}</span>{" "}
-            <span className="text-brand-slate">@{value.username}</span>
-          </span>
-          {!locked && (
-            <button
-              type="button"
-              onClick={() => onChange(null)}
-              aria-label={`Desmarcar ${value.name}`}
-              className="p-0.5 rounded-full text-brand-slate hover:text-brand-crimson transition-colors"
-            >
-              <XIcon size={14} weight="bold" />
-            </button>
-          )}
-        </div>
-      ) : !open ? (
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="flex items-center gap-2 w-fit text-sm text-brand-slate/80 hover:text-foreground transition-colors"
-        >
-          <UserPlusIcon size={18} />
-          Marcar quem assistiu com você
-        </button>
-      ) : (
-        <div className="rounded-xl border border-brand-slate/20 overflow-hidden">
+      <ul className="flex flex-wrap items-center gap-1.5">
+        {value.map((u) => (
+          <li
+            key={u.username}
+            title={`${u.name} @${u.username}`}
+            className="flex items-center gap-1.5 max-w-[180px] pl-1 pr-1.5 py-1 rounded-full bg-surface text-sm"
+          >
+            <Avatar name={u.name} username={u.username} avatar={u.avatar} size="xs" />
+            <span className="min-w-0 truncate font-medium">{u.name.split(" ")[0]}</span>
+            {!readOnly && !lockedUsernames.some((l) => l.toLowerCase() === u.username.toLowerCase()) && (
+              <button
+                type="button"
+                onClick={() => onChange(value.filter((v) => v.username !== u.username))}
+                aria-label={`Desmarcar ${u.name}`}
+                className="p-0.5 rounded-full text-brand-slate hover:text-brand-crimson transition-colors"
+              >
+                <XIcon size={12} weight="bold" />
+              </button>
+            )}
+          </li>
+        ))}
+        {!readOnly && (
+          <li>
+            {value.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => setOpen((o) => !o)}
+                aria-label="Marcar mais alguém"
+                title="Marcar mais alguém"
+                aria-expanded={open}
+                className={`flex items-center justify-center w-7 h-7 rounded-full border border-dashed transition-colors ${
+                  open ? "border-brand-orange text-brand-orange" : "border-brand-slate/40 text-brand-slate hover:text-foreground hover:border-foreground/50"
+                }`}
+              >
+                <PlusIcon size={14} weight="bold" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setOpen((o) => !o)}
+                aria-expanded={open}
+                className="flex items-center gap-2 text-sm text-brand-slate/80 hover:text-foreground transition-colors"
+              >
+                <UserPlusIcon size={18} />
+                Marcar quem assistiu com você
+              </button>
+            )}
+          </li>
+        )}
+      </ul>
+
+      {value.length > 0 && hint && <span className="text-xs text-brand-slate">{hint}</span>}
+
+      {/* por cima do formulário, para o modal não crescer; abre para cima porque o campo fica no fim do formulário */}
+      {open && !readOnly && (
+        <div className="absolute z-20 bottom-full left-0 mb-2 w-full min-w-[260px] max-w-sm rounded-xl border border-brand-slate/20 bg-background shadow-2xl shadow-black/40 overflow-hidden">
           <label className="flex items-center gap-2 px-3 border-b border-brand-slate/10">
             <MagnifyingGlassIcon size={16} className="shrink-0 text-brand-slate/60" />
             <input
@@ -85,7 +127,12 @@ export function CompanionPicker({ value, onChange, locked = false, hint }: Compa
                   e.preventDefault();
                   if (results[0]) choose(results[0]);
                 }
-                if (e.key === "Escape") setOpen(false);
+                if (e.key === "Escape") {
+                  // sem fechar o modal junto (o <dialog> fecha no Esc se o keydown não for cancelado)
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setOpen(false);
+                }
               }}
               autoFocus
               placeholder="Buscar entre quem segue você"
@@ -93,7 +140,7 @@ export function CompanionPicker({ value, onChange, locked = false, hint }: Compa
               className="flex-1 py-2.5 bg-transparent text-sm focus:outline-none"
             />
             <button type="button" onClick={() => setOpen(false)} className="text-xs text-brand-slate hover:text-foreground">
-              Cancelar
+              {value.length > 0 ? "Pronto" : "Cancelar"}
             </button>
           </label>
           {!followers.data ? (
@@ -104,10 +151,12 @@ export function CompanionPicker({ value, onChange, locked = false, hint }: Compa
             <p className="px-3 py-3 text-sm text-brand-slate/70">
               {followers.data.length === 0
                 ? "Só dá para marcar quem segue você, e ninguém te segue ainda."
-                : "Ninguém com esse nome entre quem segue você."}
+                : available.length === 0
+                  ? "Você já marcou todo mundo que segue você."
+                  : "Ninguém com esse nome entre quem segue você."}
             </p>
           ) : (
-            <ul className="max-h-60 overflow-y-auto">
+            <ul className="max-h-56 overflow-y-auto">
               {results.map((u) => (
                 <li key={u.username}>
                   <button
@@ -127,8 +176,6 @@ export function CompanionPicker({ value, onChange, locked = false, hint }: Compa
           )}
         </div>
       )}
-
-      {value && hint && <span className="text-xs text-brand-slate">{hint}</span>}
     </div>
   );
 }
