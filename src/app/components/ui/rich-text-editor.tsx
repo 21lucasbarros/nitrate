@@ -11,6 +11,7 @@ import {
   TextItalicIcon,
   XIcon,
 } from "@phosphor-icons/react";
+import { shortcutLabel, useIsApple } from "@/lib/hooks/use-is-apple";
 import {
   insertLink,
   normalizeUrl,
@@ -125,6 +126,11 @@ export function RichTextEditor({ value, onChange, maxLength, placeholder, label,
     commit(insertLink(selection, url), selection);
   };
 
+  // os atalhos no rótulo dos botões, com ⌘ ou Ctrl conforme o sistema (sem atalho até saber qual é)
+  const isApple = useIsApple();
+  const withShortcut = (label: string, key: string, shift = false) =>
+    isApple === null ? label : `${label} (${shortcutLabel(isApple, key, shift)})`;
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (!(e.metaKey || e.ctrlKey)) return;
     const key = e.key.toLowerCase();
@@ -187,15 +193,15 @@ export function RichTextEditor({ value, onChange, maxLength, placeholder, label,
       )}
 
       <div className="flex items-center gap-2 px-3 py-2.5 border-t border-foreground/10 bg-background/60">
-        <ToolButton label="Negrito (⌘B)" onClick={() => format(toggleBold)}><TextBIcon size={17} weight="bold" /></ToolButton>
-        <ToolButton label="Itálico (⌘I)" onClick={() => format(toggleItalic)}><TextItalicIcon size={17} /></ToolButton>
+        <ToolButton label={withShortcut("Negrito", "B")} onClick={() => format(toggleBold)}><TextBIcon size={17} weight="bold" /></ToolButton>
+        <ToolButton label={withShortcut("Itálico", "I")} onClick={() => format(toggleItalic)}><TextItalicIcon size={17} /></ToolButton>
         <ToolButton label="Citação" onClick={() => format(toggleQuote)}><TextIndentIcon size={17} /></ToolButton>
-        <ToolButton label="Link (⌘K)" onClick={openLink} active={linkOpen}><LinkSimpleIcon size={17} /></ToolButton>
+        <ToolButton label={withShortcut("Link", "K")} onClick={openLink} active={linkOpen}><LinkSimpleIcon size={17} /></ToolButton>
         <span className="ml-auto flex gap-2">
-          <ToolButton round label="Desfazer (⌘Z)" onClick={undo} disabled={history.past.length === 0}>
+          <ToolButton round label={withShortcut("Desfazer", "Z")} onClick={undo} disabled={history.past.length === 0}>
             <ArrowUUpLeftIcon size={17} />
           </ToolButton>
-          <ToolButton round label="Refazer (⇧⌘Z)" onClick={redo} disabled={history.future.length === 0}>
+          <ToolButton round label={isApple === false ? "Refazer (Ctrl+Y)" : withShortcut("Refazer", "Z", true)} onClick={redo} disabled={history.future.length === 0}>
             <ArrowUUpRightIcon size={17} />
           </ToolButton>
         </span>

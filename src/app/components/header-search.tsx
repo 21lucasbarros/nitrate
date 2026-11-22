@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { CircleNotchIcon, FilmSlateIcon, MagnifyingGlassIcon, TelevisionIcon, XIcon } from "@phosphor-icons/react";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { useFetch } from "@/lib/hooks/use-fetch";
+import { useIsApple } from "@/lib/hooks/use-is-apple";
 import { searchMovies } from "@/lib/services/movie-service";
 import { searchPeople } from "@/lib/services/person-service";
 import { searchSeries } from "@/lib/services/series-service";
@@ -33,6 +34,7 @@ export function HeaderSearch() {
   const [query, setQuery] = useState("");
   const router = useRouter();
   const ref = useRef<HTMLDivElement>(null);
+  const isApple = useIsApple();
 
   const debounced = useDebouncedValue(query.trim(), DEBOUNCE_MS);
   const key = open && debounced.length >= MIN_QUERY ? debounced : null;
@@ -79,12 +81,17 @@ export function HeaderSearch() {
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Buscar filmes, séries, pessoas e perfis"
-        aria-keyshortcuts="Meta+K Control+K"
+        aria-keyshortcuts={isApple === null ? "Meta+K Control+K" : isApple ? "Meta+K" : "Control+K"}
         className="flex items-center gap-2 w-56 lg:w-64 h-9 px-3 rounded-md bg-surface/60 ring-1 ring-foreground/10 text-sm text-brand-slate/80 hover:text-foreground hover:ring-foreground/20 transition-colors"
       >
         <MagnifyingGlassIcon size={16} className="shrink-0" />
         <span className="flex-1 text-left truncate">Buscar filmes, séries…</span>
-        <kbd className="shrink-0 font-sans text-[11px] px-1.5 py-0.5 rounded bg-foreground/5 ring-1 ring-foreground/10 text-brand-slate/70">⌘K</kbd>
+        {/* o atalho do sistema da pessoa; só aparece depois de hidratar, para o HTML do servidor bater */}
+        {isApple !== null && (
+          <kbd className="shrink-0 font-sans text-[11px] px-1.5 py-0.5 rounded bg-foreground/5 ring-1 ring-foreground/10 text-brand-slate/70">
+            {isApple ? "⌘K" : "Ctrl K"}
+          </kbd>
+        )}
       </button>
     );
   }
