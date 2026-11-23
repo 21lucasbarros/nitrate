@@ -10,6 +10,12 @@ export interface ReviewDraft {
   rewatch: boolean;
 }
 
+/** registro de série: o rascunho guarda também o que foi assistido */
+export interface SeriesReviewDraft extends ReviewDraft {
+  seasonNumber: number | null;
+  episodeNumber: number | null;
+}
+
 const PREFIX = "nitrate:review-draft:";
 
 /** um rascunho por review (edição) ou por filme (registro novo) */
@@ -17,16 +23,29 @@ export function reviewDraftKey(movieId: number | string, reviewId?: number | str
   return PREFIX + (reviewId != null ? `review-${reviewId}` : `movie-${movieId}`);
 }
 
-export function loadReviewDraft(key: string): ReviewDraft | null {
+/**
+ * Registro de série: um rascunho por registro (edição), por convite ou por série e pelo que estava
+ * escolhido ao abrir (o botão de um episódio não recupera o rascunho de outro)
+ */
+export function seriesReviewDraftKey(
+  seriesId: number | string,
+  { reviewId, inviteId, season, episode }: { reviewId?: number | null; inviteId?: number | null; season: number | null; episode: number | null },
+): string {
+  if (reviewId != null) return `${PREFIX}series-review-${reviewId}`;
+  if (inviteId != null) return `${PREFIX}series-invite-${inviteId}`;
+  return `${PREFIX}series-${seriesId}-${season ?? "serie"}-${episode ?? "temporada"}`;
+}
+
+export function loadReviewDraft<T extends ReviewDraft = ReviewDraft>(key: string): T | null {
   try {
     const raw = sessionStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as ReviewDraft) : null;
+    return raw ? (JSON.parse(raw) as T) : null;
   } catch {
     return null;
   }
 }
 
-export function saveReviewDraft(key: string, draft: ReviewDraft): void {
+export function saveReviewDraft(key: string, draft: ReviewDraft | SeriesReviewDraft): void {
   try {
     sessionStorage.setItem(key, JSON.stringify(draft));
   } catch {

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { ArrowsClockwiseIcon, CalendarBlankIcon, CircleNotchIcon, HeartIcon, TrashIcon, UsersIcon, WarningIcon } from "@phosphor-icons/react";
+import { useEffect, useState } from "react";
+import { ArrowsClockwiseIcon, CalendarBlankIcon, CircleNotchIcon, FloppyDiskIcon, HeartIcon, TrashIcon, UsersIcon, WarningIcon } from "@phosphor-icons/react";
 import { ApiError } from "@/lib/api-client";
 import { useFetch } from "@/lib/hooks/use-fetch";
 import {
@@ -11,6 +11,7 @@ import {
   getSeason,
   updateSeriesReview,
 } from "@/lib/services/series-service";
+import { clearReviewDraft, loadReviewDraft, saveReviewDraft, seriesReviewDraftKey, type SeriesReviewDraft } from "@/lib/review-draft";
 import type { UserSummary } from "@/lib/types/user";
 import { episodeCode, seasonLabel, type SeasonSummary, type Series, type SeriesReview, type SeriesReviewInvite } from "@/types/series";
 import { joinNames, runtimeLabel, shortDate, todayIso } from "@/utils/format";
@@ -67,12 +68,21 @@ export function SeriesReviewForm({
   onCancel,
 }: SeriesReviewFormProps) {
   // no convite, o que foi assistido é o que quem convidou registrou
-  const [seasonNumber, setSeasonNumber] = useState<number | null>(
-    invite ? invite.review.seasonNumber : existing ? existing.seasonNumber : initialSeason,
-  );
-  const [episodeNumber, setEpisodeNumber] = useState<number | null>(
-    invite ? invite.review.episodeNumber : existing ? existing.episodeNumber : initialEpisode,
-  );
+  const startSeason = invite ? invite.review.seasonNumber : existing ? existing.seasonNumber : initialSeason;
+  const startEpisode = invite ? invite.review.episodeNumber : existing ? existing.episodeNumber : initialEpisode;
+  // fechar o modal sem salvar não perde nada: o que foi preenchido volta da próxima vez (como nos filmes)
+  const draftKey = seriesReviewDraftKey(series.id, {
+    reviewId: existing?.id,
+    inviteId: invite?.id,
+    season: startSeason,
+    episode: startEpisode,
+  });
+  // ler o sessionStorage na renderização é seguro: o formulário só existe dentro de um modal aberto por clique
+  const [restored] = useState(() => loadReviewDraft<SeriesReviewDraft>(draftKey));
+  const [showRestored, setShowRestored] = useState(restored !== null);
+
+  const [seasonNumber, setSeasonNumber] = useState<number | null>(restored ? restored.seasonNumber : startSeason);
+  const [episodeNumber, setEpisodeNumber] = useState<number | null>(restored ? restored.episodeNumber : startEpisode);
   // os episódios da temporada escolhida, para registrar um só
   const season = useFetch(seasonNumber === null ? null : `${series.id}|${seasonNumber}`, getSeason);
 
@@ -81,18 +91,56 @@ export function SeriesReviewForm({
   const others = myReviews.filter((r) => r.id !== existing?.id);
   const rewatchLocked = !existing && others.some(sameTarget);
   // como nos filmes: um registro novo já vem com a nota e a curtida do último do mesmo (quem reassiste costuma manter)
-  const [previous] = useState(() => (existing ? null : others.find(sameTarget) ?? null));
+  const [previous] = useState(() =>
+    existing ? null : others.find((r) => r.seasonNumber === startSeason && r.episodeNumber === startEpisode) ?? null,
+  );
   const base = existing ?? previous;
+  // o que o formulário mostraria sem rascunho
+  const initial: SeriesReviewDraft = {
+    seasonNumber: startSeason,
+    episodeNumber: startEpisode,
+    rating: base?.rating ?? null,
+    liked: base?.liked ?? false,
+    watchedOn: existing?.watchedOn ?? invite?.review.watchedOn ?? todayIso(),
+    text: existing?.text ?? "",
+    spoiler: existing?.spoiler ?? false,
+    rewatch: existing?.rewatch ?? false,
+  };
+  const start = restored ?? initial;
 
-  const [rating, setRating] = useState<number | null>(base?.rating ?? null);
-  const [liked, setLiked] = useState(base?.liked ?? false);
-  const [watchedOn, setWatchedOn] = useState(existing?.watchedOn ?? invite?.review.watchedOn ?? todayIso());
-  const [text, setText] = useState(existing?.text ?? "");
-  const [spoiler, setSpoiler] = useState(existing?.spoiler ?? false);
-  const [rewatch, setRewatch] = useState(existing?.rewatch ?? false);
+  const [rating, setRating] = useState<number | null>(start.rating);
+  const [liked, setLiked] = useState(start.liked);
+  const [watchedOn, setWatchedOn] = useState(start.watchedOn);
+  const [text, setText] = useState(start.text);
+  const [spoiler, setSpoiler] = useState(start.spoiler);
+  const [rewatch, setRewatch] = useState(start.rewatch);
   const [busy, setBusy] = useState<"save" | "delete" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+
+  const current: SeriesReviewDraft = { seasonNumber, episodeNumber, rating, liked, watchedOn, text, spoiler, rewatch };
+  const changed = (Object.keys(current) as (keyof SeriesReviewDraft)[]).some((k) => current[k] !== initial[k]);
+  const currentJson = JSON.stringify(current);
+
+  // guarda a cada mudança; voltar ao estado original apaga o rascunho
+  useEffect(() => {
+    if (busy !== null) return; // salvando/apagando: quem limpa é o fim da operação
+    if (changed) saveReviewDraft(draftKey, JSON.parse(currentJson));
+    else clearReviewDraft(draftKey);
+  }, [draftKey, currentJson, changed, busy]);
+
+  const discardDraft = () => {
+    clearReviewDraft(draftKey);
+    setSeasonNumber(initial.seasonNumber);
+    setEpisodeNumber(initial.episodeNumber);
+    setRating(initial.rating);
+    setLiked(initial.liked);
+    setWatchedOn(initial.watchedOn);
+    setText(initial.text);
+    setSpoiler(initial.spoiler);
+    setRewatch(initial.rewatch);
+    setShowRestored(false);
+  };
 
   // "assisti com": quem convidou marca quantas pessoas quiser e pode tirar quem ainda não aceitou;
   // quem entrou por convite só vê a sessão
@@ -151,6 +199,7 @@ export function SeriesReviewForm({
         : existing
           ? await updateSeriesReview(existing.id, data)
           : await createSeriesReview({ ...data, seriesId: series.id });
+      clearReviewDraft(draftKey);
       onSaved(saved);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Não foi possível salvar. Tente novamente.");
@@ -164,6 +213,7 @@ export function SeriesReviewForm({
     setError(null);
     try {
       await deleteSeriesReview(existing.id);
+      clearReviewDraft(draftKey);
       onDeleted();
     } catch {
       setError("Não foi possível apagar. Tente novamente.");
@@ -200,6 +250,16 @@ export function SeriesReviewForm({
               )}
             </div>
           </div>
+
+          {showRestored && (
+            <div className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg bg-brand-blue/10 text-sm text-foreground/85">
+              <FloppyDiskIcon size={16} className="shrink-0 text-brand-blue" />
+              <span className="flex-1">Rascunho recuperado: continuamos de onde você parou.</span>
+              <button type="button" onClick={discardDraft} className="shrink-0 text-brand-slate hover:text-brand-crimson transition-colors">
+                Descartar
+              </button>
+            </div>
+          )}
 
           {/* o que foi assistido: a série inteira, uma temporada ou um episódio */}
           {seasons.length > 0 && (
