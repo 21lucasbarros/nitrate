@@ -114,6 +114,9 @@ const fetchDiaryPage = async (key: string): Promise<Page<ActivityEntry>> => {
     ),
   };
 };
+// número da aba Reviews: todos os registros do diário (o reviewsCount do perfil só conta os com texto)
+const fetchDiaryTotal = async (username: string) =>
+  (await getUserDiary(username, { page: 0, size: 1, withText: false, type: "tudo" })).totalItems;
 const fetchRecentFilms = (username: string) => getUserReviews(username, { page: 0, size: RECENT_FILMS });
 const fetchSimilar = () => getSimilarUsers();
 const fetchSavedLists = () => getSavedLists();
@@ -171,6 +174,7 @@ function Profile() {
   const profile = useFetch(status === "loading" ? null : username, getProfile);
   const films = useFetch(tab === "filmes" ? `${username}|${sort}|${likedOnly ? 1 : 0}|${page}` : null, fetchFilmsPage);
   const reviewsPage = useFetch(tab === "reviews" ? `${username}|${diaryType}|${page}` : null, fetchDiaryPage);
+  const diaryTotal = useFetch(status === "loading" ? null : username, fetchDiaryTotal);
   const watchlist = useFetch(tab === "watchlist" && !watchlistSeries ? username : null, getUserWatchlist);
   const seriesWatchlist = useFetch(tab === "watchlist" && watchlistSeries ? username : null, getUserSeriesWatchlist);
   const recentFilms = useFetch(tab === "perfil" ? username : null, fetchRecentFilms);
@@ -293,16 +297,19 @@ function Profile() {
   const hasLists = !lists.data || lists.data.length > 0;
   const showSide = isMe || hasPeople || hasLists;
 
+  // registros do diário, com e sem review escrita; com a aba Reviews aberta em Tudo, o total da página é o mais atual
+  const diaryCount = tab === "reviews" && diaryType === "tudo" ? (reviewsPage.data?.totalItems ?? diaryTotal.data) : diaryTotal.data;
+
   const counts: Partial<Record<TabId, number>> = {
     filmes: user.filmsCount,
-    reviews: user.reviewsCount,
+    reviews: diaryCount,
     series: user.seriesCount,
     watchlist: user.watchlistCount + (user.seriesWatchlistCount ?? 0),
   };
 
-  const stats: { label: string; value: number; onClick: () => void }[] = [
+  const stats: { label: string; value: number | undefined; onClick: () => void }[] = [
     { label: user.filmsCount === 1 ? "filme" : "filmes", value: user.filmsCount, onClick: () => selectTab("filmes") },
-    { label: user.reviewsCount === 1 ? "review" : "reviews", value: user.reviewsCount, onClick: () => selectTab("reviews") },
+    { label: diaryCount === 1 ? "registro" : "registros", value: diaryCount, onClick: () => selectTab("reviews") },
     { label: "seguindo", value: user.followingCount, onClick: () => setPeopleModal("following") },
     {
       label: user.followersCount === 1 ? "seguidor" : "seguidores",
@@ -431,7 +438,7 @@ function Profile() {
               <div key={stat.label} className="px-1 sm:px-5 min-w-0">
                 <button onClick={stat.onClick} className="group w-full flex flex-col-reverse items-center">
                   <dt className="text-[11px] sm:text-xs text-brand-slate group-hover:text-foreground transition-colors truncate max-w-full">{stat.label}</dt>
-                  <dd className="text-xl font-semibold tabular-nums group-hover:text-brand-orange transition-colors">{stat.value}</dd>
+                  <dd className="text-xl font-semibold tabular-nums group-hover:text-brand-orange transition-colors">{stat.value ?? "–"}</dd>
                 </button>
               </div>
             ))}
