@@ -1,12 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarBlankIcon, CircleNotchIcon, HeartIcon, TrashIcon, WarningIcon } from "@phosphor-icons/react";
+import { ArrowsClockwiseIcon, CalendarBlankIcon, CircleNotchIcon, HeartIcon, TrashIcon, UsersIcon, WarningIcon } from "@phosphor-icons/react";
 import { ApiError } from "@/lib/api-client";
 import { useFetch } from "@/lib/hooks/use-fetch";
-import { createSeriesReview, deleteSeriesReview, getSeason, updateSeriesReview } from "@/lib/services/series-service";
-import { episodeCode, seasonLabel, type SeasonSummary, type Series, type SeriesReview } from "@/types/series";
-import { runtimeLabel, shortDate, todayIso } from "@/utils/format";
+import {
+  acceptSeriesReviewInvite,
+  createSeriesReview,
+  deleteSeriesReview,
+  getSeason,
+  updateSeriesReview,
+} from "@/lib/services/series-service";
+import type { UserSummary } from "@/lib/types/user";
+import { episodeCode, seasonLabel, type SeasonSummary, type Series, type SeriesReview, type SeriesReviewInvite } from "@/types/series";
+import { joinNames, runtimeLabel, shortDate, todayIso } from "@/utils/format";
+import { CompanionPicker } from "./companion-picker";
+import { companionStatus } from "./review-form";
 import { DeleteConfirmBar } from "./ui/delete-confirm-bar";
 import { Poster } from "./ui/poster";
 import { RichTextEditor } from "./ui/rich-text-editor";
@@ -15,7 +24,7 @@ import { StarInput } from "./ui/star-input";
 const TEXT_MAX = 20000; // igual ao limite do backend
 
 const selectClass =
-  "px-3 py-2.5 bg-surface border border-brand-slate/20 rounded-lg text-sm text-foreground focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue disabled:opacity-60";
+  "w-full px-3 py-2 bg-surface border border-brand-slate/20 rounded-lg text-sm text-foreground focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue disabled:opacity-60 disabled:cursor-not-allowed";
 
 interface SeriesReviewFormProps {
   series: Series;
@@ -30,12 +39,19 @@ interface SeriesReviewFormProps {
   firstAirDate?: string | null;
   /** duração típica de um episódio, em minutos (quando o TMDB não sabe a do episódio) */
   episodeRunTime?: number | null;
-  onSaved: () => void;
+  /** os registros que a pessoa já tem desta série: registrar de novo o mesmo é um reassistido */
+  myReviews?: SeriesReview[];
+  /** aceitando um convite de registro em conjunto escrevendo o próprio */
+  invite?: SeriesReviewInvite;
+  onSaved: (review: SeriesReview) => void;
   onDeleted: () => void;
   onCancel: () => void;
 }
 
-/** Registro de uma série: a série inteira, uma temporada ou um episódio, com nota, curtida, data e review. */
+/**
+ * Registro de uma série (a série inteira, uma temporada ou um episódio), no mesmo formato da review de
+ * filme: data, reassistido, review, com quem assistiu, nota e curtida.
+ */
 export function SeriesReviewForm({
   series,
   seasons,
@@ -44,25 +60,60 @@ export function SeriesReviewForm({
   initialEpisode = null,
   firstAirDate = null,
   episodeRunTime = null,
+  myReviews = [],
+  invite,
   onSaved,
   onDeleted,
   onCancel,
 }: SeriesReviewFormProps) {
-  const [seasonNumber, setSeasonNumber] = useState<number | null>(existing ? existing.seasonNumber : initialSeason);
-  const [episodeNumber, setEpisodeNumber] = useState<number | null>(existing ? existing.episodeNumber : initialEpisode);
+  // no convite, o que foi assistido é o que quem convidou registrou
+  const [seasonNumber, setSeasonNumber] = useState<number | null>(
+    invite ? invite.review.seasonNumber : existing ? existing.seasonNumber : initialSeason,
+  );
+  const [episodeNumber, setEpisodeNumber] = useState<number | null>(
+    invite ? invite.review.episodeNumber : existing ? existing.episodeNumber : initialEpisode,
+  );
   // os episódios da temporada escolhida, para registrar um só
   const season = useFetch(seasonNumber === null ? null : `${series.id}|${seasonNumber}`, getSeason);
-  const [rating, setRating] = useState<number | null>(existing?.rating ?? null);
-  const [liked, setLiked] = useState(existing?.liked ?? false);
-  const [watchedOn, setWatchedOn] = useState(existing?.watchedOn ?? todayIso());
+
+  // os outros registros da mesma série, temporada ou episódio: o novo é sempre reassistido (o backend garante)
+  const sameTarget = (r: SeriesReview) => r.seasonNumber === seasonNumber && r.episodeNumber === episodeNumber;
+  const others = myReviews.filter((r) => r.id !== existing?.id);
+  const rewatchLocked = !existing && others.some(sameTarget);
+  // como nos filmes: um registro novo já vem com a nota e a curtida do último do mesmo (quem reassiste costuma manter)
+  const [previous] = useState(() => (existing ? null : others.find(sameTarget) ?? null));
+  const base = existing ?? previous;
+
+  const [rating, setRating] = useState<number | null>(base?.rating ?? null);
+  const [liked, setLiked] = useState(base?.liked ?? false);
+  const [watchedOn, setWatchedOn] = useState(existing?.watchedOn ?? invite?.review.watchedOn ?? todayIso());
   const [text, setText] = useState(existing?.text ?? "");
   const [spoiler, setSpoiler] = useState(existing?.spoiler ?? false);
+  const [rewatch, setRewatch] = useState(existing?.rewatch ?? false);
   const [busy, setBusy] = useState<"save" | "delete" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
+  // "assisti com": quem convidou marca quantas pessoas quiser e pode tirar quem ainda não aceitou;
+  // quem entrou por convite só vê a sessão
+  const together = existing?.together ?? null;
+  const joinedByInvite = invite !== undefined || (together !== null && !together.invitedByMe);
+  const initialCompanions: UserSummary[] = invite
+    ? [invite.author, ...invite.companions.filter((p) => p.status === "ACCEPTED").map((p) => p.user)]
+    : (together?.partners.map((p) => p.user) ?? []);
+  const [companions, setCompanions] = useState<UserSummary[]>(initialCompanions);
+  const acceptedUsernames = (together?.partners ?? []).filter((p) => p.status === "ACCEPTED").map((p) => p.user.username);
+  const companionsChanged =
+    companions.map((u) => u.username).join() !== initialCompanions.map((u) => u.username).join();
+  const companionHint = joinedByInvite
+    ? `Review em conjunto com ${joinNames(initialCompanions.map((u) => u.name))}`
+    : companionStatus(companions, initialCompanions, acceptedUsernames);
+  // depois que alguém aceitou, todo mundo assistiu a mesma coisa: a temporada e o episódio não mudam
+  const targetLocked = joinedByInvite || acceptedUsernames.length > 0;
+
   const hasText = text.trim().length > 0;
   const today = todayIso();
+  const isEpisode = seasonNumber !== null && episodeNumber !== null;
 
   // como nos filmes: antes da estreia (da série, da temporada ou do episódio) dá para registrar e curtir,
   // mas a nota só depois. Sem a data, fica no benefício da dúvida (o backend tem a palavra final)
@@ -75,7 +126,7 @@ export function SeriesReviewForm({
   const rateable = series.released !== false && (premiere === null || premiere <= today);
   const notYet = seasonNumber === null ? "a série estrear" : episodeNumber === null ? "a temporada estrear" : "o episódio ir ao ar";
   // a duração do episódio escolhido (ou a típica da série, aproximada)
-  const runtime = episode?.runtime ? runtimeLabel(episode.runtime) : episodeNumber !== null && episodeRunTime ? `~${runtimeLabel(episodeRunTime)}` : null;
+  const runtime = episode?.runtime ? runtimeLabel(episode.runtime) : isEpisode && episodeRunTime ? `~${runtimeLabel(episodeRunTime)}` : null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,11 +141,17 @@ export function SeriesReviewForm({
       watchedOn,
       text: text.trim() || null,
       spoiler: hasText && spoiler,
+      rewatch: rewatch || rewatchLocked,
+      // só manda quando muda: "" desfaz o convite pendente
+      ...(!joinedByInvite && companionsChanged && { watchedWith: companions.map((u) => u.username) }),
     };
     try {
-      if (existing) await updateSeriesReview(existing.id, data);
-      else await createSeriesReview({ ...data, seriesId: series.id });
-      onSaved();
+      const saved = invite
+        ? await acceptSeriesReviewInvite(invite.id, data)
+        : existing
+          ? await updateSeriesReview(existing.id, data)
+          : await createSeriesReview({ ...data, seriesId: series.id });
+      onSaved(saved);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Não foi possível salvar. Tente novamente.");
       setBusy(null);
@@ -116,137 +173,187 @@ export function SeriesReviewForm({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-      <div className="flex items-center gap-4 pr-10">
-        <div className="w-14 shrink-0">
-          <Poster title={series.name} posterPath={series.posterPath} size="w185" sizes="56px" />
+      {/* pôster à esquerda (desktop) e o formulário ao lado, como na review de filme */}
+      <div className="grid sm:grid-cols-[150px_minmax(0,1fr)] md:grid-cols-[180px_minmax(0,1fr)] gap-x-8 gap-y-6">
+        <div className="hidden sm:block">
+          <Poster title={series.name} posterPath={series.posterPath} size="w500" sizes="180px" className="shadow-xl shadow-black/40" />
         </div>
-        <div className="min-w-0">
-          <span className="text-xs font-bold tracking-[0.2em] uppercase text-brand-orange">
-            {existing ? "Editar registro" : "Eu assisti…"}
-          </span>
-          <h2 className="text-xl sm:text-2xl font-medium tracking-tight leading-tight mt-1 truncate">
-            {series.name}{" "}
-            {series.firstAirYear && <span className="text-foreground/40 font-normal">{series.firstAirYear}</span>}
-          </h2>
-          {seasonNumber !== null && episodeNumber !== null && (
-            <p className="mt-1 text-sm text-brand-slate truncate">
-              {[episodeCode(seasonNumber, episodeNumber), episode?.name, runtime].filter(Boolean).join(" · ")}
-            </p>
+
+        <div className="min-w-0 flex flex-col gap-5">
+          {/* cabeçalho: qual série está sendo registrada */}
+          <div className="flex items-center gap-4 pr-10">
+            <div className="w-14 shrink-0 sm:hidden">
+              <Poster title={series.name} posterPath={series.posterPath} size="w185" sizes="56px" />
+            </div>
+            <div className="min-w-0">
+              <span className="text-xs font-bold tracking-[0.2em] uppercase text-brand-orange">
+                {invite ? "Sua review em conjunto" : existing ? "Editar registro" : rewatchLocked ? "Assisti de novo…" : "Eu assisti…"}
+              </span>
+              <h2 className="text-xl sm:text-2xl font-medium tracking-tight leading-tight mt-1 truncate">
+                {series.name}{" "}
+                {series.firstAirYear && <span className="text-foreground/40 font-normal">{series.firstAirYear}</span>}
+              </h2>
+              {isEpisode && (
+                <p className="mt-1 text-sm text-brand-slate truncate tabular-nums">
+                  {[episodeCode(seasonNumber, episodeNumber), episode?.name, runtime].filter(Boolean).join(" · ")}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* o que foi assistido: a série inteira, uma temporada ou um episódio */}
+          {seasons.length > 0 && (
+            <div
+              className="grid sm:grid-cols-2 gap-3"
+              title={targetLocked ? "Num registro em conjunto, todo mundo assistiu a mesma coisa" : undefined}
+            >
+              <label className="flex flex-col gap-2">
+                <span className="text-xs uppercase tracking-[0.15em] text-brand-slate/60">O que você assistiu</span>
+                <select
+                  value={seasonNumber === null ? "" : String(seasonNumber)}
+                  onChange={(e) => {
+                    setSeasonNumber(e.target.value === "" ? null : Number(e.target.value));
+                    setEpisodeNumber(null);
+                  }}
+                  disabled={targetLocked}
+                  className={selectClass}
+                >
+                  <option value="">{seasonLabel(null)}</option>
+                  {seasons.map((s) => (
+                    <option key={s.seasonNumber} value={s.seasonNumber}>
+                      {s.name || seasonLabel(s.seasonNumber)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {seasonNumber !== null && (
+                <label className="flex flex-col gap-2">
+                  <span className="text-xs uppercase tracking-[0.15em] text-brand-slate/60">Episódio</span>
+                  <select
+                    value={episodeNumber === null ? "" : String(episodeNumber)}
+                    onChange={(e) => setEpisodeNumber(e.target.value === "" ? null : Number(e.target.value))}
+                    disabled={targetLocked || (!season.data && !season.error)}
+                    className={selectClass}
+                  >
+                    <option value="">Temporada completa</option>
+                    {/* enquanto carrega (ou se falhar), o episódio já escolhido continua na lista */}
+                    {!season.data && episodeNumber !== null && <option value={episodeNumber}>Episódio {episodeNumber}</option>}
+                    {season.data?.episodes.map((ep) => {
+                      // episódio que ainda não foi ao ar não dá para ter assistido (a não ser o que já estava registrado)
+                      const upcoming = ep.airDate !== null && ep.airDate > today && ep.episodeNumber !== existing?.episodeNumber;
+                      return (
+                        <option key={ep.episodeNumber} value={ep.episodeNumber} disabled={upcoming}>
+                          {ep.episodeNumber}. {ep.name || `Episódio ${ep.episodeNumber}`}
+                          {ep.runtime ? ` · ${runtimeLabel(ep.runtime)}` : ""}
+                          {upcoming && ep.airDate ? ` (estreia em ${shortDate(ep.airDate)})` : ""}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </label>
+              )}
+            </div>
           )}
+
+          {/* data e reassistido na mesma linha */}
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+            <label className="flex items-center gap-2.5 text-sm text-brand-slate/80">
+              {isEpisode ? "Assistido em" : "Terminei em"}
+              <input
+                type="date"
+                value={watchedOn}
+                max={today}
+                onChange={(e) => setWatchedOn(e.target.value)}
+                className="px-3 py-1.5 bg-transparent border border-brand-slate/20 rounded-lg text-sm text-foreground focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue"
+              />
+            </label>
+            <label
+              className={`flex items-center gap-2.5 w-fit text-sm select-none ${rewatchLocked ? "text-brand-slate/50" : "cursor-pointer text-brand-slate/80"}`}
+              title={rewatchLocked ? `Você já registrou ${isEpisode ? "este episódio" : seasonNumber !== null ? "esta temporada" : "esta série"}` : undefined}
+            >
+              <input
+                type="checkbox"
+                checked={rewatch || rewatchLocked}
+                disabled={rewatchLocked}
+                onChange={(e) => setRewatch(e.target.checked)}
+                className="w-4 h-4 accent-brand-orange"
+              />
+              <ArrowsClockwiseIcon size={16} weight="bold" className={rewatch || rewatchLocked ? "text-brand-orange" : ""} />
+              {rewatchLocked ? "Reassistido" : "Já tinha assistido antes"}
+            </label>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            {together?.sharedText && together.invitedBy && (
+              <p className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg bg-background/40 text-sm text-brand-slate">
+                <UsersIcon size={16} className="shrink-0 text-brand-orange" />
+                Este texto é a review de {together.invitedBy.name}. Se você mudar, a review passa a ser sua.
+              </p>
+            )}
+            <RichTextEditor
+              label={`Sua review de ${series.name}${isEpisode ? `, ${episodeCode(seasonNumber, episodeNumber)}` : ""}`}
+              value={text}
+              onChange={setText}
+              maxLength={TEXT_MAX}
+              placeholder="Escreva sua review… (opcional)"
+              rows={5}
+            />
+            <label
+              className={`flex items-center gap-2.5 w-fit text-sm select-none ${hasText ? "cursor-pointer text-brand-slate/80" : "cursor-not-allowed text-brand-slate/35"}`}
+              title={hasText ? undefined : "Escreva algo para poder marcar spoilers"}
+            >
+              <input
+                type="checkbox"
+                checked={hasText && spoiler}
+                disabled={!hasText}
+                onChange={(e) => setSpoiler(e.target.checked)}
+                className="peer sr-only"
+              />
+              {/* switch */}
+              <span className="relative w-9 h-5 rounded-full bg-brand-slate/20 transition-colors peer-checked:bg-brand-crimson peer-focus-visible:ring-2 peer-focus-visible:ring-brand-blue after:absolute after:top-0.5 after:left-0.5 after:w-4 after:h-4 after:rounded-full after:bg-white after:transition-transform peer-checked:after:translate-x-4" />
+              <WarningIcon size={16} className={hasText && spoiler ? "text-brand-crimson" : ""} />
+              Contém spoilers
+            </label>
+          </div>
+
+          {/* assisti com, nota e curtida na mesma faixa, embaixo do texto */}
+          <div className="flex flex-wrap items-start gap-x-8 gap-y-5 pt-5 border-t border-foreground/10">
+            <div className="flex-1 min-w-[220px]">
+              <CompanionPicker
+                value={companions}
+                onChange={setCompanions}
+                lockedUsernames={acceptedUsernames}
+                readOnly={joinedByInvite}
+                hint={companionHint}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <span className="text-xs uppercase tracking-[0.15em] text-brand-slate/60">Nota</span>
+              {rateable ? (
+                <StarInput value={rating} onChange={setRating} size={30} />
+              ) : (
+                <span className="flex items-center gap-2 min-h-[38px] text-sm text-brand-slate/80">
+                  <CalendarBlankIcon size={18} className="shrink-0" />
+                  {premiere ? `Liberada na estreia, em ${shortDate(premiere)}` : `Liberada quando ${notYet}`}
+                </span>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-2 items-center">
+              <span className="text-xs uppercase tracking-[0.15em] text-brand-slate/60">Curtir</span>
+              <button
+                type="button"
+                onClick={() => setLiked(!liked)}
+                aria-pressed={liked}
+                aria-label={liked ? "Descurtir" : "Curtir"}
+                className={`p-1 transition-all active:scale-90 ${liked ? "text-brand-orange" : "text-brand-slate/25 hover:text-brand-orange/60"}`}
+              >
+                <HeartIcon size={30} weight="fill" />
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
-
-      {seasons.length > 0 && (
-        <label className="flex flex-col gap-2">
-          <span className="text-xs uppercase tracking-[0.15em] text-brand-slate/60">O que você assistiu</span>
-          <select
-            value={seasonNumber === null ? "" : String(seasonNumber)}
-            onChange={(e) => {
-              setSeasonNumber(e.target.value === "" ? null : Number(e.target.value));
-              setEpisodeNumber(null);
-            }}
-            className={selectClass}
-          >
-            <option value="">{seasonLabel(null)}</option>
-            {seasons.map((s) => (
-              <option key={s.seasonNumber} value={s.seasonNumber}>
-                {s.name || seasonLabel(s.seasonNumber)}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
-
-      {seasonNumber !== null && (
-        <label className="flex flex-col gap-2">
-          <span className="text-xs uppercase tracking-[0.15em] text-brand-slate/60">Episódio</span>
-          <select
-            value={episodeNumber === null ? "" : String(episodeNumber)}
-            onChange={(e) => setEpisodeNumber(e.target.value === "" ? null : Number(e.target.value))}
-            disabled={!season.data && !season.error}
-            className={selectClass}
-          >
-            <option value="">Temporada inteira</option>
-            {/* enquanto carrega (ou se falhar), o episódio já escolhido continua na lista */}
-            {!season.data && episodeNumber !== null && <option value={episodeNumber}>Episódio {episodeNumber}</option>}
-            {season.data?.episodes.map((ep) => {
-              // episódio que ainda não foi ao ar não dá para ter assistido (a não ser o que já estava registrado)
-              const upcoming = ep.airDate !== null && ep.airDate > today && ep.episodeNumber !== existing?.episodeNumber;
-              return (
-                <option key={ep.episodeNumber} value={ep.episodeNumber} disabled={upcoming}>
-                  {ep.episodeNumber}. {ep.name || `Episódio ${ep.episodeNumber}`}
-                  {ep.runtime ? ` · ${runtimeLabel(ep.runtime)}` : ""}
-                  {upcoming && ep.airDate ? ` (estreia em ${shortDate(ep.airDate)})` : ""}
-                </option>
-              );
-            })}
-          </select>
-        </label>
-      )}
-
-      <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-5 py-5 border-y border-foreground/10">
-        <div className="flex flex-col gap-2">
-          <span className="text-xs uppercase tracking-[0.15em] text-brand-slate/60">Nota</span>
-          {rateable ? (
-            <StarInput value={rating} onChange={setRating} size={30} />
-          ) : (
-            <span className="flex items-center gap-2 min-h-[38px] text-sm text-brand-slate/80">
-              <CalendarBlankIcon size={18} className="shrink-0" />
-              {premiere ? `Liberada na estreia, em ${shortDate(premiere)}` : `Liberada quando ${notYet}`}
-            </span>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-2 items-center">
-          <span className="text-xs uppercase tracking-[0.15em] text-brand-slate/60">Curtir</span>
-          <button
-            type="button"
-            onClick={() => setLiked(!liked)}
-            aria-pressed={liked}
-            aria-label={liked ? "Descurtir" : "Curtir"}
-            className={`p-1 transition-all active:scale-90 ${liked ? "text-brand-orange" : "text-brand-slate/25 hover:text-brand-orange/60"}`}
-          >
-            <HeartIcon size={30} weight="fill" />
-          </button>
-        </div>
-
-        <label className="flex flex-col gap-2">
-          <span className="text-xs uppercase tracking-[0.15em] text-brand-slate/60">
-            {seasonNumber !== null && episodeNumber !== null ? "Assisti em" : "Terminei em"}
-          </span>
-          <input
-            type="date"
-            value={watchedOn}
-            max={today}
-            onChange={(e) => setWatchedOn(e.target.value)}
-            className="px-3 py-2 bg-transparent border border-brand-slate/20 rounded-lg text-sm text-foreground focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue"
-          />
-        </label>
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <RichTextEditor
-          label={`Sua review de ${series.name}${seasonNumber !== null && episodeNumber !== null ? `, ${episodeCode(seasonNumber, episodeNumber)}` : ""}`}
-          value={text}
-          onChange={setText}
-          maxLength={TEXT_MAX}
-          placeholder="Escreva sua review… (opcional)"
-        />
-        <label
-          className={`flex items-center gap-2.5 w-fit text-sm select-none ${hasText ? "cursor-pointer text-brand-slate/80" : "cursor-not-allowed text-brand-slate/35"}`}
-          title={hasText ? undefined : "Escreva algo para poder marcar spoilers"}
-        >
-          <input
-            type="checkbox"
-            checked={hasText && spoiler}
-            disabled={!hasText}
-            onChange={(e) => setSpoiler(e.target.checked)}
-            className="peer sr-only"
-          />
-          <span className="relative w-9 h-5 rounded-full bg-brand-slate/20 transition-colors peer-checked:bg-brand-crimson peer-focus-visible:ring-2 peer-focus-visible:ring-brand-blue after:absolute after:top-0.5 after:left-0.5 after:w-4 after:h-4 after:rounded-full after:bg-white after:transition-transform peer-checked:after:translate-x-4" />
-          <WarningIcon size={16} className={hasText && spoiler ? "text-brand-crimson" : ""} />
-          Contém spoilers
-        </label>
       </div>
 
       {error && (

@@ -1072,7 +1072,8 @@ function recentGridItem(entry: ActivityEntry): MovieGridItem {
         {seriesBadgeLabel(review)}
       </>
     ),
-    caption: <WatchedCaption watchedOn={review.watchedOn} rewatch={false} />,
+    rewatch: review.rewatch,
+    caption: <WatchedCaption watchedOn={review.watchedOn} rewatch={review.rewatch} />,
   };
 }
 

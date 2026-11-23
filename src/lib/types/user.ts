@@ -73,7 +73,7 @@ export interface ProfileUpdate {
 }
 
 // Espelha NotificationDTO: estreias do Radar (com `movie` ou `series`), alguém que começou a seguir (com `actor`)
-// ou convites de review em conjunto (com `movie`, `actor` e `collaboration`)
+// ou convites de review em conjunto (com `actor`, `collaboration` e `movie` ou, nos registros de série, `series`)
 interface NotificationBase {
   id: number;
   detail: string | null; // data de estreia ou serviços de streaming
@@ -87,6 +87,9 @@ export interface NotificationCollaboration {
   status: "PENDING" | "ACCEPTED" | "DECLINED";
   authorReviewId: number;
   inviteeReviewId: number | null;
+  series: boolean; // convite de registro de série (com a temporada e o episódio do registro)
+  seasonNumber: number | null;
+  episodeNumber: number | null;
 }
 
 export type AppNotification =
@@ -94,11 +97,14 @@ export type AppNotification =
   | (NotificationBase & { type: "SERIES_PREMIERE"; movie: null; series: Series; seasonNumber: null; actor: null })
   | (NotificationBase & { type: "SERIES_SEASON"; movie: null; series: Series; seasonNumber: number; actor: null })
   | (NotificationBase & { type: "FOLLOW"; movie: null; series: null; seasonNumber: null; actor: UserSummary })
-  | (NotificationBase & {
-      type: "COLLAB_INVITE" | "COLLAB_ACCEPTED";
-      movie: Movie;
-      series: null;
-      seasonNumber: null;
-      actor: UserSummary;
-      collaboration: NotificationCollaboration;
-    });
+  | CollabNotification;
+
+// um membro por tipo (assim o `type` estreita a união), com o filme ou, nos registros de série, a série
+type CollabNotification = {
+  [T in "COLLAB_INVITE" | "COLLAB_ACCEPTED"]: NotificationBase & {
+    type: T;
+    seasonNumber: null;
+    actor: UserSummary;
+    collaboration: NotificationCollaboration;
+  } & ({ movie: Movie; series: null } | { movie: null; series: Series });
+}["COLLAB_INVITE" | "COLLAB_ACCEPTED"];

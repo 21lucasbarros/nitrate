@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
+  ArrowsClockwiseIcon,
   BookmarkSimpleIcon,
   CaretDownIcon,
   CheckIcon,
@@ -21,6 +22,7 @@ import Header from "@/app/components/header";
 import { NitrateRating, WhereToWatch } from "@/app/components/movie-community";
 import { ShareSeriesStoryModal } from "@/app/components/review-story-share";
 import { SeriesReviewForm } from "@/app/components/series-review-form";
+import { TogetherWith, acceptedPartners } from "@/app/components/together-with";
 import { Avatar } from "@/app/components/ui/avatar";
 import { Modal } from "@/app/components/ui/modal";
 import { PersonPhoto } from "@/app/components/ui/person-photo";
@@ -297,6 +299,7 @@ function SeriesView({ series }: { series: Series }) {
           open={editing !== null}
           onClose={() => setEditing(null)}
           label={editing?.review ? `Editar registro de ${series.name}` : `Registrar ${series.name}`}
+          size="wide"
         >
           {editing && (
             <SeriesReviewForm
@@ -308,6 +311,7 @@ function SeriesView({ series }: { series: Series }) {
               initialEpisode={editing.episode}
               firstAirDate={details.data?.firstAirDate}
               episodeRunTime={details.data?.episodeRunTime}
+              myReviews={myState.data.reviews}
               onSaved={afterChange}
               onDeleted={afterChange}
               onCancel={() => setEditing(null)}
@@ -630,6 +634,7 @@ function SeriesReviewItem({ review }: { review: SeriesReview }) {
   const { user: me } = useAuth();
   const [revealed, setRevealed] = useState(false);
   const hideText = review.spoiler && me?.username !== review.user.username && !revealed;
+  const partners = acceptedPartners(review);
 
   return (
     <article className="py-6">
@@ -644,9 +649,15 @@ function SeriesReviewItem({ review }: { review: SeriesReview }) {
         <span className="px-2 py-0.5 rounded-full bg-surface text-xs">{seasonLabel(review.seasonNumber, review.episodeNumber)}</span>
         {review.rating !== null && <StarRating rating={toRating(review.rating)} size={16} />}
         {review.liked && <HeartIcon size={15} weight="fill" className="text-brand-orange" aria-label="Curtiu" />}
+        {review.rewatch && (
+          <ArrowsClockwiseIcon size={14} weight="bold" className="text-brand-emerald" aria-label="Reassistido">
+            <title>Reassistido</title>
+          </ArrowsClockwiseIcon>
+        )}
         <Link href={seriesReviewHref(review)} className="hover:text-foreground transition-colors">
           {shortDate(review.watchedOn)}
         </Link>
+        {partners.length > 0 && <TogetherWith partners={partners} series />}
       </div>
       {review.text && hideText && (
         <button

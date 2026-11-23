@@ -79,7 +79,7 @@ function describe(entry: ActivityEntry) {
     // série: até onde a pessoa foi; filme: o ano
     detail: isSeries ? seasonLabel(entry.review.seasonNumber, entry.review.episodeNumber) : entry.review.movie.releaseYear,
     href: isSeries ? seriesReviewHref(entry.review) : reviewHref(entry.review),
-    rewatch: !isSeries && entry.review.rewatch,
+    rewatch: entry.review.rewatch,
   };
 }
 

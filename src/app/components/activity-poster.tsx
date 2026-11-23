@@ -27,11 +27,11 @@ export function ActivityPoster({ entry }: { entry: ActivityEntry }) {
   const posterPath = isSeries ? entry.review.series.posterPath : entry.review.movie.posterPath;
   const year = isSeries ? entry.review.series.firstAirYear : entry.review.movie.releaseYear;
   const href = isSeries ? seriesReviewHref(entry.review) : reviewHref(entry.review);
-  const rewatch = !isSeries && entry.review.rewatch;
+  const rewatch = entry.review.rewatch;
   // série sem nota: episódio se assiste, temporada ou série inteira se termina
-  const watchedLabel = isSeries
-    ? entry.review.episodeNumber !== null ? "assistiu" : "terminou"
-    : rewatch ? "reassistiu" : "assistiu";
+  const watchedLabel = rewatch
+    ? "reassistiu"
+    : isSeries && entry.review.episodeNumber === null ? "terminou" : "assistiu";
   // só o primeiro nome: o completo cortava ("Beatriz Velardo Cor…"); ele fica no title
   const firstName = user.name.trim().split(/\s+/)[0] || user.username;
 

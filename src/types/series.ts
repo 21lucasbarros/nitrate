@@ -1,3 +1,4 @@
+import type { ReviewPartner, ReviewTogether } from "@/lib/types/review";
 import type { UserSummary } from "@/lib/types/user";
 
 // Espelha SeriesDTO: séries ficam à parte dos filmes (tabela, reviews e watchlist próprias)
@@ -96,8 +97,21 @@ export interface SeriesReview {
   text: string | null;
   liked: boolean;
   spoiler: boolean;
+  rewatch: boolean; // já tinha assistido antes (a mesma série, temporada ou episódio)
   watchedOn: string; // yyyy-mm-dd
   createdAt: string; // ISO
+  together: ReviewTogether | null; // registro em conjunto ("assisti com"), no formato das reviews de filme
+}
+
+// Espelha SeriesCollaborationDTO: o convite, para quem foi marcado decidir
+export interface SeriesReviewInvite {
+  id: number;
+  status: "PENDING" | "ACCEPTED" | "DECLINED";
+  author: UserSummary;
+  invitee: UserSummary;
+  review: SeriesReview; // o registro de quem convidou
+  inviteeReviewId: number | null;
+  companions: ReviewPartner[]; // as outras pessoas marcadas na mesma sessão (sem quem recusou)
 }
 
 export interface SeriesReviewRequest {
@@ -108,7 +122,10 @@ export interface SeriesReviewRequest {
   text: string | null;
   liked: boolean;
   spoiler: boolean;
+  rewatch: boolean;
   watchedOn: string | null;
+  // usernames de todo mundo que assistiu junto; omitido = não muda, quem sai com o convite pendente tem o convite desfeito
+  watchedWith?: string[];
 }
 
 export interface SeriesUserState {

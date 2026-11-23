@@ -12,6 +12,7 @@ import {
 import type { AppNotification } from "@/lib/types/user";
 import { filmHref } from "@/utils/movie-link";
 import { seriesHref } from "@/utils/series-link";
+import { seasonLabel } from "@/types/series";
 import { timeAgo } from "@/utils/format";
 import { Avatar } from "./ui/avatar";
 import { Poster } from "./ui/poster";
@@ -125,16 +126,20 @@ function NotificationItem({ notification: n, onSelect }: { notification: AppNoti
   if (n.type === "COLLAB_INVITE" || n.type === "COLLAB_ACCEPTED") {
     const invite = n.type === "COLLAB_INVITE";
     const c = n.collaboration;
+    // filme ou registro de série: o pôster, o título ("Ruptura, Temporada 2") e os endereços mudam
+    const title = n.series
+      ? `${n.series.name}${c.seasonNumber !== null ? `, ${seasonLabel(c.seasonNumber, c.episodeNumber)}` : ""}`
+      : n.movie.title;
+    const poster = n.series ? n.series.posterPath : n.movie.posterPath;
+    const inviteHref = `/convite/${c.series ? "serie/" : ""}${c.id}`;
     // o aceite leva à review de quem aceitou; o convite, à página de responder
-    const href = invite
-      ? `/convite/${c.id}`
-      : c.inviteeReviewId
-        ? `/u/${n.actor.username}/reviews/${c.inviteeReviewId}`
-        : `/convite/${c.id}`;
+    const href = invite || !c.inviteeReviewId
+      ? inviteHref
+      : `/u/${n.actor.username}/${c.series ? "series" : "reviews"}/${c.inviteeReviewId}`;
     return (
       <NotificationRow href={href} read={n.read} onSelect={onSelect}>
         <div className="relative w-10 shrink-0">
-          <Poster title={n.movie.title} posterPath={n.movie.posterPath} size="w185" sizes="40px" />
+          <Poster title={title} posterPath={poster} size="w185" sizes="40px" />
           <span className="absolute -bottom-1.5 -right-1.5 rounded-full ring-2 ring-background">
             <Avatar name={n.actor.name} username={n.actor.username} avatar={n.actor.avatar} size="xs" />
           </span>
@@ -143,7 +148,7 @@ function NotificationItem({ notification: n, onSelect }: { notification: AppNoti
           <p className="text-sm leading-snug">
             <span className="font-medium">{n.actor.name}</span>{" "}
             {invite ? "marcou que assistiu " : "aceitou a review em conjunto de "}
-            <span className="font-medium">{n.movie.title}</span>
+            <span className="font-medium">{title}</span>
             {invite ? " com você." : "."}
           </p>
           {invite && (

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowRightIcon,
+  ArrowsClockwiseIcon,
   ChatCircleIcon,
   CheckIcon,
   CircleNotchIcon,
@@ -15,6 +16,7 @@ import {
   LinkSimpleIcon,
   PencilSimpleIcon,
   TelevisionSimpleIcon,
+  UsersIcon,
   WarningIcon,
 } from "@phosphor-icons/react";
 
@@ -24,6 +26,7 @@ import { ReviewComments, type CommentsApi } from "@/app/components/review-commen
 import { ReviewLikeButton } from "@/app/components/review-like-button";
 import { ShareSeriesStoryModal } from "@/app/components/review-story-share";
 import { SeriesReviewForm } from "@/app/components/series-review-form";
+import { TogetherWith, acceptedPartners, partnerReviewHref, sharedTextAuthor } from "@/app/components/together-with";
 import { Avatar } from "@/app/components/ui/avatar";
 import { Modal } from "@/app/components/ui/modal";
 import { Poster } from "@/app/components/ui/poster";
@@ -46,7 +49,7 @@ import {
   unlikeSeriesReview,
 } from "@/lib/services/series-service";
 import { seasonLabel, seriesYears, type SeriesReview } from "@/types/series";
-import { shortDate, timeAgo } from "@/utils/format";
+import { joinNames, shortDate, timeAgo } from "@/utils/format";
 import { backdropUrl } from "@/utils/poster";
 import { toRating } from "@/utils/rating";
 import { seriesHref, seriesReviewHref } from "@/utils/series-link";
@@ -123,6 +126,10 @@ function ReviewView({ review, onSaved, onDeleted }: {
 
   const href = seriesReviewHref(review);
   const hideText = review.spoiler && !isOwn && !revealed;
+  const partners = acceptedPartners(review);
+  const sharedFrom = sharedTextAuthor(review);
+  // os convites pendentes só aparecem para quem convidou
+  const pendingWith = isOwn ? (review.together?.partners ?? []).filter((p) => p.status === "PENDING").map((p) => p.user) : [];
   const backdrop = backdropUrl(details.data?.backdropPath);
   // registro de uma temporada: o pôster é o dela, quando o TMDB tem
   const season = review.seasonNumber !== null ? details.data?.seasons.find((s) => s.seasonNumber === review.seasonNumber) : undefined;
@@ -177,13 +184,27 @@ function ReviewView({ review, onSaved, onDeleted }: {
 
           {/* a review */}
           <section className="min-w-0 md:pt-24">
-            <Link href={`/u/${user.username}?tab=series`} className="group flex items-center gap-3 pb-4 border-b border-foreground/10">
-              <Avatar name={user.name} username={user.username} avatar={user.avatar} size="sm" />
-              <span className="text-sm text-brand-slate">
-                Review de <span className="font-semibold text-foreground group-hover:text-brand-orange transition-colors">{user.name}</span>
-              </span>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 pb-4 border-b border-foreground/10">
+              <Link href={`/u/${user.username}?tab=series`} className="group flex items-center gap-3">
+                <Avatar name={user.name} username={user.username} avatar={user.avatar} size="sm" />
+                <span className="text-sm text-brand-slate">
+                  Review de <span className="font-semibold text-foreground group-hover:text-brand-orange transition-colors">{user.name}</span>
+                </span>
+              </Link>
+              {partners.length > 0 && (
+                <span className="text-sm text-brand-slate">
+                  <TogetherWith partners={partners} emphasis="font-semibold text-foreground" series />
+                </span>
+              )}
+              {pendingWith.length > 0 && (
+                <span className="flex items-center gap-2 text-xs text-brand-slate">
+                  <UsersIcon size={14} />
+                  Aguardando {joinNames(pendingWith.map((u) => u.name))}{" "}
+                  {pendingWith.length > 1 ? "aceitarem" : "aceitar"} a review em conjunto
+                </span>
+              )}
               <span className="ml-auto text-xs text-brand-slate/60">registrada {timeAgo(review.createdAt)}</span>
-            </Link>
+            </div>
 
             <p className="mt-6 flex items-center gap-1.5 text-xs uppercase tracking-[0.14em] text-brand-orange">
               <TelevisionSimpleIcon size={14} weight="bold" /> {seasonLabel(review.seasonNumber, review.episodeNumber)}
@@ -197,6 +218,11 @@ function ReviewView({ review, onSaved, onDeleted }: {
             <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-brand-slate">
               {review.rating !== null && <StarRating rating={toRating(review.rating)} size={20} />}
               {review.liked && <HeartIcon size={18} weight="fill" className="text-brand-orange" aria-label="Curtiu a série" />}
+              {review.rewatch && (
+                <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-brand-emerald">
+                  <ArrowsClockwiseIcon size={14} weight="bold" /> Reassistido
+                </span>
+              )}
               <span>{review.episodeNumber !== null ? "Assistiu" : "Terminou"} em {shortDate(review.watchedOn)}</span>
             </div>
 
@@ -219,6 +245,15 @@ function ReviewView({ review, onSaved, onDeleted }: {
                     <span className="mb-3 flex items-center gap-1.5 w-fit text-[11px] font-bold uppercase tracking-[0.15em] text-brand-crimson">
                       <WarningIcon size={13} weight="bold" /> Spoiler
                     </span>
+                  )}
+                  {sharedFrom && (
+                    <p className="mb-3 text-sm text-brand-slate">
+                      {firstName} usou a review de{" "}
+                      <Link href={partnerReviewHref(sharedFrom, true)} className="text-foreground hover:text-brand-orange">
+                        {sharedFrom.user.name}
+                      </Link>
+                      .
+                    </p>
                   )}
                   <ReviewText text={review.text} className="font-serif text-[19px] leading-[1.75] text-foreground/85" />
                 </div>
@@ -293,7 +328,7 @@ function ReviewView({ review, onSaved, onDeleted }: {
       </div>
 
       {isOwn && (
-        <Modal open={editing} onClose={() => setEditing(false)} label={`Editar review de ${series.name}`}>
+        <Modal open={editing} onClose={() => setEditing(false)} label={`Editar review de ${series.name}`} size="wide">
           {/* key: reabrir o modal recomeça do que está salvo */}
           <SeriesReviewForm
             key={editing ? "aberto" : "fechado"}

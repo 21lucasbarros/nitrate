@@ -6,6 +6,7 @@ import type {
   Series,
   SeriesDetails,
   SeriesReview,
+  SeriesReviewInvite,
   SeriesReviewRequest,
   SeriesSearchResult,
   SeriesUserState,
@@ -74,6 +75,23 @@ export function getSeriesReview(id: number): Promise<SeriesReview> {
 
 export function createSeriesReview(data: SeriesReviewRequest): Promise<SeriesReview> {
   return apiFetch<SeriesReview>("/series/reviews", { method: "POST", body: JSON.stringify(data) });
+}
+
+/** registro em conjunto: o convite que chegou pelo sino */
+export function getSeriesReviewInvite(id: number): Promise<SeriesReviewInvite> {
+  return apiFetch<SeriesReviewInvite>(`/series/reviews/invites/${id}`);
+}
+
+/** sem `review`, fica com o registro de quem convidou; com, escreve o próprio */
+export function acceptSeriesReviewInvite(id: number, review?: SeriesReviewRequest): Promise<SeriesReview> {
+  return apiFetch<SeriesReview>(`/series/reviews/invites/${id}/accept`, {
+    method: "POST",
+    body: JSON.stringify({ review: review ?? null }),
+  });
+}
+
+export function declineSeriesReviewInvite(id: number): Promise<void> {
+  return apiFetch<void>(`/series/reviews/invites/${id}/decline`, { method: "POST" });
 }
 
 export function updateSeriesReview(id: number, data: SeriesReviewRequest): Promise<SeriesReview> {

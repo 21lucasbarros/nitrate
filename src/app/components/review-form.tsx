@@ -421,7 +421,7 @@ function RuleWarning({ rule, text, onRespect, onBreak }: {
 }
 
 /** a linha embaixo de quem foi marcado: quem já aceitou, quem ainda não respondeu e quem vai receber o convite */
-function companionStatus(companions: UserSummary[], initial: UserSummary[], accepted: string[]): string | undefined {
+export function companionStatus(companions: UserSummary[], initial: UserSummary[], accepted: string[]): string | undefined {
   const names = (users: UserSummary[]) => joinNames(users.map((u) => u.name));
   const plural = (users: UserSummary[], one: string, many: string) => (users.length > 1 ? many : one);
   const wasThere = new Set(initial.map((u) => u.username));
