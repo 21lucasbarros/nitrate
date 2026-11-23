@@ -7,8 +7,9 @@ import { easterEggFor } from "@/lib/easter-eggs";
 import { useFetch } from "@/lib/hooks/use-fetch";
 import { shareStoryFile, useStoryImage } from "@/lib/hooks/use-story-image";
 import { getMovieScenes } from "@/lib/services/movie-service";
+import { getSeriesScenes } from "@/lib/services/series-service";
 import type { MovieReview } from "@/lib/types/review";
-import type { Movie } from "@/types/movie";
+import type { MovieBackdrops } from "@/lib/types/user";
 import type { SeriesReview } from "@/types/series";
 import { backdropUrl } from "@/utils/poster";
 import { Modal } from "./ui/modal";
@@ -23,11 +24,43 @@ interface StoryCopy {
   loadingLabel: string;
 }
 
-type StoryStyle = "ingresso" | "cena";
+/** um estilo da imagem: o valor vai no ?estilo da rota (o primeiro é o padrão, sem parâmetro) */
+interface StoryStyle {
+  value: string;
+  label: string;
+  eyebrow: string;
+  description: string;
+  loadingLabel: string;
+}
 
-const STYLES: { value: StoryStyle; label: string }[] = [
-  { value: "ingresso", label: "Ingresso" },
-  { value: "cena", label: "Cena" },
+const SCENE_STYLE: StoryStyle = {
+  value: "cena",
+  label: "Cena",
+  eyebrow: "Sua cena",
+  description: "A cena em tela cheia, com o pôster, sua nota e a data da sessão. ",
+  loadingLabel: "Revelando a cena…",
+};
+
+const MOVIE_STYLES: StoryStyle[] = [
+  {
+    value: "ingresso",
+    label: "Ingresso",
+    eyebrow: "Seu ingresso",
+    description: "Pôster, sua nota e a data da sessão num ingresso de cinema. ",
+    loadingLabel: "Imprimindo o ingresso…",
+  },
+  SCENE_STYLE,
+];
+
+const SERIES_STYLES: StoryStyle[] = [
+  {
+    value: "tv",
+    label: "TV",
+    eyebrow: "Sua maratona",
+    description: "A série numa TV de tubo, com sua nota, a temporada e quando você terminou. ",
+    loadingLabel: "Ligando a TV…",
+  },
+  { ...SCENE_STYLE, description: "A cena em tela cheia, com o pôster, sua nota, a temporada e quando você assistiu. " },
 ];
 
 /** modal "Compartilhar nos Stories" da review: prévia do ingresso e o botão de compartilhar a imagem */
@@ -47,20 +80,70 @@ export function ShareReviewStoryModal({ review, open, onClose }: { review: Movie
             loadingLabel="Imprimindo os cartões…"
           />
         ) : (
-          <ReviewShareBody review={review} />
+          <StyledShareBody
+            url={`/u/${review.user.username}/reviews/${review.id}/story`}
+            fileName={`nitrate-${review.movie.slug ?? review.movie.id}.png`}
+            title="Mostre o que você assistiu."
+            styles={MOVIE_STYLES}
+            name={review.movie.title}
+            kind="filme"
+            sceneKey={review.movie}
+            loadScenes={getMovieScenes}
+          />
         ))}
     </Modal>
   );
 }
 
-/** o ingresso ou a cena em tela cheia, com o fundo escolhido entre as cenas do próprio filme */
-function ReviewShareBody({ review }: { review: MovieReview }) {
-  const [style, setStyle] = useState<StoryStyle>("ingresso");
+/** o mesmo modal para um registro de série: a TV de tubo ou a cena em tela cheia, com a temporada */
+export function ShareSeriesStoryModal({ review, open, onClose }: { review: SeriesReview | null; open: boolean; onClose: () => void }) {
+  return (
+    <Modal open={open && review !== null} onClose={onClose} label="Compartilhar a série nos Stories">
+      {open && review && (
+        <StyledShareBody
+          url={`/u/${review.user.username}/series/${review.id}/story`}
+          fileName={`nitrate-${review.series.slug ?? review.series.id}${review.seasonNumber !== null ? `-t${review.seasonNumber}` : ""}${review.episodeNumber !== null ? `e${review.episodeNumber}` : ""}.png`}
+          title="Mostre o que você maratonou."
+          styles={SERIES_STYLES}
+          name={review.series.name}
+          kind="série"
+          sceneKey={review.series.id}
+          loadScenes={getSeriesScenes}
+        />
+      )}
+    </Modal>
+  );
+}
+
+/** os estilos da imagem e o fundo escolhido entre as cenas do próprio filme ou da própria série */
+function StyledShareBody<K>({
+  url,
+  fileName,
+  title,
+  styles,
+  name,
+  kind,
+  sceneKey,
+  loadScenes,
+}: {
+  url: string;
+  fileName: string;
+  title: string;
+  styles: StoryStyle[];
+  /** o título do filme ou o nome da série, no seletor de cenas */
+  name: string;
+  kind: "filme" | "série";
+  sceneKey: K;
+  /** busca as cenas (função estável, dos services) */
+  loadScenes: (key: K) => Promise<MovieBackdrops>;
+}) {
+  const [style, setStyle] = useState(styles[0]);
   const [scene, setScene] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
+  const scenes = useFetch(picking ? sceneKey : null, loadScenes);
 
   const params = new URLSearchParams();
-  if (style === "cena") params.set("estilo", "cena");
+  if (style !== styles[0]) params.set("estilo", style.value);
   if (scene) params.set("fundo", scene);
   const query = params.toString();
 
@@ -68,7 +151,9 @@ function ReviewShareBody({ review }: { review: MovieReview }) {
     <>
       {picking && (
         <StoryScenePicker
-          movie={review.movie}
+          name={name}
+          kind={kind}
+          scenes={scenes}
           current={scene}
           onCancel={() => setPicking(false)}
           onPick={(path) => {
@@ -80,27 +165,23 @@ function ReviewShareBody({ review }: { review: MovieReview }) {
       {/* fica montado durante a escolha: a prévia atual não precisa ser gerada de novo ao cancelar */}
       <div className={picking ? "hidden" : undefined}>
         <ShareBody
-          url={`/u/${review.user.username}/reviews/${review.id}/story${query ? `?${query}` : ""}`}
-          fileName={`nitrate-${review.movie.slug ?? review.movie.id}.png`}
-          eyebrow={style === "cena" ? "Sua cena" : "Seu ingresso"}
-          title="Mostre o que você assistiu."
-          description={
-            style === "cena"
-              ? "A cena em tela cheia, com o pôster, sua nota e a data da sessão. "
-              : "Pôster, sua nota e a data da sessão num ingresso de cinema. "
-          }
-          loadingLabel={style === "cena" ? "Revelando a cena…" : "Imprimindo o ingresso…"}
+          url={`${url}${query ? `?${query}` : ""}`}
+          fileName={fileName}
+          eyebrow={style.eyebrow}
+          title={title}
+          description={style.description}
+          loadingLabel={style.loadingLabel}
         >
           <div className="mt-4 sm:mt-5 flex flex-wrap items-center justify-center sm:justify-start gap-1.5 sm:gap-2">
             <div role="radiogroup" aria-label="Estilo da imagem" className="inline-flex p-1 rounded-full bg-surface-strong">
-              {STYLES.map((option) => (
+              {styles.map((option) => (
                 <button
                   key={option.value}
                   type="button"
                   role="radio"
-                  aria-checked={style === option.value}
-                  onClick={() => setStyle(option.value)}
-                  className={`px-3 sm:px-3.5 py-1.5 rounded-full text-sm transition-colors ${style === option.value ? "bg-foreground text-background font-medium" : "text-brand-slate hover:text-foreground"}`}
+                  aria-checked={style === option}
+                  onClick={() => setStyle(option)}
+                  className={`px-3 sm:px-3.5 py-1.5 rounded-full text-sm transition-colors ${style === option ? "bg-foreground text-background font-medium" : "text-brand-slate hover:text-foreground"}`}
                 >
                   {option.label}
                 </button>
@@ -130,30 +211,34 @@ function ReviewShareBody({ review }: { review: MovieReview }) {
   );
 }
 
-/** as cenas do filme da review, já no recorte do story (9:16) */
+/** as cenas do filme ou da série, já no recorte do story (9:16) */
 function StoryScenePicker({
-  movie,
+  name,
+  kind,
+  scenes,
   current,
   onCancel,
   onPick,
 }: {
-  movie: Movie;
+  name: string;
+  kind: "filme" | "série";
+  scenes: { data?: MovieBackdrops; error?: unknown };
   current: string | null;
   onCancel: () => void;
   onPick: (path: string) => void;
 }) {
-  const scenes = useFetch(movie, getMovieScenes);
   const [selected, setSelected] = useState<string | null>(current);
+  const which = kind === "filme" ? "desse filme" : "dessa série";
 
   return (
     <div className="flex flex-col gap-5">
       <div className="pr-10">
         <h2 className="text-lg font-semibold">Fundo da imagem</h2>
-        <p className="mt-1 text-sm text-brand-slate">Escolha uma cena de {movie.title}. O recorte é o mesmo que vai para o story.</p>
+        <p className="mt-1 text-sm text-brand-slate">Escolha uma cena de {name}. O recorte é o mesmo que vai para o story.</p>
       </div>
 
       {scenes.error ? (
-        <p className="py-10 text-center text-sm text-brand-slate">Não foi possível carregar as cenas desse filme.</p>
+        <p className="py-10 text-center text-sm text-brand-slate">Não foi possível carregar as cenas {which}.</p>
       ) : !scenes.data ? (
         <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 sm:gap-3" aria-hidden="true">
           {Array.from({ length: 8 }, (_, i) => (
@@ -161,7 +246,7 @@ function StoryScenePicker({
           ))}
         </div>
       ) : scenes.data.backdrops.length === 0 ? (
-        <p className="py-10 text-center text-sm text-brand-slate">Esse filme não tem cenas no TMDB.</p>
+        <p className="py-10 text-center text-sm text-brand-slate">{kind === "filme" ? "Esse filme não tem" : "Essa série não tem"} cenas no TMDB.</p>
       ) : (
         <ul className="grid grid-cols-3 sm:grid-cols-4 gap-2 sm:gap-3 max-h-[min(58vh,560px)] overflow-y-auto -mx-1 px-1 py-1">
           {scenes.data.backdrops.map((path) => {
@@ -208,24 +293,6 @@ function StoryScenePicker({
         </button>
       </div>
     </div>
-  );
-}
-
-/** o mesmo modal para um registro de série: o ingresso traz a temporada no lugar da sessão */
-export function ShareSeriesStoryModal({ review, open, onClose }: { review: SeriesReview | null; open: boolean; onClose: () => void }) {
-  return (
-    <Modal open={open && review !== null} onClose={onClose} label="Compartilhar a série nos Stories">
-      {open && review && (
-        <ShareBody
-          url={`/u/${review.user.username}/series/${review.id}/story`}
-          fileName={`nitrate-${review.series.slug ?? review.series.id}${review.seasonNumber !== null ? `-t${review.seasonNumber}` : ""}${review.episodeNumber !== null ? `e${review.episodeNumber}` : ""}.png`}
-          eyebrow="Sua maratona"
-          title="Mostre o que você maratonou."
-          description="A série numa TV de tubo, com sua nota, a temporada e quando você terminou. "
-          loadingLabel="Ligando a TV…"
-        />
-      )}
-    </Modal>
   );
 }
 

@@ -1,6 +1,7 @@
 import { apiFetch } from "../api-client";
 import type { MovieStats, WatchProviders } from "./movie-service";
 import type { ReviewComment, ReviewEngagement } from "../types/review";
+import type { MovieBackdrops } from "../types/user";
 import type {
   Season,
   Series,
@@ -45,6 +46,11 @@ export function getSeriesDetails(id: number): Promise<SeriesDetails> {
 export function getSeason(key: string): Promise<Season> {
   const [id, season] = key.split("|");
   return apiFetch<Season>(`/series/${id}/seasons/${season}`);
+}
+
+/** as cenas da série, para o fundo da imagem dos Stories */
+export function getSeriesScenes(id: number): Promise<MovieBackdrops> {
+  return apiFetch<MovieBackdrops>(`/series/${id}/backdrops`);
 }
 
 export function getSeriesStats(id: number): Promise<MovieStats> {

@@ -11,6 +11,7 @@ import {
   Stars,
   loadTicketFonts,
 } from "@/app/components/story/ticket-parts";
+import type { MovieBackdrops } from "@/lib/types/user";
 import { seasonLabel, seriesYears, type SeriesDetails, type SeriesReview } from "@/types/series";
 import { shortDate } from "@/utils/format";
 import { toRating } from "@/utils/rating";
@@ -22,6 +23,9 @@ import { sameUsername } from "@/utils/username";
  * aqui é uma TV de tubo com a cena da série na tela, e embaixo a nota, a temporada e a barra
  * de episódios assistidos até o fim, como num serviço de streaming.
  * GET /u/{username}/series/{id}/story — o registro é público, então não precisa de token.
+ *
+ * ?fundo=/abc.jpg troca a cena da tela por outra cena da mesma série (caminho de imagem do TMDB);
+ * ?estilo=cena deixa a cena em tela cheia, com a nota embaixo, no lugar da TV (como nos filmes).
  */
 
 const TV_WIDTH = 920;
@@ -32,7 +36,7 @@ const CABINET_EDGE = "#3A332C";
 const SOFT = "rgba(249,249,248,0.6)";
 const FAINT = "rgba(249,249,248,0.14)";
 
-export async function GET(_request: Request, { params }: { params: Promise<{ username: string; id: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ username: string; id: string }> }) {
   const { username, id } = await params;
   const reviewId = Number(id);
   if (!Number.isInteger(reviewId) || reviewId <= 0) {
@@ -55,7 +59,24 @@ export async function GET(_request: Request, { params }: { params: Promise<{ use
     loadTicketFonts(),
   ]);
 
-  return new ImageResponse(<Story review={review} details={details} />, {
+  const search = new URL(request.url).searchParams;
+  const chosen = search.get("fundo");
+  // a cena escolhida só vale se for da própria série do registro; senão fica a padrão
+  const ownScene =
+    chosen !== null &&
+    (await apiFetch<MovieBackdrops>(`/series/${review.series.id}/backdrops`)
+      .then((scenes) => scenes.backdrops.includes(chosen))
+      .catch(() => false));
+  const backdropPath = ownScene ? chosen : (details?.backdropPath ?? null);
+
+  const story =
+    search.get("estilo") === "cena" ? (
+      <SceneStory review={review} details={details} backdrop={backdropUrl(backdropPath, "original")} />
+    ) : (
+      <Story review={review} details={details} backdrop={backdropUrl(backdropPath)} />
+    );
+
+  return new ImageResponse(story, {
     width: WIDTH,
     height: HEIGHT,
     fonts,
@@ -63,7 +84,20 @@ export async function GET(_request: Request, { params }: { params: Promise<{ use
   });
 }
 
-function Story({ review, details }: { review: SeriesReview; details: SeriesDetails | null }) {
+interface StoryProps {
+  review: SeriesReview;
+  details: SeriesDetails | null;
+  /** URL da cena (a escolhida ou a padrão da série) */
+  backdrop: string | null;
+}
+
+/** "TERMINEI EM 3 DE MAR. DE 2026", "ASSISTI EM…" num episódio, "REASSISTI EM…" num reassistido */
+function watchedLine(review: SeriesReview): string {
+  const verb = review.rewatch ? "REASSISTI" : review.episodeNumber !== null ? "ASSISTI" : "TERMINEI";
+  return `${verb} EM ${shortDate(review.watchedOn).toUpperCase()}`;
+}
+
+function Story({ review, details, backdrop }: StoryProps) {
   const { series, user } = review;
   const season = review.seasonNumber !== null ? details?.seasons.find((s) => s.seasonNumber === review.seasonNumber) : undefined;
   const network = details?.networks[0];
@@ -99,7 +133,7 @@ function Story({ review, details }: { review: SeriesReview; details: SeriesDetai
         <span style={{ fontFamily: "Mono", fontSize: 24, letterSpacing: 6, color: SOFT }}>DIÁRIO DE SÉRIES</span>
       </div>
 
-      <Television review={review} details={details} channel={channel} />
+      <Television review={review} backdrop={backdrop} channel={channel} />
 
       {/* o que foi assistido */}
       <div style={{ display: "flex", flexDirection: "column", width: TV_WIDTH, marginTop: 64 }}>
@@ -141,7 +175,7 @@ function Story({ review, details }: { review: SeriesReview; details: SeriesDetai
                 ? season?.episodeCount ? `EPISÓDIO ${review.episodeNumber} DE ${season.episodeCount}` : `EPISÓDIO ${review.episodeNumber}`
                 : episodes ? `${episodes} DE ${episodes} EPISÓDIOS` : "ASSISTIDA ATÉ O FIM"}
             </span>
-            <span>{`${review.episodeNumber !== null ? "ASSISTI" : "TERMINEI"} EM ${shortDate(review.watchedOn).toUpperCase()}`}</span>
+            <span>{watchedLine(review)}</span>
           </div>
         </div>
       </div>
@@ -160,9 +194,8 @@ function Story({ review, details }: { review: SeriesReview; details: SeriesDetai
 }
 
 /** a TV de tubo: gabinete de madeira, tela 4:3 com linhas de varredura, botões e alto-falante */
-function Television({ review, details, channel }: { review: SeriesReview; details: SeriesDetails | null; channel: string }) {
+function Television({ review, backdrop, channel }: { review: SeriesReview; backdrop: string | null; channel: string }) {
   const { series } = review;
-  const backdrop = backdropUrl(details?.backdropPath);
   const poster = posterUrl(series.posterPath, "w500");
 
   return (
@@ -263,6 +296,97 @@ function Television({ review, details, channel }: { review: SeriesReview; detail
           <div style={{ display: "flex", gap: 22 }}>
             <Knob />
             <Knob />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** a cena em tela cheia, quase sem escurecer, e a nota em destaque na parte de baixo (como a dos filmes) */
+function SceneStory({ review, details, backdrop }: StoryProps) {
+  const { series, user } = review;
+  const poster = posterUrl(series.posterPath, "w342");
+  const network = details?.networks[0];
+  const years = seriesYears({ ...series, status: details?.status ?? series.status });
+  const titleSize = series.name.length > 34 ? 50 : series.name.length > 20 ? 58 : 68;
+
+  return (
+    <div style={{ width: WIDTH, height: HEIGHT, display: "flex", position: "relative", backgroundColor: NIGHT, fontFamily: "Geist" }}>
+      {backdrop ? (
+        // eslint-disable-next-line @next/next/no-img-element -- o next/og não usa next/image
+        <img src={backdrop} alt="" width={WIDTH} height={HEIGHT} style={{ position: "absolute", top: 0, left: 0, width: WIDTH, height: HEIGHT, objectFit: "cover" }} />
+      ) : null}
+      {/* só o topo e a parte de baixo escurecem, para o texto ler; o meio é da cena */}
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: WIDTH,
+          height: HEIGHT,
+          display: "flex",
+          backgroundImage: backdrop
+            ? "linear-gradient(180deg, rgba(13,14,16,0.7) 0%, rgba(13,14,16,0) 16%, rgba(13,14,16,0) 42%, rgba(13,14,16,0.82) 64%, rgba(13,14,16,0.97) 100%)"
+            : "radial-gradient(ellipse 80% 50% at 50% 30%, rgba(255,106,28,0.22), rgba(13,14,16,0) 70%)",
+        }}
+      />
+
+      <div style={{ position: "relative", display: "flex", flexDirection: "column", width: WIDTH, height: HEIGHT, padding: "84px 100px 210px" }}>
+        {/* cabeçalho */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", color: CREAM }}>
+          <div style={{ display: "flex", alignItems: "center", fontSize: 40, fontWeight: 600, letterSpacing: -1 }}>
+            NITRATE
+            <div style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: ORANGE, marginLeft: 6, marginTop: 10 }} />
+          </div>
+          <span style={{ fontFamily: "Mono", fontSize: 24, letterSpacing: 6, color: "rgba(249,249,248,0.7)" }}>DIÁRIO DE SÉRIES</span>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", marginTop: "auto", color: CREAM }}>
+          {/* pôster, o que foi assistido e o nome */}
+          <div style={{ display: "flex", alignItems: "flex-end" }}>
+            {poster && (
+              // eslint-disable-next-line @next/next/no-img-element -- o next/og não usa next/image
+              <img
+                src={poster}
+                alt=""
+                width={200}
+                height={300}
+                style={{ width: 200, height: 300, objectFit: "cover", borderRadius: 12, boxShadow: "0 24px 60px rgba(0,0,0,0.55)" }}
+              />
+            )}
+            <div style={{ display: "flex", flexDirection: "column", flex: 1, marginLeft: poster ? 40 : 0 }}>
+              <span style={{ fontFamily: "Mono", fontSize: 24, letterSpacing: 5, color: ORANGE }}>
+                {seasonLabel(review.seasonNumber, review.episodeNumber).toUpperCase()}
+              </span>
+              <span style={{ marginTop: 12, fontFamily: "Serif", fontWeight: 600, fontSize: titleSize, lineHeight: 1.05, letterSpacing: -1.5 }}>{series.name}</span>
+              <span style={{ marginTop: 16, fontFamily: "Mono", fontSize: 24, letterSpacing: 3, color: "rgba(249,249,248,0.65)" }}>
+                {[years, network?.toUpperCase()].filter(Boolean).join("  ·  ")}
+              </span>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", height: 2, marginTop: 52, backgroundColor: "rgba(249,249,248,0.18)" }} />
+
+          {/* a nota */}
+          <span style={{ marginTop: 44, fontFamily: "Mono", fontSize: 22, letterSpacing: 4, color: "rgba(249,249,248,0.65)" }}>MINHA NOTA</span>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 16 }}>
+            {review.rating !== null ? (
+              <div style={{ display: "flex", alignItems: "center" }}>
+                <Stars rating={toRating(review.rating)} size={76} emptyColor="rgba(249,249,248,0.22)" />
+                <div style={{ display: "flex", marginLeft: 28 }}>
+                  <RatingNumber value={review.rating} size={104} color={CREAM} muted="rgba(249,249,248,0.6)" />
+                </div>
+              </div>
+            ) : (
+              <span style={{ fontFamily: "Serif", fontStyle: "italic", fontSize: 56 }}>assistida, sem nota</span>
+            )}
+            {review.liked && <Heart size={84} />}
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 44, fontFamily: "Mono", fontSize: 24, letterSpacing: 2 }}>
+            <span>{watchedLine(review)}</span>
+            <span style={{ color: ORANGE }}>{`@${user.username}`}</span>
           </div>
         </div>
       </div>
