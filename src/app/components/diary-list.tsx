@@ -26,8 +26,8 @@ interface Month {
 
 /**
  * A aba Reviews como um diário: o mês fica preso no topo enquanto rola, a data fica numa coluna à
- * esquerda (só na primeira review do dia, para as do mesmo dia ficarem juntas) e cada review é uma
- * linha com o pôster, as estrelas e o começo do texto.
+ * esquerda (só no primeiro registro do dia, para os do mesmo dia ficarem juntos) e cada registro é
+ * uma linha com o pôster, as estrelas e o começo do texto, quando tem.
  */
 export function DiaryList({ entries }: { entries: ActivityEntry[] }) {
   // a lista já vem do mais recente para o mais antigo: basta cortar quando o mês muda
@@ -50,7 +50,7 @@ export function DiaryList({ entries }: { entries: ActivityEntry[] }) {
             </span>
             <span aria-hidden="true" className="h-px flex-1 bg-foreground/10" />
             <span className="text-xs text-brand-slate/70 tabular-nums">
-              {month.entries.length} {month.entries.length === 1 ? "review" : "reviews"}
+              {month.entries.length} {month.entries.length === 1 ? "registro" : "registros"}
             </span>
           </h3>
 
@@ -100,8 +100,9 @@ function DiaryRow({ entry, showDate }: { entry: ActivityEntry; showDate: boolean
   const { title, posterPath, detail, href, rewatch } = describe(entry);
   const { user: me } = useAuth();
   const [revealed, setRevealed] = useState(false);
+  const hasText = !!review.text?.trim();
   // o autor sempre vê a própria review; os outros precisam pedir para ver
-  const hideText = review.spoiler && me?.username !== review.user.username && !revealed;
+  const hideText = hasText && review.spoiler && me?.username !== review.user.username && !revealed;
 
   return (
     <li className={`grid grid-cols-[2.5rem_minmax(0,1fr)] sm:grid-cols-[3.5rem_minmax(0,1fr)] gap-3 sm:gap-5 ${showDate ? "pt-5 mt-1 border-t border-foreground/[0.06] first:border-0 first:mt-0" : "pt-2"}`}>
@@ -156,7 +157,8 @@ function DiaryRow({ entry, showDate }: { entry: ActivityEntry; showDate: boolean
               </span>
             </button>
           ) : (
-            <>
+            // sem texto: só o registro (nota, curtida, data), sem o espaço da review
+            hasText && <>
               {review.spoiler && (
                 <span className="mt-3 flex items-center gap-1.5 w-fit text-[11px] font-bold uppercase tracking-[0.15em] text-brand-crimson">
                   <WarningIcon size={13} weight="bold" />
@@ -176,7 +178,7 @@ function DiaryRow({ entry, showDate }: { entry: ActivityEntry; showDate: boolean
             href={href}
             className="mt-2.5 inline-flex w-fit items-center gap-1 text-xs font-medium text-brand-slate hover:text-brand-orange transition-colors"
           >
-            Ler review
+            {hasText ? "Ler review" : "Ver registro"}
             <ArrowRightIcon size={12} weight="bold" className="group-hover/row:translate-x-0.5 transition-transform" />
           </Link>
         </div>

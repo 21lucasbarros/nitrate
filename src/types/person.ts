@@ -9,7 +9,7 @@ export interface PersonSummary {
 }
 
 export interface PersonCredit {
-  id: number | null; // filme já importado para o Nitrate?
+  id: number | null; // filme ou série já importado para o Nitrate?
   slug: string | null;
   tmdbId: number;
   title: string;
@@ -21,6 +21,7 @@ export interface PersonCredit {
   tmdbVotes: number;
   nitrateRating: number | null; // média de 0,5 a 5; null se ninguém deu nota no Nitrate
   nitrateRatings: number;
+  episodes?: number | null; // só nas séries: em quantos episódios aparece
 }
 
 export interface PersonDetail {
@@ -34,6 +35,7 @@ export interface PersonDetail {
   deathday: string | null;
   directed: PersonCredit[];
   acted: PersonCredit[];
+  series?: PersonCredit[]; // séries em que atuou (o backend antigo não manda)
 }
 
 // Espelha FavoritePersonDTO: ator/atriz ou diretor(a) favorito no perfil

@@ -103,10 +103,10 @@ const fetchFilmsPage = (key: string) => {
   const [username, sort, liked, page] = key.split("|");
   return getUserFilms(username, { page: Number(page) - 1, size: FILMS_PER_PAGE, sort: sort as FilmSort, liked: liked === "1" });
 };
-// aba Reviews: "usuario|tipo|pagina"; filmes e séries vêm juntos do diário, só os com review escrita
+// aba Reviews: "usuario|tipo|pagina"; filmes e séries vêm juntos do diário, com e sem review escrita
 const fetchDiaryPage = async (key: string): Promise<Page<ActivityEntry>> => {
   const [username, type, page] = key.split("|");
-  const result = await getUserDiary(username, { page: Number(page) - 1, size: REVIEWS_PER_PAGE, withText: true, type: type as DiaryType });
+  const result = await getUserDiary(username, { page: Number(page) - 1, size: REVIEWS_PER_PAGE, withText: false, type: type as DiaryType });
   return {
     ...result,
     items: result.items.map((entry): ActivityEntry =>
@@ -948,7 +948,7 @@ function DiaryToolbar({ total, type, onChange }: {
   return (
     <div className="-mt-2 mb-6 flex items-center justify-between gap-4">
       <p className="text-sm text-brand-slate tabular-nums min-h-5">
-        {total !== undefined && `${total} ${total === 1 ? "review" : "reviews"}`}
+        {total !== undefined && `${total} ${total === 1 ? "registro" : "registros"}`}
       </p>
       <SegmentedControl
         label="Mostrar"
@@ -959,10 +959,10 @@ function DiaryToolbar({ total, type, onChange }: {
   );
 }
 
-/** "Você ainda não escreveu nenhuma review de série." e afins, conforme o filtro */
+/** "Você ainda não registrou nenhuma série." e afins, conforme o filtro */
 function emptyDiary(type: DiaryType, name: string | null): string {
-  const what = type === "filmes" ? " de filme" : type === "series" ? " de série" : "";
-  return name ? `${name} ainda não escreveu nenhuma review${what}.` : `Você ainda não escreveu nenhuma review${what}.`;
+  const what = type === "filmes" ? "nenhum filme" : type === "series" ? "nenhuma série" : "nenhum filme ou série";
+  return name ? `${name} ainda não registrou ${what}.` : `Você ainda não registrou ${what}.`;
 }
 
 function clearTitle(series: boolean, n: number): string {

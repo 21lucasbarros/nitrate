@@ -243,6 +243,11 @@ function FilmView({ film }: { film: Movie }) {
             <div className="hidden md:block">
             {/* linha de contexto acima do título: ano e gêneros */}
             <p className="flex flex-wrap items-center gap-x-2 text-xs uppercase tracking-[0.14em] text-foreground/70">
+              {!canRate(film) && (
+                <span className="px-2 py-0.5 mr-1 rounded-sm bg-brand-orange/15 text-brand-orange font-semibold">
+                  {comingSoonLabel(film)}
+                </span>
+              )}
               {[film.releaseYear, runtime, ...film.genres.slice(0, 3)].filter(Boolean).map((item, i) => (
                 <span key={String(item)} className="flex items-center gap-2">
                   {i > 0 && <span className="w-1 h-1 rounded-full bg-brand-orange" />}
@@ -569,7 +574,8 @@ function FilmHighlights({ film, directors, stats }: { film: Movie; directors: Cr
       </span>,
     );
   }
-  if (film.rating !== null) {
+  // 0 é o TMDB sem nenhum voto (filme anunciado)
+  if (film.rating) {
     items.push(
       <span key="tmdb" className="text-brand-slate">
         TMDB <span className="font-medium tabular-nums text-foreground/90">{film.rating.toFixed(1)}</span>
@@ -638,6 +644,11 @@ function CastList({ cast: castOrNull }: { cast: CreditPerson[] | undefined }) {
   );
 }
 
+/** antes da estreia: a data, se já tem, ou só "Em breve" */
+function comingSoonLabel(film: Movie): string {
+  return film.releaseDate ? `Estreia em ${shortDate(film.releaseDate)}` : "Em breve";
+}
+
 /** Ficha técnica: os dados do filme em blocos, cada um com o rótulo em cima. */
 function FactSheet({ film, directors, runtime }: { film: Movie; directors: CreditPerson[]; runtime: string | null }) {
   const facts: { label: string; value: React.ReactNode }[] = [];
@@ -655,11 +666,13 @@ function FactSheet({ film, directors, runtime }: { film: Movie; directors: Credi
         : film.director,
     });
   }
-  if (film.releaseYear) facts.push({ label: "Lançamento", value: film.releaseYear });
+  if (film.releaseYear || !canRate(film)) {
+    facts.push({ label: "Lançamento", value: canRate(film) ? film.releaseYear : comingSoonLabel(film) });
+  }
   if (runtime) facts.push({ label: "Duração", value: runtime });
   if (film.genres.length > 0) facts.push({ label: "Gêneros", value: film.genres.join(", ") });
   if (film.franchise) facts.push({ label: "Franquia", value: film.franchise });
-  if (film.rating !== null) {
+  if (film.rating) {
     facts.push({
       label: "Nota TMDB",
       value: <><span className="tabular-nums">{film.rating.toFixed(1)}</span><span className="text-brand-slate"> /10</span></>,
@@ -718,6 +731,11 @@ function MobileFilmHeader({ film, backdrop, directors, tagline, runtime, poster,
 
       <div className="relative px-5 -mt-24 flex items-end gap-4">
         <div className="flex-1 min-w-0 pb-1">
+          {!canRate(film) && (
+            <span className="inline-block mb-2 px-2 py-0.5 rounded-sm bg-brand-orange/15 text-[11px] uppercase tracking-[0.14em] font-semibold text-brand-orange">
+              {comingSoonLabel(film)}
+            </span>
+          )}
           <h1 className="font-serif text-[28px] font-semibold leading-[1.1] tracking-tight">{film.title}</h1>
           <p className="mt-3 text-[11px] uppercase tracking-[0.16em] text-brand-slate">
             {[film.releaseYear, director || film.director ? "Direção" : null].filter(Boolean).join(" · ")}

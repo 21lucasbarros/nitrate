@@ -16,6 +16,7 @@ import { getPerson, getPersonProgress } from "@/lib/services/person-service";
 import { departmentLabel, type PersonCredit, type PersonDetail, type PersonProgress } from "@/types/person";
 import { shortDate } from "@/utils/format";
 import { movieHref } from "@/utils/movie-link";
+import { seriesHref } from "@/utils/series-link";
 
 const BIO_PREVIEW = 420;
 
@@ -64,6 +65,8 @@ function PersonView({ person, progress }: { person: PersonDetail; progress: Pers
     { id: "acted", title: "Atuou em", credits: person.acted },
   ];
   if (!directsFirst) sections.reverse();
+  // as séries sempre depois dos filmes
+  sections.push({ id: "series", title: "Séries", credits: person.series ?? [] });
 
   const bio = person.biography?.trim() ?? "";
   const longBio = bio.length > BIO_PREVIEW;
@@ -228,7 +231,7 @@ function ProgressRing({ value }: { value: number }) {
 const round1 = (value: number) => Math.round(value * 10) / 10;
 
 interface FilmographySection {
-  id: "directed" | "acted";
+  id: "directed" | "acted" | "series";
   title: string;
   credits: PersonCredit[];
 }
@@ -332,7 +335,7 @@ function Filmography({ sections }: { sections: FilmographySection[] }) {
 
       {unratedOnNitrate && (
         <p className="mb-6 text-sm text-brand-slate/70">
-          Ninguém avaliou estes filmes no Nitrate ainda. Que tal ser a primeira pessoa?
+          Ninguém avaliou {active.id === "series" ? "estas séries" : "estes filmes"} no Nitrate ainda. Que tal ser a primeira pessoa?
         </p>
       )}
 
@@ -345,10 +348,10 @@ function Filmography({ sections }: { sections: FilmographySection[] }) {
             posterPath: credit.posterPath,
             releaseYear: credit.releaseYear,
           },
-          href: movieHref(credit),
+          href: active.id === "series" ? seriesHref(credit) : movieHref(credit),
           badge: creditBadge(credit, sort, today),
           // na direção a função é sempre "Director"; no elenco, o personagem
-          subtitle: active.id === "acted" ? credit.role : null,
+          subtitle: active.id === "directed" ? null : creditSubtitle(credit),
         }))}
       />
     </section>
@@ -373,8 +376,15 @@ function creditBadge(credit: PersonCredit, sort: CreditSort, today: string): Rea
       </>
     );
   }
-  if (credit.releaseDate && credit.releaseDate > today) {
+  // sem data é anunciado, ainda sem estreia marcada
+  if (!credit.releaseDate || credit.releaseDate > today) {
     return <span className="text-brand-orange">Em breve</span>;
   }
   return null;
+}
+
+/** personagem e, nas séries, em quantos episódios aparece */
+function creditSubtitle(credit: PersonCredit): string | null {
+  const episodes = credit.episodes ? `${credit.episodes} ${credit.episodes === 1 ? "episódio" : "episódios"}` : null;
+  return [credit.role, episodes].filter(Boolean).join(" · ") || null;
 }
