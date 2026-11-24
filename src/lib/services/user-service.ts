@@ -84,6 +84,15 @@ export function getMyRecommendations(): Promise<Recommendation[]> {
   return apiFetch<Recommendation[]>("/users/me/recommendations");
 }
 
+/** "não tenho interesse": o filme sai das recomendações e os parecidos com ele perdem espaço */
+export function dismissRecommendation(movieId: number): Promise<void> {
+  return apiFetch<void>(`/users/me/recommendations/${movieId}/dismiss`, { method: "POST" });
+}
+
+export function undoDismissRecommendation(movieId: number): Promise<void> {
+  return apiFetch<void>(`/users/me/recommendations/${movieId}/dismiss`, { method: "DELETE" });
+}
+
 export function getMovieState(movieId: number): Promise<MovieUserState> {
   return apiFetch<MovieUserState>(`/users/me/movies/${movieId}`);
 }
