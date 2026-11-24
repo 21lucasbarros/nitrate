@@ -41,7 +41,8 @@ import { WhatToWatchButton } from "@/app/components/what-to-watch";
 import { UserList } from "@/app/components/user-list";
 import { Modal } from "@/app/components/ui/modal";
 import { SectionHeading } from "@/app/components/ui/section-heading";
-import { ReviewCard, reviewHref } from "@/app/components/review-card";
+import { reviewHref } from "@/app/components/review-card";
+import { RecentReviewCard } from "@/app/components/recent-review-card";
 import { DeleteConfirmBar } from "@/app/components/ui/delete-confirm-bar";
 import { Pagination } from "@/app/components/ui/pagination";
 import { ViewingPicker } from "@/app/components/viewing-picker";
@@ -95,7 +96,7 @@ const TAB_ALIASES: Record<string, TabId> = { diario: "filmes", favoritos: "perfi
 const FILMS_PER_PAGE = 48; // Filmes e Watchlist: 8 linhas de 6 (12 de 4, 16 de 3 no celular)
 const REVIEWS_PER_PAGE = 20;
 const RECENT_FILMS = 5; // uma linha, alinhada com os 5 favoritos
-const RECENT_REVIEWS = 2;
+const RECENT_REVIEWS = 3;
 const SIDE_LISTS = 3; // listas na coluna lateral do Perfil
 
 // o useFetch compara o argumento por igualdade, então a chave é texto: "usuario|ordem|curtidos|pagina"
@@ -104,9 +105,9 @@ const fetchFilmsPage = (key: string) => {
   return getUserFilms(username, { page: Number(page) - 1, size: FILMS_PER_PAGE, sort: sort as FilmSort, liked: liked === "1" });
 };
 // aba Reviews: "usuario|tipo|pagina"; filmes e séries vêm juntos do diário, com e sem review escrita
-const fetchDiaryPage = async (key: string): Promise<Page<ActivityEntry>> => {
+const fetchDiaryPage = async (key: string, size = REVIEWS_PER_PAGE, withText = false): Promise<Page<ActivityEntry>> => {
   const [username, type, page] = key.split("|");
-  const result = await getUserDiary(username, { page: Number(page) - 1, size: REVIEWS_PER_PAGE, withText: false, type: type as DiaryType });
+  const result = await getUserDiary(username, { page: Number(page) - 1, size, withText, type: type as DiaryType });
   return {
     ...result,
     items: result.items.map((entry): ActivityEntry =>
@@ -120,8 +121,8 @@ const fetchDiaryTotal = async (username: string) =>
 const fetchRecentFilms = (username: string) => getUserReviews(username, { page: 0, size: RECENT_FILMS });
 const fetchSimilar = () => getSimilarUsers();
 const fetchSavedLists = () => getSavedLists();
-const fetchRecentReviews = (username: string) =>
-  getUserReviews(username, { page: 0, size: RECENT_REVIEWS, withText: true });
+// Últimas reviews: só os registros com texto, de filmes e de séries juntos
+const fetchRecentReviews = (username: string) => fetchDiaryPage(`${username}|tudo|1`, RECENT_REVIEWS, true);
 
 export default function ProfilePage() {
   // useSearchParams precisa de Suspense para o build estático do Next
@@ -222,7 +223,7 @@ function Profile() {
   ) => {
     const params = new URLSearchParams();
     if (id !== "perfil") params.set("tab", id);
-    if (id === "filmes") {
+    if (id === "filmes" || id === "series") {
       if (filters.sort !== "lancamento") params.set("ordem", filters.sort);
       if (filters.liked) params.set("curtidos", "1");
     }
@@ -242,6 +243,7 @@ function Profile() {
 
   // mudar a ordem ou o filtro também volta para a página 1
   const setFilmFilters = (filters: { sort: FilmSort; liked: boolean }) => navigate("filmes", 1, "replace", filters);
+  const setSeriesFilters = (filters: { sort: FilmSort; liked: boolean }) => navigate("series", 1, "replace", filters);
 
   const setWatchlistType = (type: "filmes" | "series") => {
     setClearing(null);
@@ -559,11 +561,11 @@ function Profile() {
               <div>
                 <SectionHeading
                   title="Últimas reviews"
-                  href={user.reviewsCount > RECENT_REVIEWS ? `${pathname}?tab=reviews` : undefined}
+                  href={recentReviews.data.totalItems > RECENT_REVIEWS ? `${pathname}?tab=reviews` : undefined}
                 />
-                <div className="divide-y divide-foreground/10 -mt-5">
-                  {recentReviews.data.items.map((review) => (
-                    <ReviewCard key={review.id} review={review} hideUser excerpt />
+                <div className="-mt-5 divide-y divide-foreground/[0.06]">
+                  {recentReviews.data.items.map((entry) => (
+                    <RecentReviewCard key={`${entry.kind}-${entry.review.id}`} entry={entry} />
                   ))}
                 </div>
               </div>
@@ -690,7 +692,16 @@ function Profile() {
           </div>
         )}
 
-        {tab === "series" && <ProfileSeries username={user.username} name={user.name} isMe={isMe} />}
+        {tab === "series" && (
+          <ProfileSeries
+            username={user.username}
+            name={user.name}
+            isMe={isMe}
+            sort={sort}
+            likedOnly={likedOnly}
+            onChange={setSeriesFilters}
+          />
+        )}
 
         {tab === "conquistas" && <ProfileAchievements username={user.username} name={user.name} isMe={isMe} />}
 
@@ -987,19 +998,21 @@ async function removeAll(ids: number[], remove: (id: number) => Promise<void>): 
   return failed;
 }
 
-/** barra da aba Filmes: a ordem e o filtro de curtidos (o total já aparece na aba) */
-function FilmsToolbar({ total, sort, likedOnly, onChange }: {
+/** barra das abas Filmes e Séries: a ordem e o filtro de curtidos (o total já aparece na aba) */
+function FilmsToolbar({ total, sort, likedOnly, onChange, series = false }: {
   total: number | undefined;
   sort: FilmSort;
   likedOnly: boolean;
   onChange: (filters: { sort: FilmSort; liked: boolean }) => void;
+  series?: boolean;
 }) {
+  const [one, many] = series ? ["série curtida", "séries curtidas"] : ["filme curtido", "filmes curtidos"];
   return (
     <div className="-mt-2 mb-6 flex flex-wrap items-center gap-x-4 gap-y-3">
       {/* o total geral já está na aba: aqui só o de curtidos, que muda com o filtro */}
       {likedOnly && total !== undefined && (
         <p className="text-sm text-brand-slate tabular-nums">
-          {total} {total === 1 ? "filme curtido" : "filmes curtidos"}
+          {total} {total === 1 ? one : many}
         </p>
       )}
       {/* no celular os controles ocupam a linha toda, e o seletor encolhe para caber */}
@@ -1119,7 +1132,14 @@ function PeopleSkeleton() {
 }
 
 /** aba Séries: o diário de séries fica à parte dos filmes (uma série por pôster, com o registro mais recente) */
-function ProfileSeries({ username, name, isMe }: { username: string; name: string; isMe: boolean }) {
+function ProfileSeries({ username, name, isMe, sort, likedOnly, onChange }: {
+  username: string;
+  name: string;
+  isMe: boolean;
+  sort: FilmSort;
+  likedOnly: boolean;
+  onChange: (filters: { sort: FilmSort; liked: boolean }) => void;
+}) {
   const diary = useFetch(username, getUserSeries);
 
   if (!diary.data) {
@@ -1128,12 +1148,17 @@ function ProfileSeries({ username, name, isMe }: { username: string; name: strin
 
   // a API devolve do mais recente para o mais antigo: o primeiro de cada série é o que aparece
   const latest = new Map<number, SeriesReview>();
+  // curtiu em algum registro (uma temporada, um episódio): conta como série curtida
+  const liked = new Set<number>();
   for (const review of diary.data) {
     if (!latest.has(review.series.id)) latest.set(review.series.id, review);
+    if (review.liked) liked.add(review.series.id);
   }
-  const watched = [...latest.values()];
+  const all = [...latest.values()];
+  // a API não ordena nem filtra as séries: a ordem e os curtidos são feitos aqui, como na aba Filmes
+  const watched = sortSeries(likedOnly ? all.filter((review) => liked.has(review.series.id)) : all, sort);
 
-  if (watched.length === 0) {
+  if (all.length === 0) {
     return (
       <div className="py-12 text-center text-brand-slate">
         <p>{isMe ? "Você ainda não registrou nenhuma série." : `${name} ainda não registrou nenhuma série.`}</p>
@@ -1147,19 +1172,48 @@ function ProfileSeries({ username, name, isMe }: { username: string; name: strin
   }
 
   return (
-    // as que a pessoa quer ver ficam na aba Watchlist, separadas dos filmes
-    <MovieGrid
-      variant="library"
-      items={watched.map((review) => ({
-        movie: { id: review.series.id, title: review.series.name, posterPath: review.series.posterPath, releaseYear: review.series.firstAirYear },
-        // como na aba Filmes: o pôster abre o registro mais recente da pessoa
-        href: seriesReviewHref(review),
-        rating: review.rating,
-        liked: review.liked,
-        caption: `${review.seasonNumber !== null && review.episodeNumber !== null ? episodeCode(review.seasonNumber, review.episodeNumber) : seasonLabel(review.seasonNumber)} · ${compactDate(review.watchedOn)}`,
-      }))}
-    />
+    <div>
+      <FilmsToolbar series total={watched.length} sort={sort} likedOnly={likedOnly} onChange={onChange} />
+      {watched.length > 0 ? (
+        // as que a pessoa quer ver ficam na aba Watchlist, separadas dos filmes
+        <MovieGrid
+          variant="library"
+          items={watched.map((review) => ({
+            movie: { id: review.series.id, title: review.series.name, posterPath: review.series.posterPath, releaseYear: review.series.firstAirYear },
+            // como na aba Filmes: o pôster abre o registro mais recente da pessoa
+            href: seriesReviewHref(review),
+            rating: review.rating,
+            liked: liked.has(review.series.id),
+            caption: `${review.seasonNumber !== null && review.episodeNumber !== null ? episodeCode(review.seasonNumber, review.episodeNumber) : seasonLabel(review.seasonNumber)} · ${compactDate(review.watchedOn)}`,
+          }))}
+        />
+      ) : (
+        <p className="py-12 text-center text-brand-slate">
+          {isMe ? "Você ainda não curtiu nenhuma série." : `${name} ainda não curtiu nenhuma série.`}
+        </p>
+      )}
+    </div>
   );
+}
+
+/** as mesmas ordens da aba Filmes; sem data de estreia, a série vai para o fim. Empates: a assistida por último primeiro */
+function sortSeries(reviews: SeriesReview[], sort: FilmSort): SeriesReview[] {
+  const byWatched = (a: SeriesReview, b: SeriesReview) => b.watchedOn.localeCompare(a.watchedOn) || Date.parse(b.createdAt) - Date.parse(a.createdAt);
+  const nullsLast = (a: number | null, b: number | null, desc: boolean) => {
+    if (a === b) return 0;
+    if (a === null) return 1;
+    if (b === null) return -1;
+    return desc ? b - a : a - b;
+  };
+  const compare: Record<FilmSort, (a: SeriesReview, b: SeriesReview) => number> = {
+    lancamento: (a, b) => nullsLast(a.series.firstAirYear, b.series.firstAirYear, true),
+    "lancamento-antigos": (a, b) => nullsLast(a.series.firstAirYear, b.series.firstAirYear, false),
+    nota: (a, b) => nullsLast(a.rating, b.rating, true),
+    "nota-menor": (a, b) => nullsLast(a.rating, b.rating, false),
+    assistidos: () => 0,
+    titulo: (a, b) => a.series.name.localeCompare(b.series.name, "pt-BR"),
+  };
+  return [...reviews].sort((a, b) => compare[sort](a, b) || byWatched(a, b));
 }
 
 function Loading() {
