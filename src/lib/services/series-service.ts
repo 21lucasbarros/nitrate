@@ -2,6 +2,7 @@ import { apiFetch } from "../api-client";
 import type { MovieStats, WatchProviders } from "./movie-service";
 import type { ReviewComment, ReviewEngagement } from "../types/review";
 import type { MovieBackdrops } from "../types/user";
+import type { Page } from "../types/page";
 import type {
   Season,
   Series,
@@ -26,6 +27,24 @@ export function getTrendingSeries(): Promise<SeriesSearchResult[]> {
 
 export function getTopRatedSeries(): Promise<SeriesSearchResult[]> {
   return apiFetch<SeriesSearchResult[]>("/series/top-rated");
+}
+
+/** as séries que mais gente registrou no último mês (como getTrendingMovies) */
+export function getCommunityTrendingSeries(): Promise<SeriesSearchResult[]> {
+  return apiFetch<SeriesSearchResult[]>("/series/community/trending");
+}
+
+/** as séries que já estão no Nitrate, em páginas (page começa em 0), com os filtros do catálogo */
+export function getSeriesCatalog(page: number, size: number, filters?: URLSearchParams): Promise<Page<SeriesSearchResult>> {
+  const params = new URLSearchParams(filters);
+  params.set("page", String(page));
+  params.set("size", String(size));
+  return apiFetch<Page<SeriesSearchResult>>(`/series/catalog?${params}`);
+}
+
+/** os gêneros que aparecem no catálogo de séries, em ordem alfabética */
+export function getSeriesGenres(): Promise<string[]> {
+  return apiFetch<string[]>("/series/genres");
 }
 
 /** Devolve a série local correspondente ao tmdbId, importando do TMDB na primeira vez. */

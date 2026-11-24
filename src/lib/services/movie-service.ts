@@ -4,9 +4,17 @@ import type { MovieBackdrops } from "../types/user";
 import { getMovieBackdrops } from "./user-service";
 import type { Movie, MovieSearchResult } from "@/types/movie";
 
-/** o catálogo em páginas (page começa em 0), na ordem em que os filmes entraram no Nitrate */
-export function getCatalog(page: number, size: number): Promise<Page<Movie>> {
-  return apiFetch<Page<Movie>>(`/movies/catalog?page=${page}&size=${size}`);
+/** o catálogo em páginas (page começa em 0); sem filtros, na ordem em que os filmes entraram no Nitrate */
+export function getCatalog(page: number, size: number, filters?: URLSearchParams): Promise<Page<Movie>> {
+  const params = new URLSearchParams(filters);
+  params.set("page", String(page));
+  params.set("size", String(size));
+  return apiFetch<Page<Movie>>(`/movies/catalog?${params}`);
+}
+
+/** os gêneros que aparecem no catálogo de filmes, em ordem alfabética */
+export function getMovieGenres(): Promise<string[]> {
+  return apiFetch<string[]>("/movies/genres");
 }
 
 /** os filmes que mais gente registrou no último mês */

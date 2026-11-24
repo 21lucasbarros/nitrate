@@ -2,20 +2,22 @@
 
 import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { CircleNotchIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
 import Header from "@/app/components/header";
 import { MovieGrid } from "@/app/components/movie-grid";
 import { PersonPhoto } from "@/app/components/ui/person-photo";
 import { useFetch } from "@/lib/hooks/use-fetch";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
-import { getCatalog, getTopRatedMovies, getTrendingMovies, searchMovies } from "@/lib/services/movie-service";
+import { getCatalog, getMovieGenres, getTrendingMovies, searchMovies } from "@/lib/services/movie-service";
 import { Pagination } from "@/app/components/ui/pagination";
 import { cachedFetcher } from "@/lib/cache";
 import { getPerson, searchPeople } from "@/lib/services/person-service";
 import { searchUsers } from "@/lib/services/user-service";
 import { searchSeries } from "@/lib/services/series-service";
 import { UserList } from "@/app/components/user-list";
+import { CatalogFilters } from "@/app/components/catalog-filters";
+import { filtersFromUrl, filtersKey, filtersToUrl, hasFilters, type CatalogFilters as Filters } from "@/lib/catalog-filters";
 import { SectionHeading } from "@/app/components/ui/section-heading";
 import type { Movie, MovieSearchResult } from "@/types/movie";
 import type { SeriesSearchResult } from "@/types/series";
@@ -26,10 +28,14 @@ import { matchesQuery } from "@/utils/text";
 import { personHref } from "@/utils/person-link";
 
 const CATALOG_PER_PAGE = 48; // 6 linhas de 8
-const fetchCatalog = (page: number) => getCatalog(page - 1, CATALOG_PER_PAGE);
-// a curadoria da comunidade muda devagar: não precisa buscar de novo a cada visita
+// chave "página|filtros da API": o useFetch busca de novo quando qualquer um dos dois muda
+const fetchCatalog = (key: string) => {
+  const [page, filters] = key.split("|");
+  return getCatalog(Number(page) - 1, CATALOG_PER_PAGE, new URLSearchParams(filters));
+};
+const fetchGenres = cachedFetcher(() => getMovieGenres(), 60 * 60 * 1000);
+// o que está em alta na comunidade muda devagar: não precisa buscar de novo a cada visita
 const fetchTrending = cachedFetcher(() => getTrendingMovies(), 5 * 60 * 1000);
-const fetchTopRated = cachedFetcher(() => getTopRatedMovies(), 5 * 60 * 1000);
 const COMMUNITY_ROW = 6;
 
 const MIN_QUERY = 2;
@@ -59,10 +65,28 @@ function Movies({ initialQuery, focusSearch }: { initialQuery: string; focusSear
   const debouncedQuery = useDebouncedValue(query.trim(), SEARCH_DEBOUNCE_MS);
   const isSearching = query.trim().length >= MIN_QUERY;
 
-  const [catalogPage, setCatalogPage] = useState(1);
-  const catalog = useFetch(isSearching ? null : catalogPage, fetchCatalog);
-  const trending = useFetch(isSearching ? null : "trending", fetchTrending);
-  const topRated = useFetch(isSearching ? null : "top", fetchTopRated);
+  // filtros do catálogo na URL: dá para mandar o link de "filmes de terror com nota 7+" para alguém
+  const params = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const filters = filtersFromUrl(params);
+  const filterKey = filtersKey(filters);
+  const filtering = hasFilters(filters);
+  // a página volta para a 1 sempre que os filtros mudam
+  const [pageState, setPageState] = useState({ filterKey, page: 1 });
+  const catalogPage = pageState.filterKey === filterKey ? pageState.page : 1;
+  const setCatalogPage = (page: number) => setPageState({ filterKey, page });
+  const catalog = useFetch(isSearching ? null : `${catalogPage}|${filterKey}`, fetchCatalog);
+  const genres = useFetch(isSearching ? null : "genres", fetchGenres);
+  const trending = useFetch(isSearching || filtering ? null : "trending", fetchTrending);
+  const setFilters = (next: Filters) => {
+    // a busca do header (?q=) não vale mais: quem filtra está no catálogo
+    const current = new URLSearchParams(params);
+    current.delete("q");
+    current.delete("buscar");
+    const qs = filtersToUrl(next, current);
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
   const searchKey = debouncedQuery.length >= MIN_QUERY ? debouncedQuery : null;
   const search = useFetch(searchKey, searchMovies);
   const people = useFetch(searchKey, searchPeople);
@@ -134,14 +158,18 @@ function Movies({ initialQuery, focusSearch }: { initialQuery: string; focusSear
           </>
         ) : (
           <>
-            <CommunityRow title="Em alta na comunidade" movies={trending.data} />
-            <CommunityRow title="Mais bem avaliados pela comunidade" movies={topRated.data} />
+            {/* filtrando, o catálogo sobe para o topo: a fileira da comunidade não segue os filtros.
+                "Mais bem avaliados pela comunidade" virou uma ordem do catálogo */}
+            {!filtering && <CommunityRow title="Em alta na comunidade" movies={trending.data} />}
             <section>
-              <SectionHeading title="Todo o catálogo" count={catalog.data?.totalItems} />
+              <SectionHeading title={filtering ? "Filmes com esses filtros" : "Todo o catálogo"} />
+              <CatalogFilters genres={genres.data} filters={filters} onChange={setFilters} />
               {catalog.loading && !catalog.data ? (
                 <p className="text-brand-slate/50">Carregando filmes…</p>
               ) : catalog.error ? (
                 <p className="text-red-500">Não foi possível carregar os filmes.</p>
+              ) : catalog.data?.items.length === 0 && filtering ? (
+                <p className="py-12 text-center text-brand-slate">Nenhum filme do catálogo com esses filtros.</p>
               ) : (
                 <div id="catalogo" className={`scroll-mt-24 ${catalog.loading ? "opacity-50 transition-opacity" : ""}`}>
                   <MovieGrid items={(catalog.data?.items ?? []).map((movie) => ({ movie }))} />
