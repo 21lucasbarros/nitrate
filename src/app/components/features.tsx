@@ -108,6 +108,28 @@ export default function Features() {
                 baseadas nas suas notas.
               </p>
             </div>
+
+            <div className="group md:col-span-2 pl-6 border-l-2 border-transparent hover:border-brand-emerald transition-colors duration-300">
+              <div className="flex items-center gap-4 mb-3">
+                <CompassIcon
+                  size={32}
+                  weight="duotone"
+                  className="text-brand-emerald group-hover:scale-110 transition-transform origin-left shrink-0"
+                />
+                <h4 className="text-2xl font-medium text-foreground">
+                  Não Sabe o Que Quer Assistir?
+                </h4>
+              </div>
+              <p className="text-brand-slate/70 leading-relaxed font-light text-lg max-w-3xl">
+                Responda umas perguntas rápidas sobre o seu momento:{" "}
+                <strong className="font-medium text-foreground">
+                  o clima do dia, os gêneros, com quem vai assistir, a época e
+                  se prefere os aclamados ou uma surpresa
+                </strong>
+                . O Nitrate cruza tudo com o catálogo e separa filmes e séries
+                feitos para agora.
+              </p>
+            </div>
           </div>
         </div>
 

@@ -11,6 +11,7 @@ import { Pagination } from "@/app/components/ui/pagination";
 import { SectionHeading } from "@/app/components/ui/section-heading";
 import { UserList } from "@/app/components/user-list";
 import { CatalogFilters } from "@/app/components/catalog-filters";
+import { GuidedPickBanner } from "@/app/components/guided-pick";
 import { cachedFetcher } from "@/lib/cache";
 import { filtersFromUrl, filtersKey, filtersToUrl, hasFilters, type CatalogFilters as Filters } from "@/lib/catalog-filters";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
@@ -155,6 +156,7 @@ function SeriesCatalog({ initialQuery, focusSearch }: { initialQuery: string; fo
         ) : (
           <>
             {/* filtrando, o catálogo sobe para o topo: a fileira da comunidade não segue os filtros */}
+            {!filtering && <GuidedPickBanner kind="series" genres={genres.data} className="mb-14" />}
             {!filtering && <CommunityRow title="Em alta na comunidade" series={trending.data} />}
             <section>
               <SectionHeading title={filtering ? "Séries com esses filtros" : "Todo o catálogo"} />

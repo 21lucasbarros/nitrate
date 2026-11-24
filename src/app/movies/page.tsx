@@ -17,6 +17,7 @@ import { searchUsers } from "@/lib/services/user-service";
 import { searchSeries } from "@/lib/services/series-service";
 import { UserList } from "@/app/components/user-list";
 import { CatalogFilters } from "@/app/components/catalog-filters";
+import { GuidedPickBanner } from "@/app/components/guided-pick";
 import { filtersFromUrl, filtersKey, filtersToUrl, hasFilters, type CatalogFilters as Filters } from "@/lib/catalog-filters";
 import { SectionHeading } from "@/app/components/ui/section-heading";
 import type { Movie, MovieSearchResult } from "@/types/movie";
@@ -160,6 +161,7 @@ function Movies({ initialQuery, focusSearch }: { initialQuery: string; focusSear
           <>
             {/* filtrando, o catálogo sobe para o topo: a fileira da comunidade não segue os filtros.
                 "Mais bem avaliados pela comunidade" virou uma ordem do catálogo */}
+            {!filtering && <GuidedPickBanner kind="movies" genres={genres.data} className="mb-14" />}
             {!filtering && <CommunityRow title="Em alta na comunidade" movies={trending.data} />}
             <section>
               <SectionHeading title={filtering ? "Filmes com esses filtros" : "Todo o catálogo"} />
