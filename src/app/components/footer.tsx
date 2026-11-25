@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { HeartIcon } from "@phosphor-icons/react/dist/ssr";
 import { TMDB_NOTICE } from "@/lib/legal";
+import { FooterSignUpLink } from "./footer-sign-up-link";
 
 export default function Footer() {
   return (
@@ -14,7 +15,7 @@ export default function Footer() {
           <Link href="/movies" className="hover:text-foreground transition-colors">Filmes</Link>
           <Link href="/series" className="hover:text-foreground transition-colors">Séries</Link>
           <Link href="/importar" className="hover:text-foreground transition-colors">Migração</Link>
-          <Link href="/sign-in" className="hover:text-foreground transition-colors">Criar conta</Link>
+          <FooterSignUpLink />
           <Link href="/termos" className="hover:text-foreground transition-colors">Termos</Link>
           <Link href="/privacidade" className="hover:text-foreground transition-colors">Privacidade</Link>
         </div>
