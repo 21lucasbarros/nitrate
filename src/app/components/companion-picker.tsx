@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { MagnifyingGlassIcon, PlusIcon, UserPlusIcon, XIcon } from "@phosphor-icons/react";
+import { PlusIcon, UserPlusIcon, XIcon } from "@phosphor-icons/react";
 import { useAuth } from "@/lib/auth-context";
 import { useFetch } from "@/lib/hooks/use-fetch";
 import { getFollowers } from "@/lib/services/user-service";
 import type { UserSummary } from "@/lib/types/user";
 import { Avatar } from "./ui/avatar";
+import { SearchInput } from "./ui/search-input";
 
 const MAX_RESULTS = 6;
 /** igual ao limite do backend: quantas pessoas cabem no "assisti com" */
@@ -124,12 +125,12 @@ export function CompanionPicker({ value, onChange, lockedUsernames = [], readOnl
       {/* por cima do formulário, para o modal não crescer; abre para cima porque o campo fica no fim do formulário */}
       {open && !readOnly && !full && (
         <div className="absolute z-20 bottom-full left-0 mb-2 w-full min-w-[260px] max-w-sm rounded-xl border border-brand-slate/20 bg-background shadow-2xl shadow-black/40 overflow-hidden">
-          <label className="flex items-center gap-2 px-3 border-b border-brand-slate/10">
-            <MagnifyingGlassIcon size={16} className="shrink-0 text-brand-slate/60" />
-            <input
-              type="text"
+          <div className="flex items-center gap-2 p-2 border-b border-brand-slate/10">
+            <SearchInput
+              autoFocus
+              size="sm"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={setQuery}
               onKeyDown={(e) => {
                 // Enter aqui enviaria o formulário da review
                 if (e.key === "Enter") {
@@ -143,15 +144,13 @@ export function CompanionPicker({ value, onChange, lockedUsernames = [], readOnl
                   setOpen(false);
                 }
               }}
-              autoFocus
-              placeholder="Buscar entre quem segue você"
-              aria-label="Buscar entre quem segue você"
-              className="flex-1 py-2.5 bg-transparent text-sm focus:outline-none"
+              label="Buscar entre quem segue você"
+              className="flex-1 min-w-0"
             />
-            <button type="button" onClick={() => setOpen(false)} className="text-xs text-brand-slate hover:text-foreground">
+            <button type="button" onClick={() => setOpen(false)} className="shrink-0 px-1 text-xs text-brand-slate hover:text-foreground">
               {value.length > 0 ? "Pronto" : "Cancelar"}
             </button>
-          </label>
+          </div>
           {!followers.data ? (
             <p className="px-3 py-3 text-sm text-brand-slate/70">
               {followers.error ? "Não foi possível carregar." : "Carregando…"}

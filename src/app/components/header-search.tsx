@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CircleNotchIcon, FilmSlateIcon, MagnifyingGlassIcon, TelevisionIcon, XIcon } from "@phosphor-icons/react";
+import { FilmSlateIcon, MagnifyingGlassIcon, TelevisionIcon } from "@phosphor-icons/react";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { useFetch } from "@/lib/hooks/use-fetch";
 import { useIsApple } from "@/lib/hooks/use-is-apple";
@@ -19,6 +19,7 @@ import { posterUrl } from "@/utils/poster";
 import { matchesQuery } from "@/utils/text";
 import { Avatar } from "./ui/avatar";
 import { PersonPhoto } from "./ui/person-photo";
+import { SearchInput } from "./ui/search-input";
 import { personHref } from "@/utils/person-link";
 
 const MIN_QUERY = 2;
@@ -28,7 +29,17 @@ const MAX_SERIES = 3;
 const MAX_PEOPLE = 3;
 const MAX_USERS = 3;
 
-/** Lupa do header: abre um campo de busca com sugestões (filmes, séries, pessoas e perfis); Enter leva para a busca completa em /buscar. */
+const OPEN_EVENT = "nitrate:abrir-busca";
+
+/** abre a busca do header de qualquer lugar (ex.: /buscar sem nada buscado, "Buscar pessoas" de /amigos) */
+export function openHeaderSearch(query = "") {
+  window.dispatchEvent(new CustomEvent<string>(OPEN_EVENT, { detail: query }));
+}
+
+/**
+ * Busca do header: abre um campo com sugestões (filmes, séries, pessoas e perfis); Enter leva para a busca completa em /buscar.
+ * No celular fechada é só a lupa, e aberta cobre o header inteiro.
+ */
 export function HeaderSearch() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -71,28 +82,46 @@ export function HeaderSearch() {
         setOpen(true);
       }
     };
+    const onOpen = (e: Event) => {
+      setQuery((e as CustomEvent<string>).detail ?? "");
+      setOpen(true);
+    };
     document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
+    window.addEventListener(OPEN_EVENT, onOpen);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener(OPEN_EVENT, onOpen);
+    };
   }, []);
 
   if (!open) {
     return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-label="Buscar filmes, séries, pessoas e perfis"
-        aria-keyshortcuts={isApple === null ? "Meta+K Control+K" : isApple ? "Meta+K" : "Control+K"}
-        className="flex items-center gap-2 w-56 lg:w-64 h-9 px-3 rounded-md bg-surface/60 ring-1 ring-foreground/10 text-sm text-brand-slate/80 hover:text-foreground hover:ring-foreground/20 transition-colors"
-      >
-        <MagnifyingGlassIcon size={16} className="shrink-0" />
-        <span className="flex-1 text-left truncate">Buscar filmes, séries…</span>
-        {/* o atalho do sistema da pessoa; só aparece depois de hidratar, para o HTML do servidor bater */}
-        {isApple !== null && (
-          <kbd className="shrink-0 font-sans text-[11px] px-1.5 py-0.5 rounded bg-foreground/5 ring-1 ring-foreground/10 text-brand-slate/70">
-            {isApple ? "⌘K" : "Ctrl K"}
-          </kbd>
-        )}
-      </button>
+      <>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label="Buscar filmes, séries, pessoas e perfis"
+          className="lg:hidden p-2 -mx-1 text-brand-slate hover:text-foreground transition-colors"
+        >
+          <MagnifyingGlassIcon size={20} />
+        </button>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label="Buscar filmes, séries, pessoas e perfis"
+          aria-keyshortcuts={isApple === null ? "Meta+K Control+K" : isApple ? "Meta+K" : "Control+K"}
+          className="hidden lg:flex items-center gap-2 w-64 h-9 px-3 rounded-md bg-surface/60 ring-1 ring-foreground/10 text-sm text-brand-slate/80 hover:text-foreground hover:ring-foreground/20 transition-colors"
+        >
+          <MagnifyingGlassIcon size={16} className="shrink-0" />
+          <span className="flex-1 text-left truncate">Buscar filmes, séries…</span>
+          {/* o atalho do sistema da pessoa; só aparece depois de hidratar, para o HTML do servidor bater */}
+          {isApple !== null && (
+            <kbd className="shrink-0 font-sans text-[11px] px-1.5 py-0.5 rounded bg-foreground/5 ring-1 ring-foreground/10 text-brand-slate/70">
+              {isApple ? "⌘K" : "Ctrl K"}
+            </kbd>
+          )}
+        </button>
+      </>
     );
   }
 
@@ -160,7 +189,11 @@ export function HeaderSearch() {
   );
 
   return (
-    <div ref={ref} className="relative">
+    // no celular cobre o header inteiro (o header tem backdrop-blur, então o fixed é relativo a ele)
+    <div
+      ref={ref}
+      className="max-lg:fixed max-lg:inset-x-0 max-lg:top-0 max-lg:z-10 max-lg:h-16 max-lg:px-4 max-lg:flex max-lg:items-center max-lg:gap-3 max-lg:bg-background lg:relative"
+    >
       <form
         role="search"
         onSubmit={(e) => {
@@ -169,29 +202,32 @@ export function HeaderSearch() {
           router.push(`/buscar?q=${encodeURIComponent(typed)}`);
           close();
         }}
-        className="flex items-center gap-2 w-56 lg:w-64 h-9 px-3 rounded-md bg-surface ring-1 ring-foreground/10 focus-within:ring-foreground/25"
+        className="flex-1 lg:w-64"
       >
-        {pending ? (
-          <CircleNotchIcon size={16} className="shrink-0 text-brand-slate animate-spin" />
-        ) : (
-          <MagnifyingGlassIcon size={16} className="shrink-0 text-brand-slate" />
-        )}
-        <input
+        <SearchInput
           autoFocus
+          size="sm"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => e.key === "Escape" && close()}
+          onChange={setQuery}
+          pending={pending}
+          label="Buscar filmes, séries, pessoas e perfis"
           placeholder="Filmes, séries, pessoas e perfis"
-          aria-label="Buscar filmes, séries, pessoas e perfis"
-          className="flex-1 min-w-0 bg-transparent text-sm placeholder:text-brand-slate/60 focus:outline-none"
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              e.preventDefault();
+              close();
+            }
+          }}
+          onClear={close}
+          clearLabel="Fechar busca"
         />
-        <button type="button" onClick={close} aria-label="Fechar busca" className="shrink-0 text-brand-slate hover:text-foreground">
-          <XIcon size={14} />
-        </button>
       </form>
+      <button type="button" onClick={close} className="lg:hidden shrink-0 text-sm text-brand-slate hover:text-foreground">
+        Cancelar
+      </button>
 
       {typed.length >= MIN_QUERY && (hasResults || nothing) && (
-        <div className="absolute right-0 top-full mt-2 w-[min(380px,calc(100vw-2rem))] max-h-[70vh] overflow-y-auto rounded-md bg-surface ring-1 ring-foreground/10 shadow-2xl shadow-black/60 py-2">
+        <div className="absolute max-lg:inset-x-4 lg:right-0 top-full mt-2 lg:w-[380px] max-h-[70vh] overflow-y-auto rounded-md bg-surface ring-1 ring-foreground/10 shadow-2xl shadow-black/60 py-2">
           {nothing ? (
             <p className="px-4 py-3 text-sm text-brand-slate">Nada encontrado para “{typed}”.</p>
           ) : (

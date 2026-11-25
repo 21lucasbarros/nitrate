@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ListIcon, MagnifyingGlassIcon, XIcon } from "@phosphor-icons/react";
+import { ListIcon, XIcon } from "@phosphor-icons/react";
 import { useAuth } from "@/lib/auth-context";
 import { useLogoEgg } from "@/lib/hooks/use-easter-eggs";
 import { DreamBigLogo } from "./easter-eggs/dream-big-logo";
@@ -47,12 +47,9 @@ export default function Header() {
         </nav>
 
         <div className="flex gap-2 items-center ml-auto min-h-9">
-          <div className="hidden lg:block">
-            <HeaderSearch />
-          </div>
+          <HeaderSearch />
           {status === "authenticated" && (
             <>
-              <MobileSearchLink />
               <NotificationBell />
               <UserMenu />
             </>
@@ -66,7 +63,6 @@ export default function Header() {
           )}
           {status === "anonymous" && (
             <>
-              <MobileSearchLink />
               <MobileNav />
               <Link href="/sign-in" className={`hidden sm:block whitespace-nowrap ${navLink}`}>
                 Entrar
@@ -163,11 +159,3 @@ function MobileNav() {
   );
 }
 
-/** lupa do celular (a busca do desktop fica no header, que esconde o campo no celular) */
-function MobileSearchLink() {
-  return (
-    <Link href="/buscar" aria-label="Buscar filmes, séries, pessoas e perfis" className="lg:hidden p-2 -mx-1 text-brand-slate hover:text-foreground transition-colors">
-      <MagnifyingGlassIcon size={20} />
-    </Link>
-  );
-}

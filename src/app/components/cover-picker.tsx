@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { ArrowLeftIcon, CheckIcon, CircleNotchIcon, FilmSlateIcon, MagnifyingGlassIcon, WarningIcon } from "@phosphor-icons/react";
+import { ArrowLeftIcon, CheckIcon, FilmSlateIcon, WarningIcon } from "@phosphor-icons/react";
 import { ApiError } from "@/lib/api-client";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { useFetch } from "@/lib/hooks/use-fetch";
@@ -12,6 +12,7 @@ import type { UserProfile } from "@/lib/types/user";
 import type { MovieSearchResult } from "@/types/movie";
 import { backdropUrl, posterUrl } from "@/utils/poster";
 import { Modal } from "./ui/modal";
+import { SearchInput } from "./ui/search-input";
 
 const MIN_QUERY = 2;
 const MAX_RESULTS = 8;
@@ -80,21 +81,14 @@ function PickerBody({ current, onClose, onSaved }: Omit<CoverPickerProps, "open"
           <p className="mt-1 text-sm text-brand-slate">Pesquise um filme e escolha uma cena para o topo do seu perfil.</p>
         </div>
 
-        <label className="flex items-center gap-2 h-11 px-3 rounded-md ring-1 ring-foreground/15 focus-within:ring-brand-blue">
-          {pending ? (
-            <CircleNotchIcon size={16} className="shrink-0 text-brand-slate animate-spin" />
-          ) : (
-            <MagnifyingGlassIcon size={16} className="shrink-0 text-brand-slate" />
-          )}
-          <input
-            autoFocus
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Nome do filme"
-            aria-label="Pesquisar filme"
-            className="flex-1 min-w-0 bg-transparent text-sm placeholder:text-brand-slate/60 focus:outline-none"
-          />
-        </label>
+        <SearchInput
+          autoFocus
+          tone="panel"
+          value={query}
+          onChange={setQuery}
+          pending={pending}
+          label="Buscar um filme"
+        />
 
         {typed.length < MIN_QUERY ? (
           <p className="py-6 text-center text-sm text-brand-slate/70">Digite pelo menos {MIN_QUERY} letras.</p>

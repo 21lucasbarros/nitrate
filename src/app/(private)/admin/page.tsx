@@ -8,7 +8,6 @@ import {
   CircleNotchIcon,
   GlobeHemisphereWestIcon,
   LockSimpleIcon,
-  MagnifyingGlassIcon,
   PencilSimpleIcon,
   PlusIcon,
   TrashIcon,
@@ -23,6 +22,7 @@ import { ListEditor } from "@/app/components/list-editor";
 import { DeleteConfirmBar } from "@/app/components/ui/delete-confirm-bar";
 import { Avatar } from "@/app/components/ui/avatar";
 import { SectionHeading } from "@/app/components/ui/section-heading";
+import { SearchInput } from "@/app/components/ui/search-input";
 import { ApiError } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
@@ -383,17 +383,14 @@ function UserPicker({ onPick }: { onPick: (user: UserSummary) => void }) {
 
   return (
     <div>
-      <label className="relative block">
-        <span className="sr-only">Buscar perfil</span>
-        <MagnifyingGlassIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-slate/60" />
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Buscar pelo nome ou @"
-          autoFocus
-          className={`${input} pl-9`}
-        />
-      </label>
+      <SearchInput
+        autoFocus
+        value={query}
+        onChange={setQuery}
+        pending={results.loading}
+        label="Buscar perfil"
+        placeholder="Buscar pelo nome ou @"
+      />
       {debounced.length >= 2 && (
         <div className="mt-3">
           {!results.data ? (

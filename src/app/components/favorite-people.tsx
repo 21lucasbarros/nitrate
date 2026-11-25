@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowDownIcon, ArrowUpIcon, CircleNotchIcon, MagnifyingGlassIcon, PlusIcon, XIcon } from "@phosphor-icons/react";
+import { ArrowDownIcon, ArrowUpIcon, CircleNotchIcon, PlusIcon, XIcon } from "@phosphor-icons/react";
 import { useFetch } from "@/lib/hooks/use-fetch";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { searchPeople } from "@/lib/services/person-service";
@@ -10,6 +10,7 @@ import { MAX_FAVORITE_PEOPLE, setMyFavoritePeople } from "@/lib/services/user-se
 import { departmentLabel, type FavoritePeopleKind, type FavoritePerson, type PersonSummary } from "@/types/person";
 import { IconButton } from "./ui/icon-button";
 import { Modal } from "./ui/modal";
+import { SearchInput } from "./ui/search-input";
 import { PersonPhoto } from "./ui/person-photo";
 import { personHref } from "@/utils/person-link";
 
@@ -184,18 +185,14 @@ function Editor({ kind, initial, onClose, onSaved }: {
 
       {!full && (
         <div className="mt-6">
-          <div className="group relative">
-            <MagnifyingGlassIcon size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-slate/60 pointer-events-none" />
-            <input
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={labels.search}
-              aria-label={labels.search}
-              autoFocus
-              className="w-full pl-11 pr-4 py-3 bg-background/60 border border-foreground/10 rounded-md text-sm placeholder:text-brand-slate/60 focus:outline-none focus:border-foreground/30"
-            />
-          </div>
+          <SearchInput
+            autoFocus
+            tone="panel"
+            value={query}
+            onChange={setQuery}
+            pending={results.loading}
+            label={labels.search}
+          />
           {debounced.length >= MIN_QUERY && (
             <ul className="mt-2 max-h-64 overflow-y-auto flex flex-col">
               {results.loading && !results.data && (

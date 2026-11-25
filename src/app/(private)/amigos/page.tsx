@@ -1,11 +1,11 @@
 "use client";
 
 import { Suspense } from "react";
-import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { CircleNotchIcon, MagnifyingGlassIcon, UsersThreeIcon } from "@phosphor-icons/react";
 
 import Header from "@/app/components/header";
+import { openHeaderSearch } from "@/app/components/header-search";
 import { ActivityFeed } from "@/app/components/activity-feed";
 import { SimilarUsers } from "@/app/components/similar-users";
 import { UserList } from "@/app/components/user-list";
@@ -120,12 +120,13 @@ function EmptyNetwork({ similar }: { similar: SimilarUser[] | undefined }) {
       <div className="flex flex-col items-center text-center py-12 rounded-md border border-dashed border-foreground/10">
         <UsersThreeIcon size={40} weight="light" className="text-brand-slate/50" />
         <p className="mt-4 max-w-sm text-brand-slate">Encontre cinéfilos pelo nome ou comece pelas pessoas que dão notas parecidas com as suas.</p>
-        <Link
-          href="/buscar"
+        <button
+          type="button"
+          onClick={() => openHeaderSearch()}
           className="mt-6 inline-flex items-center gap-2 px-4 py-2 rounded-md bg-brand-btn text-brand-btn-text text-sm font-semibold hover:bg-brand-btn/90 transition-colors"
         >
           <MagnifyingGlassIcon size={16} weight="bold" /> Buscar pessoas
-        </Link>
+        </button>
       </div>
       {similar && similar.length > 0 && (
         <div>

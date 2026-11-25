@@ -7,7 +7,6 @@ import {
   CircleNotchIcon,
   GlobeHemisphereWestIcon,
   LockSimpleIcon,
-  MagnifyingGlassIcon,
   TelevisionSimpleIcon,
   XIcon,
 } from "@phosphor-icons/react";
@@ -20,6 +19,7 @@ import { listItemInfo, type ListItem, type MovieList, type MovieListRequest } fr
 import type { Movie } from "@/types/movie";
 import { IconButton } from "./ui/icon-button";
 import { Modal } from "./ui/modal";
+import { SearchInput } from "./ui/search-input";
 import { MovieThumb } from "./ui/movie-thumb";
 
 const MIN_QUERY = 2;
@@ -189,7 +189,7 @@ function Editor({ list, initialMovies, save: saveList, official, onClose, onSave
 
       <div className="mt-3 flex gap-2">
         {/* o que a busca procura: filmes ou séries (a lista aceita os dois, misturados) */}
-        <div role="radiogroup" aria-label="Buscar" className="flex shrink-0 p-0.5 rounded-md border border-foreground/10 bg-background/60">
+        <div role="radiogroup" aria-label="Buscar" className="flex shrink-0 h-10 p-0.5 rounded-md ring-1 ring-foreground/10 bg-background/60">
           {(["MOVIE", "SERIES"] as const).map((option) => (
             <button
               key={option}
@@ -203,17 +203,14 @@ function Editor({ list, initialMovies, save: saveList, official, onClose, onSave
             </button>
           ))}
         </div>
-        <div className="group relative flex-1 min-w-0">
-          <MagnifyingGlassIcon size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-slate/60 pointer-events-none" />
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={isSeries ? "Buscar uma série para adicionar" : "Buscar um filme para adicionar"}
-            aria-label={isSeries ? "Buscar uma série para adicionar" : "Buscar um filme para adicionar"}
-            className={`${input} pl-11`}
-          />
-        </div>
+        <SearchInput
+          tone="panel"
+          value={query}
+          onChange={setQuery}
+          pending={results.loading}
+          label={isSeries ? "Buscar uma série para adicionar" : "Buscar um filme para adicionar"}
+          className="flex-1 min-w-0"
+        />
       </div>
       {debounced.length >= MIN_QUERY && (
         <ul className="mt-2 max-h-56 overflow-y-auto flex flex-col">
