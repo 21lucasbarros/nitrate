@@ -12,7 +12,7 @@ export function CatalogSearch({ value, onChange, pending, label, others }: {
   others: string; // "séries, pessoas ou perfis"
 }) {
   return (
-    <div className="mb-4 flex flex-col sm:flex-row sm:items-center gap-3">
+    <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full sm:w-auto">
       <SearchInput value={value} onChange={onChange} pending={pending} label={label} className="w-full sm:w-80" />
       <p className="text-xs text-brand-slate/60">
         Procurando {others}?{" "}

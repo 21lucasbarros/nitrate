@@ -88,14 +88,23 @@ function SeriesCatalog() {
           <SectionHeading
             title={isSearching ? `Séries com “${query.trim()}”` : filtering ? "Séries com esses filtros" : "Todo o catálogo"}
           />
-          <CatalogSearch
-            value={query}
-            onChange={setQuery}
-            pending={searchPending}
-            label="Buscar no catálogo de séries"
-            others="filmes, pessoas ou perfis"
+          {/* a busca não combina com os filtros (a API do catálogo não procura por texto): eles somem enquanto se busca */}
+          <CatalogFilters
+            series
+            genres={genres.data}
+            filters={filters}
+            onChange={setFilters}
+            searching={isSearching}
+            search={
+              <CatalogSearch
+                value={query}
+                onChange={setQuery}
+                pending={searchPending}
+                label="Buscar no catálogo de séries"
+                others="filmes, pessoas ou perfis"
+              />
+            }
           />
-          {/* a busca não combina com os filtros (a API do catálogo não procura por texto): some enquanto se busca */}
           {isSearching ? (
             <SearchResults
               query={query.trim()}
@@ -105,7 +114,6 @@ function SeriesCatalog() {
             />
           ) : (
             <>
-              <CatalogFilters series genres={genres.data} filters={filters} onChange={setFilters} />
               {catalog.loading && !catalog.data ? (
                 <p className="text-brand-slate/50">Carregando séries…</p>
               ) : catalog.error ? (

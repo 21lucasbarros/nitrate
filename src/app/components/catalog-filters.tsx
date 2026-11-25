@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { CaretDownIcon, StarIcon, XIcon } from "@phosphor-icons/react";
 import {
   CATALOG_SORTS,
@@ -17,14 +17,18 @@ type Menu = "genero" | "nota";
 /** "3.5" → "3,5" */
 const decimal = (n: number) => String(n).replace(".", ",");
 
-/** barra de filtros dos catálogos de filmes e de séries: gênero e nota em menus, a ordem à direita */
-export function CatalogFilters({ genres, filters, onChange, series = false }: {
+/** barra dos catálogos de filmes e de séries: a busca à esquerda; gênero e nota em menus e a ordem à direita */
+export function CatalogFilters({ genres, filters, onChange, series = false, search, searching = false }: {
   /** os gêneros que existem no catálogo; enquanto carregam, o menu fica vazio */
   genres: string[] | undefined;
   filters: Filters;
   onChange: (filters: Filters) => void;
   /** séries: "Mais bem avaliadas" no feminino */
   series?: boolean;
+  /** a busca do catálogo, no começo da barra */
+  search?: ReactNode;
+  /** buscando: os filtros não combinam com a busca e somem, só a busca fica (no mesmo lugar, sem perder o foco) */
+  searching?: boolean;
 }) {
   const [open, setOpen] = useState<Menu | null>(null);
   const barRef = useRef<HTMLDivElement>(null);
@@ -62,79 +66,85 @@ export function CatalogFilters({ genres, filters, onChange, series = false }: {
 
   return (
     <div className="mb-8">
-      <div className="flex flex-wrap items-center gap-2">
-        {/* os menus abrem presos ao grupo (e não ao botão), para não vazarem da tela no celular */}
-        <div ref={barRef} className="relative flex flex-wrap items-center gap-2 w-full sm:w-auto">
-          <MenuButton
-            label="Gênero"
-            value={filters.genres.length === 1 ? filters.genres[0] : undefined}
-            count={filters.genres.length > 1 ? filters.genres.length : 0}
-            active={filters.genres.length > 0}
-            open={open === "genero"}
-            onClick={() => toggle("genero")}
-          />
-          <MenuButton label="Nota" count={ratingCount} active={ratingCount > 0} open={open === "nota"} onClick={() => toggle("nota")} />
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+        {search}
+        {!searching && (
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:ml-auto">
+            {/* os menus abrem presos ao grupo (e não ao botão), para não vazarem da tela no celular;
+                no computador o grupo fica à direita, então eles crescem para a esquerda */}
+            <div ref={barRef} className="relative flex flex-wrap items-center gap-2 w-full sm:w-auto">
+              <MenuButton
+                label="Gênero"
+                value={filters.genres.length === 1 ? filters.genres[0] : undefined}
+                count={filters.genres.length > 1 ? filters.genres.length : 0}
+                active={filters.genres.length > 0}
+                open={open === "genero"}
+                onClick={() => toggle("genero")}
+              />
+              <MenuButton label="Nota" count={ratingCount} active={ratingCount > 0} open={open === "nota"} onClick={() => toggle("nota")} />
 
-          {open === "genero" && (
-            <DropdownPanel title={series ? "Gêneros da série" : "Gêneros do filme"} className="left-0 w-[min(34rem,100%)] sm:w-[34rem]">
-              {shownGenres.length === 0 ? (
-                <p className="px-2.5 py-2 text-sm text-brand-slate/60">Carregando gêneros…</p>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-0.5">
-                  {shownGenres.map((genre) => (
-                    <DropdownOption key={genre} checkbox selected={filters.genres.includes(genre)} onClick={() => toggleGenre(genre)}>
-                      {genre}
-                    </DropdownOption>
-                  ))}
-                </div>
+              {open === "genero" && (
+                <DropdownPanel title={series ? "Gêneros da série" : "Gêneros do filme"} className="left-0 sm:left-auto sm:right-0 w-[min(34rem,100%)] sm:w-[34rem]">
+                  {shownGenres.length === 0 ? (
+                    <p className="px-2.5 py-2 text-sm text-brand-slate/60">Carregando gêneros…</p>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-0.5">
+                      {shownGenres.map((genre) => (
+                        <DropdownOption key={genre} checkbox selected={filters.genres.includes(genre)} onClick={() => toggleGenre(genre)}>
+                          {genre}
+                        </DropdownOption>
+                      ))}
+                    </div>
+                  )}
+                  {filters.genres.length > 0 && (
+                    <div className="mt-1.5 pt-1.5 px-1 flex items-center justify-between gap-3 border-t border-foreground/[0.06]">
+                      <p className="px-1.5 text-xs text-brand-slate/70">
+                        {filters.genres.length > 1 ? "Mostrando os títulos com todos os gêneros marcados." : "1 gênero marcado."}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => onChange({ ...filters, genres: [] })}
+                        className="shrink-0 h-7 px-2 rounded text-xs text-brand-slate hover:text-foreground hover:bg-foreground/[0.05] transition-colors"
+                      >
+                        Limpar
+                      </button>
+                    </div>
+                  )}
+                </DropdownPanel>
               )}
-              {filters.genres.length > 0 && (
-                <div className="mt-1.5 pt-1.5 px-1 flex items-center justify-between gap-3 border-t border-foreground/[0.06]">
-                  <p className="px-1.5 text-xs text-brand-slate/70">
-                    {filters.genres.length > 1 ? "Mostrando os títulos com todos os gêneros marcados." : "1 gênero marcado."}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => onChange({ ...filters, genres: [] })}
-                    className="shrink-0 h-7 px-2 rounded text-xs text-brand-slate hover:text-foreground hover:bg-foreground/[0.05] transition-colors"
-                  >
-                    Limpar
-                  </button>
-                </div>
+
+              {open === "nota" && (
+                <DropdownPanel title="Nota mínima" menu={false} className="left-0 sm:left-auto sm:right-0 w-[min(26rem,100%)] sm:w-[26rem]">
+                  <div className="px-2.5 pb-2.5 space-y-4">
+                    <RatingRow
+                      title="No TMDB"
+                      value={filters.minTmdb}
+                      options={TMDB_MINIMUMS.map((n) => ({ value: n, label: `${n}+` }))}
+                      onChange={(minTmdb) => onChange({ ...filters, minTmdb })}
+                    />
+                    <RatingRow
+                      title="Média no Nitrate"
+                      value={filters.minNitrate}
+                      options={NITRATE_MINIMUMS.map((n) => ({ value: n, label: `${decimal(n)}+` }))}
+                      onChange={(minNitrate) => onChange({ ...filters, minNitrate })}
+                      star
+                    />
+                  </div>
+                </DropdownPanel>
               )}
-            </DropdownPanel>
-          )}
+            </div>
 
-          {open === "nota" && (
-            <DropdownPanel title="Nota mínima" menu={false} className="left-0 w-[min(26rem,100%)] sm:w-[26rem]">
-              <div className="px-2.5 pb-2.5 space-y-4">
-                <RatingRow
-                  title="No TMDB"
-                  value={filters.minTmdb}
-                  options={TMDB_MINIMUMS.map((n) => ({ value: n, label: `${n}+` }))}
-                  onChange={(minTmdb) => onChange({ ...filters, minTmdb })}
-                />
-                <RatingRow
-                  title="Média no Nitrate"
-                  value={filters.minNitrate}
-                  options={NITRATE_MINIMUMS.map((n) => ({ value: n, label: `${decimal(n)}+` }))}
-                  onChange={(minNitrate) => onChange({ ...filters, minNitrate })}
-                  star
-                />
-              </div>
-            </DropdownPanel>
-          )}
-        </div>
-
-        <SortMenu
-          value={filters.sort}
-          options={sorts}
-          onChange={(sort) => onChange({ ...filters, sort })}
-          className="w-full sm:w-auto sm:ml-auto"
-        />
+            <SortMenu
+              value={filters.sort}
+              options={sorts}
+              onChange={(sort) => onChange({ ...filters, sort })}
+              className="w-full sm:w-auto"
+            />
+          </div>
+        )}
       </div>
 
-      {chips.length > 0 && (
+      {!searching && chips.length > 0 && (
         <div className="mt-3 flex flex-wrap items-center gap-1.5">
           {chips.map((chip) => (
             <button

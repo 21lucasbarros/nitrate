@@ -87,14 +87,22 @@ function Movies() {
           <SectionHeading
             title={isSearching ? `Filmes com “${query.trim()}”` : filtering ? "Filmes com esses filtros" : "Todo o catálogo"}
           />
-          <CatalogSearch
-            value={query}
-            onChange={setQuery}
-            pending={searchPending}
-            label="Buscar no catálogo de filmes"
-            others="séries, pessoas ou perfis"
+          {/* a busca não combina com os filtros (a API do catálogo não procura por texto): eles somem enquanto se busca */}
+          <CatalogFilters
+            genres={genres.data}
+            filters={filters}
+            onChange={setFilters}
+            searching={isSearching}
+            search={
+              <CatalogSearch
+                value={query}
+                onChange={setQuery}
+                pending={searchPending}
+                label="Buscar no catálogo de filmes"
+                others="séries, pessoas ou perfis"
+              />
+            }
           />
-          {/* a busca não combina com os filtros (a API do catálogo não procura por texto): some enquanto se busca */}
           {isSearching ? (
             <SearchResults
               query={query.trim()}
@@ -104,7 +112,6 @@ function Movies() {
             />
           ) : (
             <>
-              <CatalogFilters genres={genres.data} filters={filters} onChange={setFilters} />
               {catalog.loading && !catalog.data ? (
                 <p className="text-brand-slate/50">Carregando filmes…</p>
               ) : catalog.error ? (
