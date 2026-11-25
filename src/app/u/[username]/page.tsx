@@ -7,7 +7,6 @@ import { useParams, usePathname, useRouter, useSearchParams } from "next/navigat
 import {
   ArrowsClockwiseIcon,
   CalendarBlankIcon,
-  CaretDownIcon,
   CircleNotchIcon,
   DownloadSimpleIcon,
   HeartIcon,
@@ -15,7 +14,6 @@ import {
   InstagramLogoIcon,
   PencilSimpleIcon,
   PlusIcon,
-  SortAscendingIcon,
   SparkleIcon,
   StackIcon,
   TelevisionSimpleIcon,
@@ -45,6 +43,7 @@ import { reviewHref } from "@/app/components/review-card";
 import { RecentReviewCard } from "@/app/components/recent-review-card";
 import { DeleteConfirmBar } from "@/app/components/ui/delete-confirm-bar";
 import { Pagination } from "@/app/components/ui/pagination";
+import { SortMenu, filterButtonClass } from "@/app/components/ui/dropdown";
 import { ViewingPicker } from "@/app/components/viewing-picker";
 import { ApiError } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
@@ -1021,27 +1020,17 @@ function FilmsToolbar({ total, sort, likedOnly, onChange, series = false }: {
           type="button"
           onClick={() => onChange({ sort, liked: !likedOnly })}
           aria-pressed={likedOnly}
-          className={`shrink-0 inline-flex items-center gap-1.5 h-9 px-3 rounded-md border text-sm transition-colors ${likedOnly ? "border-brand-orange/60 bg-brand-orange/10 text-foreground" : "border-foreground/15 text-brand-slate hover:text-foreground hover:border-foreground/30"}`}
+          className={`shrink-0 ${filterButtonClass({ active: likedOnly })}`}
         >
           <HeartIcon size={14} weight={likedOnly ? "fill" : "regular"} className={likedOnly ? "text-brand-orange" : ""} />
           Curtidos
         </button>
-        <label className="relative flex flex-1 sm:flex-none min-w-0 items-center">
-          <span className="sr-only">Ordenar por</span>
-          <SortAscendingIcon size={16} className="pointer-events-none absolute left-3 text-brand-slate" />
-          <select
-            value={sort}
-            onChange={(e) => onChange({ sort: e.target.value as FilmSort, liked: likedOnly })}
-            className="w-full truncate appearance-none h-9 pl-9 pr-9 rounded-md border border-foreground/15 bg-background text-sm text-foreground hover:border-foreground/30 focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue transition-colors cursor-pointer"
-          >
-            {FILM_SORTS.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          <CaretDownIcon size={14} className="pointer-events-none absolute right-3 text-brand-slate" />
-        </label>
+        <SortMenu
+          value={sort}
+          options={FILM_SORTS}
+          onChange={(next) => onChange({ sort: next, liked: likedOnly })}
+          className="flex-1 sm:flex-none"
+        />
       </div>
     </div>
   );
