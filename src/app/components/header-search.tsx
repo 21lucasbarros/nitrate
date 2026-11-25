@@ -28,7 +28,7 @@ const MAX_SERIES = 3;
 const MAX_PEOPLE = 3;
 const MAX_USERS = 3;
 
-/** Lupa do header: abre um campo de busca com sugestões (filmes, séries, pessoas e perfis); Enter leva para a busca completa em /movies. */
+/** Lupa do header: abre um campo de busca com sugestões (filmes, séries, pessoas e perfis); Enter leva para a busca completa em /buscar. */
 export function HeaderSearch() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -166,7 +166,7 @@ export function HeaderSearch() {
         onSubmit={(e) => {
           e.preventDefault();
           if (typed.length < MIN_QUERY) return;
-          router.push(`/movies?q=${encodeURIComponent(typed)}`);
+          router.push(`/buscar?q=${encodeURIComponent(typed)}`);
           close();
         }}
         className="flex items-center gap-2 w-56 lg:w-64 h-9 px-3 rounded-md bg-surface ring-1 ring-foreground/10 focus-within:ring-foreground/25"
@@ -218,7 +218,7 @@ export function HeaderSearch() {
               )}
 
               <Link
-                href={`/movies?q=${encodeURIComponent(typed)}`}
+                href={`/buscar?q=${encodeURIComponent(typed)}`}
                 onClick={close}
                 className="mt-1 mx-2 flex items-center justify-between px-2 py-2 rounded text-sm text-brand-slate hover:text-foreground hover:bg-surface-strong border-t border-foreground/5"
               >

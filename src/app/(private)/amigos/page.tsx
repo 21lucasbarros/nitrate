@@ -121,7 +121,7 @@ function EmptyNetwork({ similar }: { similar: SimilarUser[] | undefined }) {
         <UsersThreeIcon size={40} weight="light" className="text-brand-slate/50" />
         <p className="mt-4 max-w-sm text-brand-slate">Encontre cinéfilos pelo nome ou comece pelas pessoas que dão notas parecidas com as suas.</p>
         <Link
-          href="/movies?buscar=1"
+          href="/buscar"
           className="mt-6 inline-flex items-center gap-2 px-4 py-2 rounded-md bg-brand-btn text-brand-btn-text text-sm font-semibold hover:bg-brand-btn/90 transition-colors"
         >
           <MagnifyingGlassIcon size={16} weight="bold" /> Buscar pessoas
