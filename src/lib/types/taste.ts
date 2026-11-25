@@ -4,7 +4,6 @@ import type { Movie } from "@/types/movie";
 export interface TasteQuiz {
   genres: TasteItem[];
   questions: TasteQuestion[]; // uma pergunta de "como" por gênero que tem variações
-  eras: TasteItem[];
 }
 
 export interface TasteItem {
@@ -30,7 +29,6 @@ export interface TasteCandidateGroup {
 export interface TasteAnswers {
   genres: string[];
   answers: string[];
-  eras: string[];
   movieIds?: number[]; // filmes marcados como "já vi e gostei" (só ao salvar)
 }
 
@@ -38,7 +36,6 @@ export interface TasteAnswers {
 export interface TasteProfile {
   genres: string[];
   answers: string[];
-  eras: string[];
   movies: Movie[];
   updatedAt: string | null; // null = nunca respondeu
 }

@@ -1,4 +1,4 @@
-import { DECADES, type CatalogSort } from "./catalog-filters";
+import { type CatalogSort } from "./catalog-filters";
 import { getCatalog } from "./services/movie-service";
 import { getSeriesCatalog } from "./services/series-service";
 import { filmHref } from "@/utils/movie-link";
@@ -32,14 +32,6 @@ export const COMPANIES = [
 // "em família" é obrigatório (todos os gêneros marcados na busca), e não só uma sugestão
 const FAMILY_KEYWORDS = ["familia", "kids", "animacao"];
 
-export const ERAS = [
-  { id: "recentes", label: "Bem recente", hint: `Dos anos ${DECADES[0]} para cá`, decades: [DECADES[0]] },
-  { id: "2000", label: "Anos 2000 e 2010", hint: "Os que marcaram as últimas décadas", decades: [2010, 2000] },
-  { id: "80", label: "Anos 80 e 90", hint: "Clima de locadora", decades: [1990, 1980] },
-  { id: "classicos", label: "Clássicos", hint: "Antes dos anos 80", decades: [1970, 1960, 1950] },
-  { id: "qualquer", label: "Tanto faz", hint: "Qualquer época", decades: [] },
-] as const;
-
 export const STYLES = [
   // na ordem do catálogo, e não por nota: "nota-tmdb" põe na frente os obscuros com nota 10 de poucos votos
   { id: "aclamados", label: "Os mais aclamados", hint: "Nota 7+ no TMDB", minTmdb: 7, sort: "padrao" },
@@ -53,11 +45,10 @@ export interface PickAnswers {
   mood: Id<typeof MOODS> | null; // null: pulou ("tanto faz")
   genres: string[]; // escolhidos à mão: combinam com o clima ("quero rir" + Terror = comédia de terror)
   company: Id<typeof COMPANIES> | null;
-  era: Id<typeof ERAS> | null;
   style: Id<typeof STYLES> | null;
 }
 
-export const NO_ANSWERS: PickAnswers = { mood: null, genres: [], company: null, era: null, style: null };
+export const NO_ANSWERS: PickAnswers = { mood: null, genres: [], company: null, style: null };
 
 export interface PickResult {
   key: string;
@@ -69,7 +60,7 @@ export interface PickResult {
   overview: string | null;
   /** posição na busca que achou o título (0 = primeiro): no catálogo, os conhecidos vêm antes */
   position: number;
-  /** por que entrou: os gêneros e a década da busca que achou o título */
+  /** por que entrou: os gêneros da busca que achou o título */
   tags: string[];
 }
 
@@ -95,7 +86,6 @@ function matching(genres: string[], keywords: readonly string[]): string[] {
 
 interface Query {
   genres: string[]; // todos precisam bater (é assim que o catálogo filtra)
-  decade: number | null;
 }
 
 interface Plan {
@@ -113,13 +103,12 @@ function shuffle<T>(items: T[]): T[] {
   return copy;
 }
 
-type Drop = { era?: boolean; company?: boolean; mood?: boolean; genres?: boolean; style?: boolean };
+type Drop = { company?: boolean; mood?: boolean; genres?: boolean; style?: boolean };
 
 function plan(answers: PickAnswers, catalogGenres: string[], drop: Drop): Plan {
   const style = (!drop.style && STYLES.find((s) => s.id === answers.style)) || STYLES[2];
   const mood = drop.mood ? undefined : MOODS.find((m) => m.id === answers.mood);
   const company = drop.company ? undefined : COMPANIES.find((c) => c.id === answers.company);
-  const era = drop.era ? undefined : ERAS.find((e) => e.id === answers.era);
 
   // cada gênero do clima é uma busca à parte: "quero tensão" é terror OU thriller, não os dois
   let genreSets: string[][] = [];
@@ -146,22 +135,16 @@ function plan(answers: PickAnswers, catalogGenres: string[], drop: Drop): Plan {
   }
   if (genreSets.length === 0) genreSets = [[]];
 
-  const decades: (number | null)[] = era && era.decades.length > 0 ? [...era.decades] : [null];
-  const queries = genreSets.flatMap((genres) => decades.map((decade) => ({ genres, decade })));
+  const queries = genreSets.map((genres) => ({ genres }));
   return { queries: shuffle(queries).slice(0, MAX_QUERIES), minTmdb: style.minTmdb, sort: style.sort };
 }
 
 function apiParams(query: Query, p: Plan): URLSearchParams {
   const params = new URLSearchParams();
   query.genres.forEach((g) => params.append("genre", g));
-  if (query.decade !== null) params.set("decade", String(query.decade));
   if (p.minTmdb !== null) params.set("minTmdb", String(p.minTmdb));
   if (p.sort !== "padrao") params.set("sort", p.sort);
   return params;
-}
-
-function tagsOf(query: Query): string[] {
-  return [...query.genres, ...(query.decade !== null ? [`Anos ${query.decade}`] : [])];
 }
 
 /** busca, junta e tira o que se repete e o que ainda não estreou */
@@ -170,7 +153,7 @@ async function run(kind: PickKind, p: Plan): Promise<PickResult[]> {
   const pages = await Promise.allSettled(
     p.queries.map(async (query) => {
       const params = apiParams(query, p);
-      const tags = tagsOf(query);
+      const tags = query.genres;
       if (kind === "movies") {
         const page = await getCatalog(0, PAGE_SIZE, params);
         return page.items
@@ -200,13 +183,12 @@ async function run(kind: PickKind, p: Plan): Promise<PickResult[]> {
 }
 
 /**
- * Busca com todas as respostas; se não sobrar o bastante, vai abrindo mão da época, da companhia,
+ * Busca com todas as respostas; se não sobrar o bastante, vai abrindo mão da companhia,
  * da combinação com o clima e dos gêneros. O que bate com tudo fica sempre na frente: as buscas
  * mais soltas só completam a lista.
  */
 export async function findPicks(kind: PickKind, answers: PickAnswers, catalogGenres: string[]): Promise<PickOutcome> {
   // só entra no afrouxamento o que foi respondido de fato ("tanto faz" não tem do que abrir mão)
-  const hasEra = (ERAS.find((e) => e.id === answers.era)?.decades.length ?? 0) > 0;
   const hasCompany = answers.company !== null && answers.company !== "sozinho";
   const hasCombo = answers.genres.length > 0 && answers.mood !== null;
   const hasGenres = answers.genres.length > 0 || answers.mood !== null;
@@ -214,7 +196,6 @@ export async function findPicks(kind: PickKind, answers: PickAnswers, catalogGen
   const hasStyle = answers.style !== null && answers.style !== "surpresa";
   const dimensions: { key: keyof Drop; label: string }[] = [
     ...(hasStyle && answers.style === "comunidade" ? [{ key: "style" as const, label: "os queridinhos do Nitrate" }] : []),
-    ...(hasEra ? [{ key: "era" as const, label: "a época" }] : []),
     ...(hasCompany ? [{ key: "company" as const, label: "a companhia" }] : []),
     ...(hasCombo ? [{ key: "mood" as const, label: "o clima" }] : []),
     ...(hasGenres ? [{ key: "genres" as const, label: "os gêneros" }] : []),

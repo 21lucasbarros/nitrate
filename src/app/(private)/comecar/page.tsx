@@ -30,7 +30,6 @@ type Step =
   | { kind: "intro" }
   | { kind: "genres" }
   | { kind: "question"; question: TasteQuestion }
-  | { kind: "eras" }
   | { kind: "films" };
 
 const fetchQuiz = () => getTasteQuiz();
@@ -70,7 +69,7 @@ function Onboarding({
   initial,
 }: {
   quiz: TasteQuiz;
-  initial: { genres: string[]; answers: string[]; eras: string[]; movies: Movie[] } | null;
+  initial: { genres: string[]; answers: string[]; movies: Movie[] } | null;
 }) {
   const router = useRouter();
   const [next] = useState(() => safeInternalPath(new URLSearchParams(window.location.search).get("depois")));
@@ -79,7 +78,6 @@ function Onboarding({
   // gêneros na ordem em que foram escolhidos: as perguntas seguem essa ordem
   const [genres, setGenres] = useState<string[]>(initial?.genres ?? []);
   const [answers, setAnswers] = useState<string[]>(initial?.answers ?? []);
-  const [eras, setEras] = useState<string[]>(initial?.eras ?? []);
   const [movieIds, setMovieIds] = useState<number[]>(initial?.movies.map((m) => m.id) ?? []);
   const [index, setIndex] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -94,7 +92,6 @@ function Onboarding({
     { kind: "intro" },
     { kind: "genres" },
     ...questions.map((question) => ({ kind: "question" as const, question })),
-    { kind: "eras" },
     { kind: "films" },
   ];
   const step = steps[Math.min(index, steps.length - 1)];
@@ -111,7 +108,7 @@ function Onboarding({
     setSaving(true);
     setError(null);
     try {
-      await saveMyTaste({ genres, answers: activeAnswers, eras, movieIds });
+      await saveMyTaste({ genres, answers: activeAnswers, movieIds });
       router.replace(next);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Não foi possível salvar. Tente novamente.");
@@ -124,7 +121,7 @@ function Onboarding({
 
   const progress = index === 0 ? 0 : index / (steps.length - 1);
   // depois de responder algo, sair do questionário salva o que já foi respondido
-  const answeredSomething = genres.length > 0 || eras.length > 0 || movieIds.length > 0;
+  const answeredSomething = genres.length > 0 || movieIds.length > 0;
 
   return (
     <>
@@ -213,25 +210,9 @@ function Onboarding({
           </StepLayout>
         )}
 
-        {step.kind === "eras" && (
-          <StepLayout
-            eyebrow="Época"
-            title="E de que época?"
-            subtitle="Tanto faz? É só continuar."
-          >
-            <div className="flex flex-wrap gap-2.5">
-              {quiz.eras.map((era) => (
-                <Chip key={era.id} selected={eras.includes(era.id)} onClick={() => toggle(eras, setEras, era.id)}>
-                  {era.label}
-                </Chip>
-              ))}
-            </div>
-          </StepLayout>
-        )}
-
         {step.kind === "films" && (
           <FilmsStep
-            answers={{ genres, answers: activeAnswers, eras }}
+            answers={{ genres, answers: activeAnswers }}
             previous={initial?.movies ?? []}
             selected={movieIds}
             onToggle={(id) => setMovieIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]))}
@@ -279,7 +260,7 @@ function Onboarding({
                 onClick={() => go(1)}
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-md bg-brand-btn text-brand-btn-text text-sm font-semibold hover:bg-brand-btn/90 transition-colors"
               >
-                {hasSelection(step, { genres, answers, eras }) ? "Continuar" : "Pular"}
+                {hasSelection(step, { genres, answers }) ? "Continuar" : "Pular"}
                 <ArrowRightIcon size={14} weight="bold" />
               </button>
             )}
@@ -290,9 +271,8 @@ function Onboarding({
   );
 }
 
-function hasSelection(step: Step, state: { genres: string[]; answers: string[]; eras: string[] }): boolean {
+function hasSelection(step: Step, state: { genres: string[]; answers: string[] }): boolean {
   if (step.kind === "genres") return state.genres.length > 0;
-  if (step.kind === "eras") return state.eras.length > 0;
   if (step.kind === "question") return step.question.options.some((o) => state.answers.includes(o.id));
   return true;
 }

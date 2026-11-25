@@ -11,17 +11,14 @@ import {
   CircleNotchIcon,
   CompassIcon,
   CrownIcon,
-  FilmReelIcon,
   GhostIcon,
   HeartIcon,
-  HourglassIcon,
   LightningIcon,
   PlanetIcon,
   ShuffleIcon,
   SmileyIcon,
   SparkleIcon,
   StarIcon,
-  TelevisionIcon,
   UserIcon,
   UsersFourIcon,
   UsersThreeIcon,
@@ -29,7 +26,6 @@ import {
 } from "@phosphor-icons/react";
 import {
   COMPANIES,
-  ERAS,
   MIN_RESULTS,
   MOODS,
   NO_ANSWERS,
@@ -58,24 +54,19 @@ const ICONS: Record<string, Icon> = {
   par: HeartIcon,
   amigos: UsersThreeIcon,
   familia: UsersFourIcon,
-  recentes: SparkleIcon,
-  "2000": TelevisionIcon,
-  "80": FilmReelIcon,
-  classicos: HourglassIcon,
-  qualquer: CompassIcon,
   aclamados: StarIcon,
   comunidade: CrownIcon,
   surpresa: ShuffleIcon,
 };
 
-type Step = "mood" | "genres" | "company" | "era" | "style";
-const STEPS: Step[] = ["mood", "genres", "company", "era", "style"];
+type Step = "mood" | "genres" | "company" | "style";
+const STEPS: Step[] = ["mood", "genres", "company", "style"];
 
 type Phase = { name: "quiz"; step: number } | { name: "loading" } | { name: "result"; outcome: PickOutcome; offset: number } | { name: "error" };
 
 /**
  * "Não sabe o que quer assistir?" (Inteligência Nitrate): um questionário curto de clima, gêneros,
- * companhia, época e estilo que devolve algumas sugestões do catálogo.
+ * companhia e estilo que devolve algumas sugestões do catálogo.
  */
 export function GuidedPickBanner({ kind, genres, className = "" }: {
   kind: PickKind;
@@ -232,11 +223,6 @@ function GuidedPick({ kind, genres }: { kind: PickKind; genres: string[] | undef
             <Choices options={COMPANIES} selected={answers.company} onPick={(company) => answer({ company }, step)} />
           </Question>
         )}
-        {current === "era" && (
-          <Question title="De que época?" subtitle="Lançamento fresquinho ou clima de locadora?">
-            <Choices options={ERAS} selected={answers.era} onPick={(era) => answer({ era }, step)} />
-          </Question>
-        )}
         {current === "style" && (
           <Question title="Como a gente escolhe?" subtitle="Última pergunta.">
             <Choices options={STYLES} selected={answers.style} onPick={(style) => answer({ style }, step)} />
@@ -348,14 +334,13 @@ function GenrePicker({ genres, selected, onChange }: { genres: string[] | undefi
   );
 }
 
-/** as respostas, em chips, no topo do resultado: "Quero tensão · Com amigos · Anos 80 e 90" */
+/** as respostas, em chips, no topo do resultado: "Quero tensão · Com amigos · Os mais aclamados" */
 function answerChips(answers: PickAnswers): string[] {
   const label = (options: readonly { id: string; label: string }[], id: string | null) => options.find((o) => o.id === id)?.label;
   return [
     label(MOODS, answers.mood),
     ...answers.genres,
     answers.company !== "sozinho" ? label(COMPANIES, answers.company) : undefined,
-    answers.era !== "qualquer" ? label(ERAS, answers.era) : undefined,
     label(STYLES, answers.style),
   ].filter((chip): chip is string => Boolean(chip));
 }

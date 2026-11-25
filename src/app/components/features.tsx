@@ -123,7 +123,7 @@ export default function Features() {
               <p className="text-brand-slate/70 leading-relaxed font-light text-lg max-w-3xl">
                 Responda umas perguntas rápidas sobre o seu momento:{" "}
                 <strong className="font-medium text-foreground">
-                  o clima do dia, os gêneros, com quem vai assistir, a época e
+                  o clima do dia, os gêneros, com quem vai assistir e
                   se prefere os aclamados ou uma surpresa
                 </strong>
                 . O Nitrate cruza tudo com o catálogo e separa filmes e séries
