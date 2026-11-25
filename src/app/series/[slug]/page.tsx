@@ -169,8 +169,11 @@ function SeriesView({ series }: { series: Series }) {
 
       <div className="relative max-w-[1180px] mx-auto px-6 pb-24">
         <div className="grid grid-cols-[112px_1fr] md:grid-cols-[200px_1fr] lg:grid-cols-[230px_1fr_260px] gap-5 md:gap-8 lg:gap-10">
-          <aside>
-            <Poster title={series.name} posterPath={series.posterPath} size="w500" sizes="(min-width: 768px) 230px, 112px" className="shadow-2xl shadow-black/60" />
+          {/* no desktop a coluna desce até o fim do conteúdo e o pôster acompanha a rolagem, como nos filmes */}
+          <aside className="lg:row-span-2">
+            <div className="lg:sticky lg:top-24">
+              <Poster title={series.name} posterPath={series.posterPath} size="w500" sizes="(min-width: 768px) 230px, 112px" className="shadow-2xl shadow-black/60" />
+            </div>
           </aside>
 
           <section className="min-w-0 md:pt-10 lg:pt-16">
