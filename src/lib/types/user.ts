@@ -38,6 +38,9 @@ export interface ProfileCover {
   tmdbId: number;
   title: string;
   year: number | null;
+  // enquadramento, de 0 a 100 (o object-position do CSS); null = o padrão (opcional: APIs antigas não mandam)
+  x?: number | null;
+  y?: number | null;
 }
 
 // Espelha MovieBackdropsDTO: as cenas de um filme para escolher o fundo

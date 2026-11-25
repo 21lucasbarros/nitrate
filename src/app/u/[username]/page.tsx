@@ -23,7 +23,7 @@ import {
 
 import Header from "@/app/components/header";
 import { Avatar } from "@/app/components/ui/avatar";
-import { CoverPicker } from "@/app/components/cover-picker";
+import { CoverPicker, coverPosition } from "@/app/components/cover-picker";
 import { ProfileBadges } from "@/app/components/badges";
 import { ProfileAchievements } from "@/app/components/profile-achievements";
 import type { ActivityEntry } from "@/app/components/activity-poster";
@@ -334,7 +334,7 @@ function Profile() {
 
   return (
     <>
-      <ProfileCover src={cover?.src ?? null} />
+      <ProfileCover src={cover?.src ?? null} position={coverPosition(user.cover)} />
 
       {/* de qual filme é a cena e, no próprio perfil, o botão de trocar: no canto de cima do fundo */}
       {(cover || isMe) && (
@@ -473,7 +473,7 @@ function Profile() {
       <section role="tabpanel" className="pt-8">
         {tab === "perfil" && (
           <div className="flex flex-col gap-12">
-            <div className={`grid gap-12 ${showSide ? "lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-10" : ""}`}>
+            <div className={`grid gap-12 ${showSide ? "lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-10" : ""}`}>
               <div className="flex flex-col gap-12 min-w-0">
                 {(user.favorites.length > 0 || isMe) && (
                   <div>
@@ -866,14 +866,14 @@ const GRAIN =
   "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")";
 
 /** fundo do topo do perfil: a cena do filme favorito desbotando para o fundo, com granulado e luz de projetor */
-function ProfileCover({ src }: { src: string | null }) {
+function ProfileCover({ src, position }: { src: string | null; position: string }) {
   return (
     <div aria-hidden="true" className="pointer-events-none absolute -z-10 inset-x-0 top-0 h-[340px] sm:h-[440px] overflow-hidden">
-      {src && <Image src={src} alt="" fill priority sizes="100vw" className="object-cover object-[center_30%] opacity-40" />}
+      {src && <Image src={src} alt="" fill priority sizes="100vw" className="object-cover opacity-65" style={{ objectPosition: position }} />}
       {/* sem filme favorito: só a luz do projetor */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_60%_at_50%_0%,rgb(255_122_51/0.10),transparent)]" />
-      <div className="absolute inset-0 bg-linear-to-t from-background via-background/70 to-background/20" />
-      <div className="absolute inset-0 bg-linear-to-r from-background/80 via-transparent to-background/80" />
+      <div className="absolute inset-0 bg-linear-to-t from-background via-background/45 to-background/10" />
+      <div className="absolute inset-0 bg-linear-to-r from-background/60 via-transparent to-background/60" />
       <div className="absolute inset-0 opacity-[0.07] mix-blend-overlay" style={{ backgroundImage: GRAIN }} />
     </div>
   );
@@ -1111,9 +1111,9 @@ function PeopleSkeleton() {
   return (
     <div aria-hidden="true">
       <div className="h-4 w-32 mb-5 rounded bg-surface animate-pulse" />
-      <div className="flex gap-3">
+      <div className="grid grid-cols-5 gap-2 lg:gap-1.5">
         {Array.from({ length: 5 }, (_, i) => (
-          <div key={i} className="w-[calc((100%-3rem)/5)] max-w-20 aspect-square rounded-full bg-surface animate-pulse" />
+          <div key={i} className="aspect-2/3 rounded-md bg-surface animate-pulse" />
         ))}
       </div>
     </div>

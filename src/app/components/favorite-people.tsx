@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
-import { ArrowDownIcon, ArrowUpIcon, CircleNotchIcon, PlusIcon, XIcon } from "@phosphor-icons/react";
+import { ArrowDownIcon, ArrowUpIcon, CircleNotchIcon, PlusIcon, UserIcon, XIcon } from "@phosphor-icons/react";
 import { useFetch } from "@/lib/hooks/use-fetch";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { searchPeople } from "@/lib/services/person-service";
@@ -13,6 +14,7 @@ import { Modal } from "./ui/modal";
 import { SearchInput } from "./ui/search-input";
 import { PersonPhoto } from "./ui/person-photo";
 import { personHref } from "@/utils/person-link";
+import { profileUrl } from "@/utils/poster";
 
 const LABELS: Record<FavoritePeopleKind, { title: string; search: string; department: string }> = {
   actors: {
@@ -28,8 +30,9 @@ const LABELS: Record<FavoritePeopleKind, { title: string; search: string; depart
 };
 
 /**
- * Versão pequena da fileira, para a coluna lateral da aba Perfil: as 5 fotos cabem numa linha
- * (inclusive no celular), e o nome vai embaixo em letra miúda.
+ * Versão pequena da fileira, para a coluna lateral da aba Perfil: 5 retratos em pé, como os cartazes
+ * dos filmes favoritos, com o nome por cima da foto (no celular o primeiro nome pequeno e o resto em
+ * negrito; na lateral do computador, só o sobrenome).
  */
 export function FavoritePeopleCompact({ kind, people, isMe, onEdit }: {
   kind: FavoritePeopleKind;
@@ -49,29 +52,40 @@ export function FavoritePeopleCompact({ kind, people, isMe, onEdit }: {
     ) : null;
   }
 
-  const item = "w-[calc((100%-3rem)/5)] max-w-20";
-
   return (
-    <ol className="flex gap-3">
-      {people.map((person) => (
-        <li key={person.tmdbId} className={item}>
-          <Link href={personHref(person)} title={person.name} className="group flex flex-col items-center gap-1.5 text-center">
-            <PersonPhoto
-              name={person.name}
-              profilePath={person.profilePath}
-              sizes="80px"
-              className="w-full group-hover:ring-2 group-hover:ring-brand-orange transition-shadow"
-            />
-            <span className="text-[11px] leading-tight text-brand-slate group-hover:text-foreground line-clamp-2">{person.name}</span>
-          </Link>
-        </li>
-      ))}
+    <ol className="grid grid-cols-5 gap-2 lg:gap-1.5">
+      {people.map((person) => {
+        const src = profileUrl(person.profilePath, "h632");
+        const [first, rest] = splitName(person.name);
+        return (
+          <li key={person.tmdbId}>
+            <Link
+              href={personHref(person)}
+              title={person.name}
+              className="group relative block aspect-2/3 overflow-hidden rounded-md bg-surface ring-1 ring-foreground/10 hover:ring-brand-orange transition-shadow"
+            >
+              {src ? (
+                <Image src={src} alt={`Foto de ${person.name}`} fill sizes="80px" className="object-cover transition-transform duration-300 group-hover:scale-105" />
+              ) : (
+                <UserIcon size={24} weight="light" className="absolute inset-0 m-auto text-foreground/25" />
+              )}
+              {/* escurece o pé da foto para o nome ler em cima de qualquer retrato */}
+              <span className="absolute inset-x-0 bottom-0 h-3/5 bg-linear-to-t from-black/90 via-black/50 to-transparent" />
+              {/* no celular o cartão é grande e cabe o nome inteiro; na lateral do computador, só o sobrenome (o title mostra o resto) */}
+              <span className="absolute inset-x-1.5 lg:inset-x-1 bottom-1.5 leading-[1.1] lg:text-center">
+                {rest && <span className="block lg:hidden text-[10px] text-white/70 truncate">{first}</span>}
+                <span className="block text-[11px] font-semibold text-white truncate">{rest || first}</span>
+              </span>
+            </Link>
+          </li>
+        );
+      })}
       {isMe && people.length < MAX_FAVORITE_PEOPLE && (
-        <li className={item}>
+        <li>
           <button
             onClick={onEdit}
             aria-label="Adicionar favorito"
-            className="w-full aspect-square flex items-center justify-center rounded-full border border-dashed border-foreground/15 text-brand-slate hover:border-foreground/30 hover:text-foreground transition-colors"
+            className="w-full aspect-2/3 flex items-center justify-center rounded-md border border-dashed border-foreground/15 text-brand-slate hover:border-foreground/30 hover:text-foreground transition-colors"
           >
             <PlusIcon size={16} />
           </button>
@@ -79,6 +93,12 @@ export function FavoritePeopleCompact({ kind, people, isMe, onEdit }: {
       )}
     </ol>
   );
+}
+
+/** "Christopher Nolan" -> ["Christopher", "Nolan"]; nome de uma palavra só fica sem o resto */
+function splitName(name: string): [string, string] {
+  const i = name.indexOf(" ");
+  return i < 0 ? [name, ""] : [name.slice(0, i), name.slice(i + 1)];
 }
 
 const MIN_QUERY = 2;

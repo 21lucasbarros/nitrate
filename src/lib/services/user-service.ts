@@ -53,9 +53,9 @@ export function getMovieBackdrops(tmdbId: number): Promise<MovieBackdrops> {
   return apiFetch<MovieBackdrops>(`/movies/tmdb/${tmdbId}/backdrops`);
 }
 
-/** fundo do topo do perfil: uma das cenas de getMovieBackdrops */
-export function setMyCover(tmdbId: number, path: string): Promise<UserProfile> {
-  return apiFetch<UserProfile>("/users/me/cover", { method: "PUT", body: JSON.stringify({ tmdbId, path }) });
+/** fundo do topo do perfil: uma das cenas de getMovieBackdrops, com o enquadramento (x e y de 0 a 100) */
+export function setMyCover(tmdbId: number, path: string, { x, y }: { x: number; y: number }): Promise<UserProfile> {
+  return apiFetch<UserProfile>("/users/me/cover", { method: "PUT", body: JSON.stringify({ tmdbId, path, x, y }) });
 }
 
 /** volta para a cena do primeiro filme favorito */
