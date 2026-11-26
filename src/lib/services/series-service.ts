@@ -1,5 +1,5 @@
 import { apiFetch } from "../api-client";
-import type { MovieStats, WatchProviders } from "./movie-service";
+import type { MovieStats, Posters, WatchProviders } from "./movie-service";
 import type { ReviewComment, ReviewEngagement } from "../types/review";
 import type { MovieBackdrops } from "../types/user";
 import type { Page } from "../types/page";
@@ -70,6 +70,11 @@ export function getSeason(key: string): Promise<Season> {
 /** as cenas da série, para o fundo da imagem dos Stories */
 export function getSeriesScenes(id: number): Promise<MovieBackdrops> {
   return apiFetch<MovieBackdrops>(`/series/${id}/backdrops`);
+}
+
+/** os pôsteres da série no TMDB, para trocar o pôster nos seus registros */
+export function getSeriesPosters(id: number): Promise<Posters> {
+  return apiFetch<Posters>(`/series/${id}/posters`);
 }
 
 export function getSeriesStats(id: number): Promise<MovieStats> {

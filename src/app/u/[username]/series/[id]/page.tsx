@@ -156,7 +156,8 @@ function ReviewView({ review, onSaved, onDeleted }: {
             <Link href={seriesHref(series)} className="group w-28 md:w-full shrink-0">
               <Poster
                 title={series.name}
-                posterPath={season?.posterPath ?? series.posterPath}
+                // o pôster escolhido pela pessoa vale também nos registros de temporada
+                posterPath={(review.customPoster ? null : season?.posterPath) ?? series.posterPath}
                 size="w500"
                 sizes="200px"
                 className="shadow-2xl shadow-black/60 group-hover:ring-brand-orange/50 transition-all"

@@ -89,7 +89,8 @@ export interface Season {
 // Espelha SeriesReviewDTO / SeriesReviewRequestDTO
 export interface SeriesReview {
   id: number;
-  series: Series;
+  series: Series; // com o pôster escolhido pela pessoa no lugar do da série, quando houver
+  customPoster: boolean; // series.posterPath é o pôster escolhido, e não o da série
   user: UserSummary;
   seasonNumber: number | null; // null = a série inteira
   episodeNumber: number | null; // null = a temporada inteira
@@ -126,6 +127,8 @@ export interface SeriesReviewRequest {
   watchedOn: string | null;
   // usernames de todo mundo que assistiu junto; omitido = não muda, quem sai com o convite pendente tem o convite desfeito
   watchedWith?: string[];
+  // pôster em todos os registros da série no perfil (de getSeriesPosters); omitido = não muda, "" = o da série
+  posterPath?: string;
 }
 
 export interface SeriesUserState {

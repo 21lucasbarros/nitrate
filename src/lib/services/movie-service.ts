@@ -76,6 +76,18 @@ export function getMovieCredits(id: number): Promise<MovieCredits> {
   return apiFetch<MovieCredits>(`/movies/${id}/credits`);
 }
 
+// Espelha PostersDTO (de filme ou de série)
+export interface Posters {
+  id: number;
+  defaultPoster: string | null;
+  posters: string[]; // o do título primeiro
+}
+
+/** os pôsteres do filme no TMDB, para trocar o pôster nas suas reviews */
+export function getMoviePosters(id: number): Promise<Posters> {
+  return apiFetch<Posters>(`/movies/${id}/posters`);
+}
+
 /** como o filme foi recebido no Nitrate (cada pessoa conta uma vez) */
 export interface MovieStats {
   averageRating: number | null;

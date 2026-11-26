@@ -9,6 +9,7 @@ import {
   createSeriesReview,
   deleteSeriesReview,
   getSeason,
+  getSeriesPosters,
   updateSeriesReview,
 } from "@/lib/services/series-service";
 import { clearReviewDraft, loadReviewDraft, saveReviewDraft, seriesReviewDraftKey, type SeriesReviewDraft } from "@/lib/review-draft";
@@ -18,7 +19,7 @@ import { joinNames, runtimeLabel, shortDate, todayIso } from "@/utils/format";
 import { CompanionPicker } from "./companion-picker";
 import { companionStatus } from "./review-form";
 import { DeleteConfirmBar } from "./ui/delete-confirm-bar";
-import { Poster } from "./ui/poster";
+import { ChangeablePoster, ChangeablePosterSmall, PosterPicker } from "./poster-picker";
 import { RichTextEditor } from "./ui/rich-text-editor";
 import { StarInput } from "./ui/star-input";
 
@@ -159,6 +160,15 @@ export function SeriesReviewForm({
   // depois que alguém aceitou, todo mundo assistiu a mesma coisa: a temporada e o episódio não mudam
   const targetLocked = joinedByInvite || acceptedUsernames.length > 0;
 
+  // pôster no perfil: vale para todos os registros da série (temporadas e episódios também), então
+  // vem de qualquer um deles. `poster` nulo = o da série; `shownPoster` é o que aparece no formulário
+  const withPoster = existing ?? myReviews[0] ?? null;
+  const initialPoster = withPoster?.customPoster ? withPoster.series.posterPath : null;
+  const [poster, setPoster] = useState<string | null>(initialPoster);
+  const [shownPoster, setShownPoster] = useState(initialPoster ?? series.posterPath);
+  const [pickingPoster, setPickingPoster] = useState(false);
+  const posterChanged = poster !== initialPoster;
+
   const hasText = text.trim().length > 0;
   const today = todayIso();
   const isEpisode = seasonNumber !== null && episodeNumber !== null;
@@ -192,6 +202,8 @@ export function SeriesReviewForm({
       rewatch: rewatch || rewatchLocked,
       // só manda quando muda: "" desfaz o convite pendente
       ...(!joinedByInvite && companionsChanged && { watchedWith: companions.map((u) => u.username) }),
+      // só manda quando muda: "" volta ao pôster da série
+      ...(posterChanged && { posterPath: poster ?? "" }),
     };
     try {
       const saved = invite
@@ -221,20 +233,35 @@ export function SeriesReviewForm({
     }
   };
 
+  // escolhendo o pôster: o seletor ocupa o modal e o resto do formulário continua como estava
+  if (pickingPoster) {
+    return (
+      <PosterPicker
+        id={series.id}
+        load={getSeriesPosters}
+        kind="series"
+        title={series.name}
+        selected={shownPoster}
+        onPick={(path, isDefault) => {
+          setPoster(isDefault ? null : path);
+          setShownPoster(path);
+          setPickingPoster(false);
+        }}
+        onBack={() => setPickingPoster(false)}
+      />
+    );
+  }
+
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-6">
       {/* pôster à esquerda (desktop) e o formulário ao lado, como na review de filme */}
       <div className="grid sm:grid-cols-[150px_minmax(0,1fr)] md:grid-cols-[180px_minmax(0,1fr)] gap-x-8 gap-y-6">
-        <div className="hidden sm:block">
-          <Poster title={series.name} posterPath={series.posterPath} size="w500" sizes="180px" className="shadow-xl shadow-black/40" />
-        </div>
+        <ChangeablePoster title={series.name} posterPath={shownPoster} custom={poster !== null} onChange={() => setPickingPoster(true)} />
 
         <div className="min-w-0 flex flex-col gap-5">
           {/* cabeçalho: qual série está sendo registrada */}
           <div className="flex items-center gap-4 pr-10">
-            <div className="w-14 shrink-0 sm:hidden">
-              <Poster title={series.name} posterPath={series.posterPath} size="w185" sizes="56px" />
-            </div>
+            <ChangeablePosterSmall title={series.name} posterPath={shownPoster} onChange={() => setPickingPoster(true)} />
             <div className="min-w-0">
               <span className="text-xs font-bold tracking-[0.2em] uppercase text-brand-orange">
                 {invite ? "Sua review em conjunto" : existing ? "Editar registro" : rewatchLocked ? "Assisti de novo…" : "Eu assisti…"}

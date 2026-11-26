@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ArrowsClockwiseIcon, CalendarBlankIcon, CircleNotchIcon, FloppyDiskIcon, HeartIcon, TrashIcon, UsersIcon, WarningIcon } from "@phosphor-icons/react";
 import { ApiError } from "@/lib/api-client";
+import { getMoviePosters } from "@/lib/services/movie-service";
 import { acceptReviewInvite, createReview, deleteReview, updateReview } from "@/lib/services/review-service";
 import type { MovieReview, ReviewInvite } from "@/lib/types/review";
 import type { UserSummary } from "@/lib/types/user";
@@ -13,7 +14,7 @@ import { clearReviewDraft, loadReviewDraft, reviewDraftKey, saveReviewDraft, typ
 import { joinNames, runtimeLabel, shortDate, todayIso } from "@/utils/format";
 import { CompanionPicker } from "./companion-picker";
 import { DeleteConfirmBar } from "./ui/delete-confirm-bar";
-import { Poster } from "./ui/poster";
+import { ChangeablePoster, ChangeablePosterSmall, PosterPicker } from "./poster-picker";
 import { RichTextEditor } from "./ui/rich-text-editor";
 import { StarInput } from "./ui/star-input";
 
@@ -85,6 +86,14 @@ export function ReviewForm({ movie, existing, previouslyWatched = false, previou
     ? `Review em conjunto com ${joinNames(initialCompanions.map((u) => u.name))}`
     : companionStatus(companions, initialCompanions, acceptedUsernames);
 
+  // pôster no perfil: vale para todos os registros do filme, então um registro novo já vem com o do anterior.
+  // `poster` nulo = o do filme; `shownPoster` é o que aparece no formulário
+  const initialPoster = base?.customPoster ? base.movie.posterPath : null;
+  const [poster, setPoster] = useState<string | null>(initialPoster);
+  const [shownPoster, setShownPoster] = useState(initialPoster ?? movie.posterPath);
+  const [pickingPoster, setPickingPoster] = useState(false);
+  const posterChanged = poster !== initialPoster;
+
   const hasText = text.trim().length > 0;
 
   const current: ReviewDraft = { rating, liked, watchedOn, text, spoiler, rewatch };
@@ -148,6 +157,8 @@ export function ReviewForm({ movie, existing, previouslyWatched = false, previou
       rewatch: rewatch || rewatchLocked,
       // só manda quando muda: "" desfaz o convite pendente
       ...(!joinedByInvite && companionsChanged && { watchedWith: companions.map((u) => u.username) }),
+      // só manda quando muda: "" volta ao pôster do filme
+      ...(posterChanged && { posterPath: poster ?? "" }),
     };
     try {
       const saved = invite
@@ -177,20 +188,35 @@ export function ReviewForm({ movie, existing, previouslyWatched = false, previou
     }
   };
 
+  // escolhendo o pôster: o seletor ocupa o modal e o resto do formulário continua como estava
+  if (pickingPoster) {
+    return (
+      <PosterPicker
+        id={movie.id}
+        load={getMoviePosters}
+        kind="movie"
+        title={movie.title}
+        selected={shownPoster}
+        onPick={(path, isDefault) => {
+          setPoster(isDefault ? null : path);
+          setShownPoster(path);
+          setPickingPoster(false);
+        }}
+        onBack={() => setPickingPoster(false)}
+      />
+    );
+  }
+
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-6">
       {/* pôster à esquerda (desktop) e o formulário ao lado: o modal cresce para os lados, não para baixo */}
       <div className="grid sm:grid-cols-[150px_minmax(0,1fr)] md:grid-cols-[180px_minmax(0,1fr)] gap-x-8 gap-y-6">
-        <div className="hidden sm:block">
-          <Poster title={movie.title} posterPath={movie.posterPath} size="w500" sizes="180px" className="shadow-xl shadow-black/40" />
-        </div>
+        <ChangeablePoster title={movie.title} posterPath={shownPoster} custom={poster !== null} onChange={() => setPickingPoster(true)} />
 
         <div className="min-w-0 flex flex-col gap-5">
           {/* cabeçalho: qual filme está sendo registrado */}
           <div className="flex items-center gap-4 pr-10">
-            <div className="w-14 shrink-0 sm:hidden">
-              <Poster title={movie.title} posterPath={movie.posterPath} size="w185" sizes="56px" />
-            </div>
+            <ChangeablePosterSmall title={movie.title} posterPath={shownPoster} onChange={() => setPickingPoster(true)} />
             <div className="min-w-0">
               <span className="text-xs font-bold tracking-[0.2em] uppercase text-brand-orange">
                 {invite ? "Sua review em conjunto" : existing ? "Editar review" : previouslyWatched ? "Assisti de novo…" : "Eu assisti…"}

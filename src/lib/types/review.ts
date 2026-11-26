@@ -4,7 +4,8 @@ import type { UserSummary } from "./user";
 // Espelha ReviewDTO, ReviewRequestDTO, WatchlistItemDTO e MovieUserStateDTO do backend
 export interface MovieReview {
   id: number;
-  movie: Movie;
+  movie: Movie; // com o pôster escolhido pela pessoa no lugar do do filme, quando houver
+  customPoster: boolean; // movie.posterPath é o pôster escolhido, e não o do filme
   user: UserSummary;
   rating: number | null; // 0.5 a 5; null = assistiu sem dar nota
   text: string | null;
@@ -53,6 +54,8 @@ export interface ReviewRequest {
   watchedOn: string | null;
   // usernames de todo mundo que assistiu junto; omitido = não muda, quem sai com o convite pendente tem o convite desfeito
   watchedWith?: string[];
+  // pôster nas reviews do filme no perfil (de getMoviePosters); omitido = não muda, "" = o do filme
+  posterPath?: string;
 }
 
 // Espelha ReviewEngagementDTO e ReviewCommentDTO
