@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "@/lib/config";
+import { apiAssetUrl } from "@/lib/config";
 
 // sem foto de perfil: a inicial do nome numa cor derivada do username
 const COLORS = [
@@ -33,11 +33,13 @@ const SIZES = {
 };
 
 export function Avatar({ name, username, avatar, size = "md" }: AvatarProps) {
-  if (avatar) {
+  // caminho que não é da API (outro domínio) é ignorado: fica a inicial
+  const src = apiAssetUrl(avatar);
+  if (src) {
     return (
       // eslint-disable-next-line @next/next/no-img-element -- a foto já sai do backend recortada e pequena (400px)
       <img
-        src={`${API_BASE_URL}${avatar}`}
+        src={src}
         alt=""
         aria-hidden="true"
         loading="lazy"

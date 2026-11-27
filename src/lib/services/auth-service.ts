@@ -20,6 +20,11 @@ export function register(data: RegisterRequest): Promise<AuthResponse> {
   });
 }
 
+/** encerra o token atual no backend (sem isso, um token copiado continuaria valendo até vencer) */
+export function logout(): Promise<void> {
+  return apiFetch<void>("/auth/logout", { method: "POST" });
+}
+
 /** o backend responde 204 com ou sem conta para o e-mail */
 export function requestPasswordReset(email: string): Promise<void> {
   return apiFetch<void>("/auth/forgot-password", {

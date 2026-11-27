@@ -90,7 +90,8 @@ export function WhereToWatch({ providers, subject = "este filme" }: { providers:
     <div>
       <div className="flex flex-wrap items-baseline justify-between gap-3 mb-5">
         <span className="text-sm text-brand-slate">No Brasil</span>
-        {providers.link && (
+        {/* o link vem do TMDB pela API: só abre se for https (nada de javascript: ou data:) */}
+        {providers.link?.startsWith("https://") && (
           <a
             href={providers.link}
             target="_blank"

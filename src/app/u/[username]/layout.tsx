@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { OPEN_GRAPH_BASE, SITE_NAME } from "@/lib/brand";
-import { API_BASE_URL } from "@/lib/config";
+import { apiAssetUrl } from "@/lib/config";
 import { describe, fetchForMetadata } from "@/lib/seo";
 import type { UserProfile } from "@/lib/types/user";
 
@@ -20,8 +20,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const counts = `${user.filmsCount} ${user.filmsCount === 1 ? "filme" : "filmes"}, ${user.reviewsCount} ${user.reviewsCount === 1 ? "review" : "reviews"}`;
   const description = describe(user.bio) ?? `O diário de cinema de ${user.name} no Nitrate: ${counts}.`;
   const path = `/u/${user.username}`;
-  // a foto vem da API (caminho relativo); sem foto, a imagem padrão do site
-  const image = user.avatar ? `${API_BASE_URL}${user.avatar}` : "/opengraph-image";
+  // a foto vem da API (caminho relativo); sem foto (ou com um caminho que não é da API), a imagem padrão do site
+  const image = apiAssetUrl(user.avatar) ?? "/opengraph-image";
 
   return {
     title: { absolute: `${title} · ${SITE_NAME}`, template: `%s · ${SITE_NAME}` },

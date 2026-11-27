@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { clearToken } from "./auth-storage";
 import { clearAllReviewDrafts } from "./review-draft";
 import { useAuthToken } from "./hooks/use-auth-token";
+import { logout } from "./services/auth-service";
 import { getMe } from "./services/user-service";
 import type { UserProfile } from "./types/user";
 
@@ -60,6 +61,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     ...state,
     refreshUser: () => setVersion((v) => v + 1),
     signOut: () => {
+      // o pedido sai com o token antes de ele ser apagado; se falhar (sem rede), sai do mesmo jeito
+      logout().catch(() => {});
       clearAllReviewDrafts();
       clearToken();
     },
