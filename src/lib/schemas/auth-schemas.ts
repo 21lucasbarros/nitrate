@@ -9,6 +9,7 @@ export const usernameSchema = z
 export const loginSchema = z.object({
   login: z.string().min(1, "Informe seu e-mail ou usuário"),
   password: z.string().min(1, "Informe sua senha"),
+  rememberMe: z.boolean(),
 });
 
 export const registerSchema = z

@@ -74,6 +74,7 @@ export default function SignInPage() {
 
   const loginForm = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
+    defaultValues: { rememberMe: false },
   });
 
   const registerForm = useForm<RegisterFormData>({
@@ -247,6 +248,7 @@ export default function SignInPage() {
                   <label className="flex items-center gap-2 cursor-pointer group">
                     <input
                       type="checkbox"
+                      {...loginForm.register("rememberMe")}
                       className="w-4 h-4 rounded border-brand-slate/30 text-brand-blue focus:ring-brand-blue focus:ring-offset-background transition-all bg-transparent checked:bg-brand-blue"
                     />
                     <span className="text-sm font-light text-brand-slate/80 group-hover:text-foreground transition-colors">

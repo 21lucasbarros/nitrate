@@ -31,7 +31,7 @@ export function subscribeToToken(callback: () => void): () => void {
   };
 }
 
-// o backend emite JWT com validade de 24h; lemos o `exp` para não usar um token vencido
+// o backend emite JWT com validade de 24h (30 dias com "Lembrar de mim"); lemos o `exp` para não usar um token vencido
 function isTokenExpired(token: string): boolean {
   try {
     const payload = token.split(".")[1];

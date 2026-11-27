@@ -10,6 +10,7 @@ export interface RegisterRequest {
 export interface LoginRequest {
   login: string; // e-mail ou username
   password: string;
+  rememberMe?: boolean; // "Lembrar de mim": token de 30 dias em vez de 24h
 }
 
 export interface AuthResponse {
